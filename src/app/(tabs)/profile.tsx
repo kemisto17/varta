@@ -1,10 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-export default function Index() {
+import { colors } from '../../constants/theme';
+
+export default function ProfileScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Campus</Text>
-      <Text style={styles.subtitle}>Your college. Your community.</Text>
+      <Text style={styles.title}>Profile</Text>
     </View>
   );
 }
@@ -14,15 +15,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.background,
   },
 
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
-  },
-
-  subtitle: {
-    marginTop: 8,
-    fontSize: 16,
+    color: colors.textPrimary,
   },
 });
