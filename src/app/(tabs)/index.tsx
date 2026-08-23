@@ -1,5 +1,10 @@
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
+  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -7,64 +12,227 @@ import {
 } from 'react-native';
 
 import { PostCard } from '../../components/PostCard';
-import { mockPosts } from '../../constants/mockPosts';
-import { colors, spacing } from '../../constants/theme';
+import { colors, radius, spacing } from '../../constants/theme';
+import { useAuth } from '../../hooks/useAuth';
+import { useFeed } from '../../hooks/useFeed';
+import { useProfile } from '../../hooks/useProfile';
+import { deletePost, getPostErrorMessage } from '../../lib/posts';
+import { getInitials } from '../../lib/text';
+import type { FeedPost } from '../../types/post';
 
 export default function HomeScreen() {
+  const router = useRouter();
+  const { session } = useAuth();
+  const { profile } = useProfile();
+  const {
+    errorMessage,
+    hasMore,
+    isLoadingMore,
+    isRefreshing,
+    loadMore,
+    posts,
+    refreshFeed,
+    removePost,
+    status,
+  } = useFeed();
+  const [deletingPostIds, setDeletingPostIds] = useState<Set<string>>(
+    () => new Set()
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshFeed();
+    }, [refreshFeed])
+  );
+
+  const handleDeletePost = useCallback(
+    async (post: FeedPost) => {
+      const userId = session?.user.id;
+
+      if (!userId || deletingPostIds.has(post.id)) {
+        return;
+      }
+
+      setDeletingPostIds((current) => new Set(current).add(post.id));
+
+      try {
+        const result = await deletePost(post, userId);
+        removePost(post.id);
+
+        if (result.mediaCleanupFailed) {
+          Alert.alert(
+            'Post deleted',
+            'The post is gone, but its photo could not be cleaned up automatically.'
+          );
+        }
+      } catch (error) {
+        Alert.alert('Could not delete post', getPostErrorMessage(error));
+      } finally {
+        setDeletingPostIds((current) => {
+          const next = new Set(current);
+          next.delete(post.id);
+          return next;
+        });
+      }
+    },
+    [deletingPostIds, removePost, session?.user.id]
+  );
+
+  const isInitialLoading = status === 'idle' || status === 'loading';
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
-        data={mockPosts}
-        keyExtractor={(post) => post.id}
-        renderItem={({ item }) => <PostCard post={item} />}
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
+        data={posts}
+        keyExtractor={(post) => post.id}
+        ListEmptyComponent={
+          isInitialLoading ? (
+            <FeedSkeleton />
+          ) : status === 'error' ? (
+            <FeedState
+              actionLabel="Try again"
+              message={errorMessage ?? 'The campus feed is unavailable right now.'}
+              onAction={() => void refreshFeed()}
+              title="Could not load posts"
+            />
+          ) : (
+            <FeedState
+              actionLabel="Create the first post"
+              message="Start a useful conversation with students across your university."
+              onAction={() => router.navigate('/(tabs)/create')}
+              title="Your campus feed is quiet"
+            />
+          )
+        }
+        ListFooterComponent={
+          isLoadingMore ? (
+            <ActivityIndicator
+              color={colors.textSecondary}
+              style={styles.footerLoader}
+            />
+          ) : posts.length > 0 && !hasMore ? (
+            <View style={styles.footerSpace} />
+          ) : null
+        }
         ListHeaderComponent={
           <>
             <View style={styles.header}>
-              <View>
-                <Text style={styles.brand}>Campus</Text>
-                <Text style={styles.greeting}>Good evening.</Text>
+              <View style={styles.headerCopy}>
+                <Text style={styles.brand}>VĀRTĀ</Text>
+                <Text style={styles.greeting}>{getGreeting()}</Text>
               </View>
 
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>P</Text>
+                <Text style={styles.avatarText}>
+                  {getInitials(profile?.full_name ?? 'Student')}
+                </Text>
               </View>
             </View>
 
             <View style={styles.intro}>
               <Text style={styles.heading}>What's happening?</Text>
-
               <Text style={styles.subheading}>
                 Discussions, updates and everything happening around campus.
               </Text>
             </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>CAMPUS NOW</Text>
-
-              <View style={styles.highlight}>
-                <Text style={styles.highlightMeta}>TRENDING</Text>
-
-                <Text style={styles.highlightTitle}>
-                  Placement drive registrations close tomorrow
-                </Text>
-
-                <Text style={styles.highlightFooter}>
-                  142 students discussing
-                </Text>
-              </View>
-            </View>
-
             <View style={styles.feedHeader}>
-              <Text style={styles.sectionTitle}>Latest</Text>
-              <Text style={styles.sectionAction}>See all</Text>
+              <Text style={styles.sectionEyebrow}>YOUR UNIVERSITY</Text>
+              <Text style={styles.sectionTitle}>Campus feed</Text>
             </View>
+
+            {errorMessage && posts.length > 0 ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void refreshFeed()}
+                style={({ pressed }) => [
+                  styles.inlineError,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.inlineErrorText}>{errorMessage}</Text>
+                <Text style={styles.inlineErrorAction}>Retry</Text>
+              </Pressable>
+            ) : null}
           </>
         }
+        onEndReached={() => void loadMore()}
+        onEndReachedThreshold={0.35}
+        onRefresh={() => void refreshFeed()}
+        refreshing={isRefreshing}
+        renderItem={({ item }) => (
+          <PostCard
+            currentUserId={session?.user.id ?? null}
+            isDeleting={deletingPostIds.has(item.id)}
+            onDelete={handleDeletePost}
+            post={item}
+          />
+        )}
+        showsVerticalScrollIndicator={false}
       />
     </SafeAreaView>
   );
+}
+
+type FeedStateProps = {
+  actionLabel: string;
+  message: string;
+  onAction: () => void;
+  title: string;
+};
+
+function FeedState({ actionLabel, message, onAction, title }: FeedStateProps) {
+  return (
+    <View style={styles.stateCard}>
+      <Text style={styles.stateTitle}>{title}</Text>
+      <Text style={styles.stateMessage}>{message}</Text>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onAction}
+        style={({ pressed }) => [
+          styles.stateButton,
+          pressed && styles.pressed,
+        ]}
+      >
+        <Text style={styles.stateButtonText}>{actionLabel}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function FeedSkeleton() {
+  return (
+    <View accessibilityLabel="Loading campus posts" style={styles.skeletonList}>
+      {[0, 1, 2].map((item) => (
+        <View key={item} style={styles.skeletonCard}>
+          <View style={styles.skeletonHeader}>
+            <View style={[styles.skeletonBlock, styles.skeletonAvatar]} />
+            <View style={styles.skeletonIdentity}>
+              <View style={[styles.skeletonBlock, styles.skeletonName]} />
+              <View style={[styles.skeletonBlock, styles.skeletonMeta]} />
+            </View>
+          </View>
+          <View style={[styles.skeletonBlock, styles.skeletonLine]} />
+          <View style={[styles.skeletonBlock, styles.skeletonShortLine]} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function getGreeting() {
+  const hour = new Date().getHours();
+
+  if (hour < 12) {
+    return 'Good morning.';
+  }
+
+  if (hour < 17) {
+    return 'Good afternoon.';
+  }
+
+  return 'Good evening.';
 }
 
 const styles = StyleSheet.create({
@@ -85,14 +253,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  headerCopy: {
+    flex: 1,
+  },
+
   brand: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 2.2,
     color: colors.textSecondary,
   },
 
   greeting: {
-    marginTop: 2,
+    marginTop: 3,
     fontSize: 28,
     fontWeight: '700',
     color: colors.textPrimary,
@@ -109,8 +282,8 @@ const styles = StyleSheet.create({
 
   avatarText: {
     color: colors.white,
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
   },
 
   intro: {
@@ -132,64 +305,152 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 
-  section: {
-    marginTop: spacing.xxl,
-  },
-
-  sectionLabel: {
-    marginBottom: spacing.md,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.4,
-    color: colors.textMuted,
-  },
-
-  highlight: {
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: spacing.lg,
-  },
-
-  highlightMeta: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: colors.textSecondary,
-  },
-
-  highlightTitle: {
-    marginTop: spacing.sm,
-    maxWidth: 320,
-    fontSize: 22,
-    lineHeight: 29,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-
-  highlightFooter: {
-    marginTop: spacing.md,
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-
   feedHeader: {
     marginTop: spacing.xxl,
     marginBottom: spacing.sm,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  },
+
+  sectionEyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.25,
+    color: colors.textMuted,
   },
 
   sectionTitle: {
-    fontSize: 20,
+    marginTop: spacing.xs,
+    fontSize: 21,
     fontWeight: '700',
     color: colors.textPrimary,
   },
 
-  sectionAction: {
-    fontSize: 13,
-    fontWeight: '500',
+  inlineError: {
+    marginBottom: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F5ECEA',
+  },
+
+  inlineErrorText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.danger,
+  },
+
+  inlineErrorAction: {
+    marginLeft: spacing.md,
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.danger,
+  },
+
+  stateCard: {
+    minHeight: 220,
+    paddingVertical: spacing.xxl,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+
+  stateTitle: {
+    fontSize: 19,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+
+  stateMessage: {
+    maxWidth: 300,
+    marginTop: spacing.sm,
+    fontSize: 14,
+    lineHeight: 21,
     color: colors.textSecondary,
+  },
+
+  stateButton: {
+    minHeight: 44,
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.textPrimary,
+  },
+
+  stateButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.white,
+  },
+
+  skeletonList: {
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+
+  skeletonCard: {
+    paddingVertical: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+
+  skeletonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  skeletonBlock: {
+    borderRadius: radius.sm,
+    backgroundColor: colors.border,
+  },
+
+  skeletonAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+  },
+
+  skeletonIdentity: {
+    marginLeft: spacing.md,
+    gap: spacing.sm,
+  },
+
+  skeletonName: {
+    width: 132,
+    height: 11,
+  },
+
+  skeletonMeta: {
+    width: 190,
+    height: 9,
+  },
+
+  skeletonLine: {
+    width: '92%',
+    height: 12,
+    marginTop: spacing.lg,
+  },
+
+  skeletonShortLine: {
+    width: '64%',
+    height: 12,
+    marginTop: spacing.sm,
+  },
+
+  footerLoader: {
+    marginVertical: spacing.lg,
+  },
+
+  footerSpace: {
+    height: spacing.lg,
+  },
+
+  pressed: {
+    opacity: 0.62,
   },
 });

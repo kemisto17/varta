@@ -1,150 +1,161 @@
+import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
 import {
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
-import { colors, spacing } from '../constants/theme';
-import { Post } from '../types/post';
+import { colors, radius, spacing } from '../constants/theme';
+import { getInitials } from '../lib/text';
+import { formatRelativeTimestamp } from '../lib/time';
+import type { FeedPost } from '../types/post';
 
 type PostCardProps = {
-  post: Post;
+  currentUserId: string | null;
+  isDeleting?: boolean;
+  onDelete?: (post: FeedPost) => void;
+  post: FeedPost;
 };
 
-export function PostCard({ post }: PostCardProps) {
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(post.likeCount);
+export function PostCard({
+  currentUserId,
+  isDeleting = false,
+  onDelete,
+  post,
+}: PostCardProps) {
+  const canDelete = post.authorId === currentUserId && onDelete !== undefined;
 
-  const handleLike = () => {
-    setLiked((currentLiked) => {
-      setLikeCount((currentCount) =>
-        currentLiked ? currentCount - 1 : currentCount + 1
-      );
+  const confirmDelete = () => {
+    if (!canDelete || isDeleting) {
+      return;
+    }
 
-      return !currentLiked;
-    });
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((word) => word[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase();
+    Alert.alert(
+      'Delete this post?',
+      'This removes the post and its photo from the campus feed.',
+      [
+        { style: 'cancel', text: 'Cancel' },
+        {
+          onPress: () => onDelete(post),
+          style: 'destructive',
+          text: 'Delete',
+        },
+      ]
+    );
   };
 
   return (
     <View style={styles.container}>
-      {/* Post header */}
       <View style={styles.header}>
         <View style={styles.userInfo}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {getInitials(post.author.name)}
+              {getInitials(post.author.fullName)}
             </Text>
           </View>
 
           <View style={styles.author}>
-            <Text style={styles.name}>
-              {post.author.name}
+            <Text numberOfLines={1} style={styles.name}>
+              {post.author.fullName}
             </Text>
-
-            <Text style={styles.meta}>
-              {post.author.branch}
-              {' · '}
-              {post.author.year} Year
-              {' · '}
-              {post.createdAt}
+            <Text numberOfLines={1} style={styles.identityMeta}>
+              @{post.author.username} · {post.author.institute.shortName}
+            </Text>
+            <Text numberOfLines={1} style={styles.meta}>
+              {post.author.branch} · {formatYear(post.author.year)} ·{' '}
+              {formatRelativeTimestamp(post.createdAt)}
             </Text>
           </View>
         </View>
 
-        <Pressable
-          hitSlop={12}
-          style={({ pressed }) => [
-            styles.moreButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <SymbolView
-            name={{
-              ios: 'ellipsis',
-              android: 'more_horiz',
-              web: 'more_horiz',
-            }}
-            size={20}
-            tintColor={colors.textSecondary}
-          />
-        </Pressable>
-      </View>
-
-      {/* Post content */}
-      <Text style={styles.content}>
-        {post.content}
-      </Text>
-
-      {/* Post actions */}
-      <View style={styles.actions}>
-        <Pressable
-          onPress={handleLike}
-          hitSlop={10}
-          style={({ pressed }) => [
-            styles.actionButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <SymbolView
-            name={{
-              ios: liked ? 'heart.fill' : 'heart',
-              android: liked ? 'favorite' : 'favorite_border',
-              web: liked ? 'favorite' : 'favorite_border',
-            }}
-            size={21}
-            tintColor={
-              liked
-                ? colors.textPrimary
-                : colors.textSecondary
-            }
-          />
-
-          <Text
-            style={[
-              styles.actionText,
-              liked && styles.activeActionText,
+        {canDelete ? (
+          <Pressable
+            accessibilityLabel="Post options"
+            accessibilityRole="button"
+            disabled={isDeleting}
+            hitSlop={12}
+            onPress={confirmDelete}
+            style={({ pressed }) => [
+              styles.moreButton,
+              pressed && styles.pressed,
             ]}
           >
-            {likeCount}
-          </Text>
-        </Pressable>
+            {isDeleting ? (
+              <ActivityIndicator color={colors.textSecondary} size="small" />
+            ) : (
+              <SymbolView
+                name={{
+                  android: 'more_horiz',
+                  ios: 'ellipsis',
+                  web: 'more_horiz',
+                }}
+                size={20}
+                tintColor={colors.textSecondary}
+              />
+            )}
+          </Pressable>
+        ) : null}
+      </View>
 
-        <Pressable
-          hitSlop={10}
-          style={({ pressed }) => [
-            styles.actionButton,
-            pressed && styles.pressed,
-          ]}
+      {post.content ? <Text style={styles.content}>{post.content}</Text> : null}
+
+      {post.imageUrl ? (
+        <View style={styles.imageFrame}>
+          <Image
+            accessibilityLabel={`Photo posted by ${post.author.fullName}`}
+            contentFit="cover"
+            source={{ uri: post.imageUrl }}
+            style={styles.image}
+            transition={180}
+          />
+        </View>
+      ) : null}
+
+      <View style={styles.actions}>
+        <View
+          accessibilityLabel={`${post.likeCount} likes`}
+          style={styles.action}
         >
           <SymbolView
             name={{
-              ios: 'bubble.left',
-              android: 'chat_bubble_outline',
-              web: 'chat_bubble_outline',
+              android: 'favorite_border',
+              ios: 'heart',
+              web: 'favorite_border',
             }}
             size={20}
             tintColor={colors.textSecondary}
           />
+          <Text style={styles.actionText}>{post.likeCount}</Text>
+        </View>
 
-          <Text style={styles.actionText}>
-            {post.commentCount}
-          </Text>
-        </Pressable>
+        <View
+          accessibilityLabel={`${post.commentCount} comments`}
+          style={styles.action}
+        >
+          <SymbolView
+            name={{
+              android: 'chat_bubble_outline',
+              ios: 'bubble.left',
+              web: 'chat_bubble_outline',
+            }}
+            size={19}
+            tintColor={colors.textSecondary}
+          />
+          <Text style={styles.actionText}>{post.commentCount}</Text>
+        </View>
       </View>
     </View>
   );
+}
+
+function formatYear(year: number) {
+  const suffix = year === 1 ? 'st' : year === 2 ? 'nd' : year === 3 ? 'rd' : 'th';
+
+  return `${year}${suffix} year`;
 }
 
 const styles = StyleSheet.create({
@@ -156,20 +167,20 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
 
   userInfo: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
 
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: colors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -189,19 +200,26 @@ const styles = StyleSheet.create({
 
   name: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.textPrimary,
   },
 
-  meta: {
-    marginTop: 3,
+  identityMeta: {
+    marginTop: 2,
     fontSize: 12,
     color: colors.textSecondary,
+  },
+
+  meta: {
+    marginTop: 2,
+    fontSize: 11,
+    color: colors.textMuted,
   },
 
   moreButton: {
     width: 36,
     height: 36,
+    marginLeft: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -213,6 +231,20 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
 
+  imageFrame: {
+    width: '100%',
+    marginTop: spacing.md,
+    aspectRatio: 4 / 3,
+    overflow: 'hidden',
+    borderRadius: radius.lg,
+    backgroundColor: colors.borderSubtle,
+  },
+
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+
   actions: {
     marginTop: spacing.md,
     flexDirection: 'row',
@@ -220,8 +252,8 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
 
-  actionButton: {
-    minHeight: 36,
+  action: {
+    minHeight: 34,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -231,10 +263,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: colors.textSecondary,
-  },
-
-  activeActionText: {
-    color: colors.textPrimary,
   },
 
   pressed: {
