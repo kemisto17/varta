@@ -4,6 +4,11 @@ import type { FeedPost } from '../types/post';
 
 export type FeedStatus = 'idle' | 'loading' | 'ready' | 'error';
 
+export type PostLikeState = Pick<
+  FeedPost,
+  'isLikedByCurrentUser' | 'likeCount'
+>;
+
 export type FeedContextValue = {
   errorMessage: string | null;
   hasMore: boolean;
@@ -14,6 +19,7 @@ export type FeedContextValue = {
   refreshFeed: () => Promise<void>;
   removePost: (postId: string) => void;
   status: FeedStatus;
+  updatePostLike: (postId: string, state: PostLikeState) => void;
 };
 
 export const FeedContext = createContext<FeedContextValue | undefined>(

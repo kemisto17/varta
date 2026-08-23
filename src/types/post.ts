@@ -1,6 +1,7 @@
 import type { Tables } from './database';
 
 type InstituteRow = Tables<'institutes'>;
+type CommentRow = Tables<'comments'>;
 type PostRow = Tables<'posts'>;
 type ProfileRow = Tables<'profiles'>;
 
@@ -27,7 +28,17 @@ export type FeedPost = {
   id: PostRow['id'];
   imagePath: PostRow['image_path'];
   imageUrl: string | null;
+  isLikedByCurrentUser: boolean;
   likeCount: number;
 };
 
 export type FeedCursor = Pick<FeedPost, 'createdAt' | 'id'>;
+
+export type PostComment = {
+  author: Pick<FeedPostAuthor, 'branch' | 'fullName' | 'id' | 'year'>;
+  authorId: CommentRow['author_id'];
+  content: CommentRow['content'];
+  createdAt: CommentRow['created_at'];
+  id: CommentRow['id'];
+  postId: CommentRow['post_id'];
+};

@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,10 @@ import { useAuth } from '../../hooks/useAuth';
 import { useFeed } from '../../hooks/useFeed';
 import { useProfile } from '../../hooks/useProfile';
 import { deletePost, getPostErrorMessage } from '../../lib/posts';
+import {
+  getInteractionErrorMessage,
+  setPostLike,
+} from '../../lib/postInteractions';
 import { getInitials } from '../../lib/text';
 import type { FeedPost } from '../../types/post';
 
@@ -34,8 +38,14 @@ export default function HomeScreen() {
     refreshFeed,
     removePost,
     status,
+    updatePostLike,
   } = useFeed();
+  const likeRequestsRef = useRef(new Set<string>());
   const [deletingPostIds, setDeletingPostIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [interactionError, setInteractionError] = useState<string | null>(null);
+  const [likePendingIds, setLikePendingIds] = useState<Set<string>>(
     () => new Set()
   );
 
@@ -76,6 +86,60 @@ export default function HomeScreen() {
       }
     },
     [deletingPostIds, removePost, session?.user.id]
+  );
+
+  const handleToggleLike = useCallback(
+    async (post: FeedPost) => {
+      const userId = session?.user.id;
+
+      if (!userId || likeRequestsRef.current.has(post.id)) {
+        return;
+      }
+
+      const nextIsLiked = !post.isLikedByCurrentUser;
+      const nextLikeCount = Math.max(
+        0,
+        post.likeCount + (nextIsLiked ? 1 : -1)
+      );
+
+      likeRequestsRef.current.add(post.id);
+      setLikePendingIds((current) => new Set(current).add(post.id));
+      setInteractionError(null);
+      updatePostLike(post.id, {
+        isLikedByCurrentUser: nextIsLiked,
+        likeCount: nextLikeCount,
+      });
+
+      try {
+        await setPostLike({
+          isLiked: nextIsLiked,
+          postId: post.id,
+          userId,
+        });
+      } catch (error) {
+        console.warn('[feed] Could not update post like.', error);
+        updatePostLike(post.id, {
+          isLikedByCurrentUser: post.isLikedByCurrentUser,
+          likeCount: post.likeCount,
+        });
+        setInteractionError(getInteractionErrorMessage(error));
+      } finally {
+        likeRequestsRef.current.delete(post.id);
+        setLikePendingIds((current) => {
+          const next = new Set(current);
+          next.delete(post.id);
+          return next;
+        });
+      }
+    },
+    [session?.user.id, updatePostLike]
+  );
+
+  const openPost = useCallback(
+    (post: FeedPost) => {
+      router.push({ pathname: '/post/[id]', params: { id: post.id } });
+    },
+    [router]
   );
 
   const isInitialLoading = status === 'idle' || status === 'loading';
@@ -155,6 +219,20 @@ export default function HomeScreen() {
                 <Text style={styles.inlineErrorAction}>Retry</Text>
               </Pressable>
             ) : null}
+
+            {interactionError ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setInteractionError(null)}
+                style={({ pressed }) => [
+                  styles.inlineError,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.inlineErrorText}>{interactionError}</Text>
+                <Text style={styles.inlineErrorAction}>Dismiss</Text>
+              </Pressable>
+            ) : null}
           </>
         }
         onEndReached={() => void loadMore()}
@@ -165,7 +243,11 @@ export default function HomeScreen() {
           <PostCard
             currentUserId={session?.user.id ?? null}
             isDeleting={deletingPostIds.has(item.id)}
+            isLikePending={likePendingIds.has(item.id)}
+            onCommentPress={openPost}
             onDelete={handleDeletePost}
+            onOpenPost={openPost}
+            onToggleLike={handleToggleLike}
             post={item}
           />
         )}

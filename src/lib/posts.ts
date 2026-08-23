@@ -1,7 +1,9 @@
+import type { QueryData } from '@supabase/supabase-js';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
 import type { TablesInsert } from '../types/database';
 import type { FeedCursor, FeedPost } from '../types/post';
+import { getLikedPostIds } from './postInteractions';
 import {
   createPrivateImageUrl,
   createPrivateImageUrls,
@@ -39,6 +41,12 @@ const FEED_SELECT = `
   comments(count)
 ` as const;
 
+function selectPosts() {
+  return supabase.from('posts').select(FEED_SELECT);
+}
+
+type PostQueryRow = QueryData<ReturnType<typeof selectPosts>>[number];
+
 type PublishPostInput = {
   asset: ImagePickerAsset | null;
   content: string;
@@ -52,11 +60,10 @@ export type FeedPage = {
 };
 
 export async function getFeedPage(
+  userId: string,
   cursor: FeedCursor | null = null
 ): Promise<FeedPage> {
-  let query = supabase
-    .from('posts')
-    .select(FEED_SELECT)
+  let query = selectPosts()
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
     .limit(POSTS_PAGE_SIZE + 1);
@@ -81,37 +88,17 @@ export async function getFeedPage(
         .filter((path): path is string => path !== null)
     ),
   ];
-  const signedUrls = await getSignedPostMediaUrls(imagePaths);
-  const posts: FeedPost[] = pageRows.flatMap((row) => {
-    if (!row.author || !row.author.institute) {
-      return [];
-    }
+  const [signedUrls, likedPostIds] = await Promise.all([
+    getSignedPostMediaUrls(imagePaths),
+    getLikedPostIds(
+      pageRows.map((row) => row.id),
+      userId
+    ),
+  ]);
+  const posts = pageRows.flatMap((row) => {
+    const post = mapPostRow(row, signedUrls, likedPostIds);
 
-    return [
-      {
-        author: {
-          avatarPath: row.author.avatar_path,
-          branch: row.author.branch,
-          fullName: row.author.full_name,
-          id: row.author.id,
-          institute: {
-            id: row.author.institute.id,
-            name: row.author.institute.name,
-            shortName: row.author.institute.short_name,
-          },
-          username: row.author.username,
-          year: row.author.year,
-        },
-        authorId: row.author_id,
-        commentCount: row.comments[0]?.count ?? 0,
-        content: row.content,
-        createdAt: row.created_at,
-        id: row.id,
-        imagePath: row.image_path,
-        imageUrl: row.image_path ? (signedUrls.get(row.image_path) ?? null) : null,
-        likeCount: row.post_likes[0]?.count ?? 0,
-      },
-    ];
+    return post ? [post] : [];
   });
   const lastPost = posts.at(-1) ?? null;
 
@@ -122,6 +109,26 @@ export async function getFeedPage(
     hasMore: data.length > POSTS_PAGE_SIZE,
     posts,
   };
+}
+
+export async function getPostById(postId: string, userId: string) {
+  const { data, error } = await selectPosts().eq('id', postId).maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const imagePaths = data.image_path ? [data.image_path] : [];
+  const [signedUrls, likedPostIds] = await Promise.all([
+    getSignedPostMediaUrls(imagePaths),
+    getLikedPostIds([data.id], userId),
+  ]);
+
+  return mapPostRow(data, signedUrls, likedPostIds);
 }
 
 export async function publishPost({
@@ -241,4 +248,39 @@ async function getSignedPostMediaUrls(paths: string[]) {
 
 export function getPostImageUrl(imagePath: string) {
   return createPrivateImageUrl(POST_MEDIA_BUCKET, imagePath, 60 * 60);
+}
+
+function mapPostRow(
+  row: PostQueryRow,
+  signedUrls: Map<string, string>,
+  likedPostIds: Set<string>
+): FeedPost | null {
+  if (!row.author || !row.author.institute) {
+    return null;
+  }
+
+  return {
+    author: {
+      avatarPath: row.author.avatar_path,
+      branch: row.author.branch,
+      fullName: row.author.full_name,
+      id: row.author.id,
+      institute: {
+        id: row.author.institute.id,
+        name: row.author.institute.name,
+        shortName: row.author.institute.short_name,
+      },
+      username: row.author.username,
+      year: row.author.year,
+    },
+    authorId: row.author_id,
+    commentCount: row.comments[0]?.count ?? 0,
+    content: row.content,
+    createdAt: row.created_at,
+    id: row.id,
+    imagePath: row.image_path,
+    imageUrl: row.image_path ? (signedUrls.get(row.image_path) ?? null) : null,
+    isLikedByCurrentUser: likedPostIds.has(row.id),
+    likeCount: row.post_likes[0]?.count ?? 0,
+  };
 }

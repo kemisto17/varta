@@ -3,10 +3,13 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 
 import type { FeedStatus } from '../contexts/FeedContext';
 import { FeedContext } from '../contexts/FeedContext';
+import { useAuth } from '../hooks/useAuth';
 import { getFeedPage } from '../lib/posts';
 import type { FeedCursor, FeedPost } from '../types/post';
 
 export function FeedProvider({ children }: PropsWithChildren) {
+  const { session } = useAuth();
+  const userId = session?.user.id ?? null;
   const requestId = useRef(0);
   const postsRef = useRef<FeedPost[]>([]);
   const cursorRef = useRef<FeedCursor | null>(null);
@@ -21,6 +24,10 @@ export function FeedProvider({ children }: PropsWithChildren) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const refreshFeed = useCallback(async () => {
+    if (!userId) {
+      return;
+    }
+
     const activeRequestId = requestId.current + 1;
     requestId.current = activeRequestId;
     const hasExistingPosts = postsRef.current.length > 0;
@@ -34,7 +41,7 @@ export function FeedProvider({ children }: PropsWithChildren) {
     setErrorMessage(null);
 
     try {
-      const page = await getFeedPage();
+      const page = await getFeedPage(userId);
 
       if (requestId.current !== activeRequestId) {
         return;
@@ -63,10 +70,11 @@ export function FeedProvider({ children }: PropsWithChildren) {
         setIsRefreshing(false);
       }
     }
-  }, []);
+  }, [userId]);
 
   const loadMore = useCallback(async () => {
     if (
+      !userId ||
       loadingMoreRef.current ||
       !hasMoreRef.current ||
       !cursorRef.current ||
@@ -80,7 +88,7 @@ export function FeedProvider({ children }: PropsWithChildren) {
     const activeRequestId = requestId.current;
 
     try {
-      const page = await getFeedPage(cursorRef.current);
+      const page = await getFeedPage(userId, cursorRef.current);
 
       if (requestId.current !== activeRequestId) {
         return;
@@ -105,7 +113,7 @@ export function FeedProvider({ children }: PropsWithChildren) {
       loadingMoreRef.current = false;
       setIsLoadingMore(false);
     }
-  }, []);
+  }, [userId]);
 
   const removePost = useCallback((postId: string) => {
     removedPostIdsRef.current.add(postId);
@@ -114,6 +122,21 @@ export function FeedProvider({ children }: PropsWithChildren) {
     postsRef.current = nextPosts;
     setPosts(nextPosts);
   }, []);
+
+  const updatePostLike = useCallback(
+    (
+      postId: string,
+      state: Pick<FeedPost, 'isLikedByCurrentUser' | 'likeCount'>
+    ) => {
+      const nextPosts = postsRef.current.map((post) =>
+        post.id === postId ? { ...post, ...state } : post
+      );
+
+      postsRef.current = nextPosts;
+      setPosts(nextPosts);
+    },
+    []
+  );
 
   const value = useMemo(
     () => ({
@@ -126,6 +149,7 @@ export function FeedProvider({ children }: PropsWithChildren) {
       refreshFeed,
       removePost,
       status,
+      updatePostLike,
     }),
     [
       errorMessage,
@@ -137,6 +161,7 @@ export function FeedProvider({ children }: PropsWithChildren) {
       refreshFeed,
       removePost,
       status,
+      updatePostLike,
     ]
   );
 

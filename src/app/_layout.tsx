@@ -127,6 +127,7 @@ function AppNavigator() {
 
         <Stack.Protected guard={canAccessTabs}>
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="post/[id]" />
         </Stack.Protected>
       </Stack>
     </>

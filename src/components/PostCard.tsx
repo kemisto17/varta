@@ -18,14 +18,22 @@ import type { FeedPost } from '../types/post';
 type PostCardProps = {
   currentUserId: string | null;
   isDeleting?: boolean;
+  isLikePending?: boolean;
+  onCommentPress?: (post: FeedPost) => void;
   onDelete?: (post: FeedPost) => void;
+  onOpenPost?: (post: FeedPost) => void;
+  onToggleLike?: (post: FeedPost) => void;
   post: FeedPost;
 };
 
 export function PostCard({
   currentUserId,
   isDeleting = false,
+  isLikePending = false,
+  onCommentPress,
   onDelete,
+  onOpenPost,
+  onToggleLike,
   post,
 }: PostCardProps) {
   const canDelete = post.authorId === currentUserId && onDelete !== undefined;
@@ -107,45 +115,88 @@ export function PostCard({
         ) : null}
       </View>
 
-      {post.content ? <Text style={styles.content}>{post.content}</Text> : null}
+      <Pressable
+        accessibilityRole={onOpenPost ? 'button' : undefined}
+        disabled={!onOpenPost}
+        onPress={() => onOpenPost?.(post)}
+        style={({ pressed }) => pressed && onOpenPost && styles.bodyPressed}
+      >
+        {post.content ? <Text style={styles.content}>{post.content}</Text> : null}
 
-      {post.imageUrl && !imageFailed ? (
-        <View style={styles.imageFrame}>
-          <Image
-            accessibilityLabel={`Photo posted by ${post.author.fullName}`}
-            contentFit="cover"
-            onError={() => setImageFailed(true)}
-            source={{ uri: post.imageUrl }}
-            style={styles.image}
-            transition={180}
-          />
-        </View>
-      ) : post.imageUrl && imageFailed ? (
-        <View style={styles.imageUnavailable}>
-          <Text style={styles.imageUnavailableText}>Photo unavailable</Text>
-        </View>
-      ) : null}
+        {post.imageUrl && !imageFailed ? (
+          <View style={styles.imageFrame}>
+            <Image
+              accessibilityLabel={`Photo posted by ${post.author.fullName}`}
+              contentFit="cover"
+              onError={() => setImageFailed(true)}
+              source={{ uri: post.imageUrl }}
+              style={styles.image}
+              transition={180}
+            />
+          </View>
+        ) : post.imageUrl && imageFailed ? (
+          <View style={styles.imageUnavailable}>
+            <Text style={styles.imageUnavailableText}>Photo unavailable</Text>
+          </View>
+        ) : null}
+      </Pressable>
 
       <View style={styles.actions}>
-        <View
+        <Pressable
           accessibilityLabel={`${post.likeCount} likes`}
-          style={styles.action}
+          accessibilityRole="button"
+          accessibilityState={{
+            busy: isLikePending,
+            checked: post.isLikedByCurrentUser,
+          }}
+          disabled={!onToggleLike || isLikePending}
+          hitSlop={8}
+          onPress={() => onToggleLike?.(post)}
+          style={({ pressed }) => [
+            styles.action,
+            isLikePending && styles.actionPending,
+            pressed && styles.pressed,
+          ]}
         >
           <SymbolView
-            name={{
-              android: 'favorite_border',
-              ios: 'heart',
-              web: 'favorite_border',
-            }}
+            name={
+              post.isLikedByCurrentUser
+                ? {
+                    android: 'favorite',
+                    ios: 'heart.fill',
+                    web: 'favorite',
+                  }
+                : {
+                    android: 'favorite_border',
+                    ios: 'heart',
+                    web: 'favorite_border',
+                  }
+            }
             size={20}
-            tintColor={colors.textSecondary}
+            tintColor={
+              post.isLikedByCurrentUser ? colors.danger : colors.textSecondary
+            }
           />
-          <Text style={styles.actionText}>{post.likeCount}</Text>
-        </View>
+          <Text
+            style={[
+              styles.actionText,
+              post.isLikedByCurrentUser && styles.likedActionText,
+            ]}
+          >
+            {post.likeCount}
+          </Text>
+        </Pressable>
 
-        <View
+        <Pressable
           accessibilityLabel={`${post.commentCount} comments`}
-          style={styles.action}
+          accessibilityRole="button"
+          disabled={!onCommentPress}
+          hitSlop={8}
+          onPress={() => onCommentPress?.(post)}
+          style={({ pressed }) => [
+            styles.action,
+            pressed && styles.pressed,
+          ]}
         >
           <SymbolView
             name={{
@@ -157,7 +208,7 @@ export function PostCard({
             tintColor={colors.textSecondary}
           />
           <Text style={styles.actionText}>{post.commentCount}</Text>
-        </View>
+        </Pressable>
       </View>
     </View>
   );
@@ -289,6 +340,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: colors.textSecondary,
+  },
+
+  likedActionText: {
+    color: colors.danger,
+  },
+
+  actionPending: {
+    opacity: 0.58,
+  },
+
+  bodyPressed: {
+    opacity: 0.72,
   },
 
   pressed: {
