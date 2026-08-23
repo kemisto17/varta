@@ -33,6 +33,14 @@
           "imageWidth": 76
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Vārtā to select your college ID for student verification.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
       "expo-sqlite"
     ],
     "experiments": {

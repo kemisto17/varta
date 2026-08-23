@@ -14,8 +14,6 @@ export function ProfileProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<ProfileStatus>('idle');
   const [profile, setProfile] = useState<Profile | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [shouldShowVerificationPending, setShouldShowVerificationPending] =
-    useState(false);
 
   useEffect(() => {
     const activeRequestId = requestId.current + 1;
@@ -25,13 +23,11 @@ export function ProfileProvider({ children }: PropsWithChildren) {
       setProfile(null);
       setStatus('idle');
       setErrorMessage(null);
-      setShouldShowVerificationPending(false);
       return;
     }
 
     setStatus('loading');
     setErrorMessage(null);
-    setShouldShowVerificationPending(false);
 
     const loadProfile = async () => {
       try {
@@ -68,30 +64,21 @@ export function ProfileProvider({ children }: PropsWithChildren) {
     setProfile(nextProfile);
     setStatus('ready');
     setErrorMessage(null);
-    setShouldShowVerificationPending(true);
-  }, []);
-
-  const continueToApp = useCallback(() => {
-    setShouldShowVerificationPending(false);
   }, []);
 
   const value = useMemo(
     () => ({
-      continueToApp,
       errorMessage,
       markProfileCreated,
       profile,
       refreshProfile,
-      shouldShowVerificationPending,
       status,
     }),
     [
-      continueToApp,
       errorMessage,
       markProfileCreated,
       profile,
       refreshProfile,
-      shouldShowVerificationPending,
       status,
     ]
   );

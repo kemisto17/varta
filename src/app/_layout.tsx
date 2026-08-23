@@ -11,23 +11,33 @@ import {
 import { colors, spacing } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
+import { useVerification } from '../hooks/useVerification';
 import { AuthProvider } from '../providers/AuthProvider';
 import { ProfileProvider } from '../providers/ProfileProvider';
+import { VerificationProvider } from '../providers/VerificationProvider';
 
 function AppNavigator() {
   const { isLoading, session } = useAuth();
   const {
-    errorMessage,
+    errorMessage: profileErrorMessage,
     refreshProfile,
-    shouldShowVerificationPending,
     status: profileStatus,
   } = useProfile();
+  const {
+    errorMessage: verificationErrorMessage,
+    refreshVerification,
+    status: verificationStatus,
+  } = useVerification();
   const isAuthenticated = session !== null;
   const isProfileLoading =
     isAuthenticated &&
     (profileStatus === 'idle' || profileStatus === 'loading');
+  const isVerificationLoading =
+    isAuthenticated &&
+    profileStatus === 'ready' &&
+    (verificationStatus === 'idle' || verificationStatus === 'loading');
 
-  if (isLoading || isProfileLoading) {
+  if (isLoading || isProfileLoading || isVerificationLoading) {
     return (
       <View style={styles.loadingScreen}>
         <Text style={styles.brand}>VĀRTĀ</Text>
@@ -44,7 +54,7 @@ function AppNavigator() {
       <View style={styles.loadingScreen}>
         <Text style={styles.brand}>VĀRTĀ</Text>
         <Text accessibilityRole="alert" style={styles.loadError}>
-          {errorMessage}
+          {profileErrorMessage}
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -60,15 +70,42 @@ function AppNavigator() {
     );
   }
 
-  const needsProfile = isAuthenticated && profileStatus === 'missing';
-  const isVerificationHandoff =
+  if (
     isAuthenticated &&
     profileStatus === 'ready' &&
-    shouldShowVerificationPending;
+    verificationStatus === 'error'
+  ) {
+    return (
+      <View style={styles.loadingScreen}>
+        <Text style={styles.brand}>VĀRTĀ</Text>
+        <Text accessibilityRole="alert" style={styles.loadError}>
+          {verificationErrorMessage}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={refreshVerification}
+          style={({ pressed }) => [
+            styles.retryButton,
+            pressed && styles.retryButtonPressed,
+          ]}
+        >
+          <Text style={styles.retryLabel}>Try again</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const needsProfile = isAuthenticated && profileStatus === 'missing';
+  const needsVerificationFlow =
+    isAuthenticated &&
+    profileStatus === 'ready' &&
+    (verificationStatus === 'missing' ||
+      verificationStatus === 'pending' ||
+      verificationStatus === 'rejected');
   const canAccessTabs =
     isAuthenticated &&
     profileStatus === 'ready' &&
-    !shouldShowVerificationPending;
+    verificationStatus === 'verified';
 
   return (
     <>
@@ -84,10 +121,8 @@ function AppNavigator() {
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
 
-        <Stack.Protected guard={isAuthenticated}>
-          <Stack.Protected guard={needsProfile || isVerificationHandoff}>
-            <Stack.Screen name="(onboarding)" />
-          </Stack.Protected>
+        <Stack.Protected guard={needsProfile || needsVerificationFlow}>
+          <Stack.Screen name="(onboarding)" />
         </Stack.Protected>
 
         <Stack.Protected guard={canAccessTabs}>
@@ -102,7 +137,9 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <ProfileProvider>
-        <AppNavigator />
+        <VerificationProvider>
+          <AppNavigator />
+        </VerificationProvider>
       </ProfileProvider>
     </AuthProvider>
   );

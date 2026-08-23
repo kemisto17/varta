@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -29,7 +28,6 @@ import {
 const USERNAME_PATTERN = /^[a-z0-9._]+$/;
 
 export default function SetupProfileScreen() {
-  const router = useRouter();
   const { session } = useAuth();
   const { markProfileCreated } = useProfile();
   const [fullName, setFullName] = useState('');
@@ -122,7 +120,6 @@ export default function SetupProfileScreen() {
       });
 
       markProfileCreated(createdProfile);
-      router.replace('/(onboarding)/verification-pending');
     } catch (error) {
       setFormError(getProfileCreationErrorMessage(error));
       setIsSubmitting(false);

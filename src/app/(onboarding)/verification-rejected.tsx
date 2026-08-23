@@ -1,22 +1,55 @@
 import { useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
 import { colors, radius, spacing } from '../../constants/theme';
-import { useProfile } from '../../hooks/useProfile';
 import { useVerification } from '../../hooks/useVerification';
 import { supabase } from '../../lib/supabase';
+import {
+  deleteRejectedVerification,
+  getVerificationResetErrorMessage,
+} from '../../lib/verification';
 
-export default function VerificationPendingScreen() {
-  const { profile } = useProfile();
-  const { refreshVerification } = useVerification();
+export default function VerificationRejectedScreen() {
+  const { markVerificationDeleted, verification } = useVerification();
+  const [isResetting, setIsResetting] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSignOut = async () => {
-    setIsSigningOut(true);
+  const handleReset = async () => {
+    if (!verification) {
+      return;
+    }
+
+    setIsResetting(true);
     setErrorMessage(null);
 
+    try {
+      await deleteRejectedVerification(verification);
+      markVerificationDeleted();
+    } catch {
+      setErrorMessage(getVerificationResetErrorMessage());
+      setIsResetting(false);
+    }
+  };
+
+  const confirmReset = () => {
+    Alert.alert(
+      'Replace your submission?',
+      'Your rejected verification and its private document will be removed so you can submit a new one.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Replace',
+          style: 'destructive',
+          onPress: () => void handleReset(),
+        },
+      ]
+    );
+  };
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
     const { error } = await supabase.auth.signOut();
 
     if (error) {
@@ -35,35 +68,24 @@ export default function VerificationPendingScreen() {
 
         <View style={styles.hero}>
           <View style={styles.statusMark}>
-            <View style={styles.statusDot} />
+            <Text style={styles.statusIcon}>!</Text>
           </View>
-
-          <Text style={styles.eyebrow}>SUBMISSION RECEIVED</Text>
-          <Text style={styles.title}>Verification pending.</Text>
+          <Text style={styles.eyebrow}>ACTION NEEDED</Text>
+          <Text style={styles.title}>Let’s try that again.</Text>
           <Text style={styles.subtitle}>
-            We’re checking your student status
-            {profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}.
-            You’ll get access to Vārtā once your account is approved.
+            We couldn’t approve the previous submission. You can remove it and
+            send a clearer or corrected student ID.
           </Text>
         </View>
 
-        <View style={styles.statusCard}>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>CURRENT STATUS</Text>
-            <View style={styles.pendingPill}>
-              <View style={styles.pendingDot} />
-              <Text style={styles.pendingText}>PENDING</Text>
-            </View>
+        {verification?.rejection_reason ? (
+          <View style={styles.reasonCard}>
+            <Text style={styles.reasonLabel}>REVIEW NOTE</Text>
+            <Text style={styles.reasonText}>
+              {verification.rejection_reason}
+            </Text>
           </View>
-
-          <View style={styles.divider} />
-
-          <Text style={styles.statusTitle}>Nothing else needed right now.</Text>
-          <Text style={styles.statusDescription}>
-            Your enrollment number and private ID document are waiting for review.
-            Reopen the app later or check again below.
-          </Text>
-        </View>
+        ) : null}
 
         {errorMessage ? (
           <Text accessibilityRole="alert" style={styles.errorMessage}>
@@ -73,13 +95,14 @@ export default function VerificationPendingScreen() {
 
         <View style={styles.footer}>
           <PrimaryButton
-            label="Check approval status"
-            onPress={refreshVerification}
+            isLoading={isResetting}
+            label="Upload a new student ID"
+            onPress={confirmReset}
           />
 
           <Pressable
             accessibilityRole="button"
-            disabled={isSigningOut}
+            disabled={isSigningOut || isResetting}
             onPress={handleSignOut}
             style={({ pressed }) => [
               styles.signOutButton,
@@ -87,7 +110,7 @@ export default function VerificationPendingScreen() {
             ]}
           >
             <Text style={styles.signOutLabel}>
-              {isSigningOut ? 'Signing out…' : 'Sign out for testing'}
+              {isSigningOut ? 'Signing out…' : 'Sign out'}
             </Text>
           </Pressable>
         </View>
@@ -138,25 +161,23 @@ const styles = StyleSheet.create({
     height: 52,
     marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.danger,
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
   },
 
-  statusDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.textPrimary,
+  statusIcon: {
+    fontSize: 23,
+    fontWeight: '700',
+    color: colors.danger,
   },
 
   eyebrow: {
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.4,
-    color: colors.success,
+    color: colors.danger,
   },
 
   title: {
@@ -177,69 +198,27 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 
-  statusCard: {
+  reasonCard: {
     marginTop: spacing.xl,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: colors.border,
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
   },
 
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  statusLabel: {
+  reasonLabel: {
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1.2,
     color: colors.textMuted,
   },
 
-  pendingPill: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-  },
-
-  pendingDot: {
-    width: 6,
-    height: 6,
-    marginRight: 6,
-    borderRadius: 3,
-    backgroundColor: colors.textPrimary,
-  },
-
-  pendingText: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: colors.textPrimary,
-  },
-
-  divider: {
-    height: 1,
-    marginVertical: spacing.md,
-    backgroundColor: colors.borderSubtle,
-  },
-
-  statusTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-
-  statusDescription: {
+  reasonText: {
     marginTop: spacing.sm,
-    fontSize: 13,
-    lineHeight: 20,
-    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.textPrimary,
   },
 
   errorMessage: {
