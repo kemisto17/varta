@@ -9,6 +9,9 @@ export const colors = {
   border: '#E7E7E5',
   borderSubtle: '#EFEFED',
 
+  danger: '#B42318',
+  success: '#276749',
+
   black: '#111111',
   white: '#FFFFFF',
 };
