@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +29,11 @@ export function PostCard({
   post,
 }: PostCardProps) {
   const canDelete = post.authorId === currentUserId && onDelete !== undefined;
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [post.imageUrl]);
 
   const confirmDelete = () => {
     if (!canDelete || isDeleting) {
@@ -103,15 +109,20 @@ export function PostCard({
 
       {post.content ? <Text style={styles.content}>{post.content}</Text> : null}
 
-      {post.imageUrl ? (
+      {post.imageUrl && !imageFailed ? (
         <View style={styles.imageFrame}>
           <Image
             accessibilityLabel={`Photo posted by ${post.author.fullName}`}
             contentFit="cover"
+            onError={() => setImageFailed(true)}
             source={{ uri: post.imageUrl }}
             style={styles.image}
             transition={180}
           />
+        </View>
+      ) : post.imageUrl && imageFailed ? (
+        <View style={styles.imageUnavailable}>
+          <Text style={styles.imageUnavailableText}>Photo unavailable</Text>
         </View>
       ) : null}
 
@@ -243,6 +254,21 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+  },
+
+  imageUnavailable: {
+    minHeight: 52,
+    marginTop: spacing.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.borderSubtle,
+  },
+
+  imageUnavailableText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textMuted,
   },
 
   actions: {

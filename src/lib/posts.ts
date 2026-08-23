@@ -2,6 +2,13 @@ import type { ImagePickerAsset } from 'expo-image-picker';
 
 import type { TablesInsert } from '../types/database';
 import type { FeedCursor, FeedPost } from '../types/post';
+import {
+  createPrivateImageUrl,
+  createPrivateImageUrls,
+  createStorageObjectId,
+  isImageUploadError,
+  uploadImage,
+} from './storage';
 import { supabase } from './supabase';
 
 export const MAX_POST_CHARACTERS = 500;
@@ -9,7 +16,6 @@ export const MAX_POST_IMAGE_SIZE = 8 * 1024 * 1024;
 export const POST_MEDIA_BUCKET = 'post-media';
 export const POSTS_PAGE_SIZE = 20;
 
-const SIGNED_URL_LIFETIME_SECONDS = 60 * 60;
 const FEED_SELECT = `
   id,
   author_id,
@@ -32,14 +38,6 @@ const FEED_SELECT = `
   post_likes(count),
   comments(count)
 ` as const;
-
-const MIME_TYPE_DETAILS = {
-  'image/heic': { extension: 'heic', mimeType: 'image/heic' },
-  'image/heif': { extension: 'heif', mimeType: 'image/heif' },
-  'image/jpeg': { extension: 'jpg', mimeType: 'image/jpeg' },
-  'image/png': { extension: 'png', mimeType: 'image/png' },
-  'image/webp': { extension: 'webp', mimeType: 'image/webp' },
-} as const;
 
 type PublishPostInput = {
   asset: ImagePickerAsset | null;
@@ -144,25 +142,14 @@ export async function publishPost({
   let imagePath: string | null = null;
 
   if (asset) {
-    const uploadDetails = getUploadDetails(asset);
-    const fileBody = await readImageAsset(asset);
+    const upload = await uploadImage({
+      bucket: POST_MEDIA_BUCKET,
+      maxBytes: MAX_POST_IMAGE_SIZE,
+      pathBase: `${userId}/${createStorageObjectId()}`,
+      source: asset,
+    });
 
-    if (fileBody.byteLength > MAX_POST_IMAGE_SIZE) {
-      throw new Error('Choose an image smaller than 8 MB.');
-    }
-
-    imagePath = `${userId}/${createMediaId()}.${uploadDetails.extension}`;
-    const { error: uploadError } = await supabase.storage
-      .from(POST_MEDIA_BUCKET)
-      .upload(imagePath, fileBody, {
-        cacheControl: '3600',
-        contentType: uploadDetails.mimeType,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      throw uploadError;
-    }
+    imagePath = upload.path;
   }
 
   const post: TablesInsert<'posts'> = {
@@ -223,6 +210,10 @@ export async function deletePost(
 }
 
 export function getPostErrorMessage(error: unknown) {
+  if (isImageUploadError(error)) {
+    return error.message;
+  }
+
   if (error instanceof Error) {
     if (
       error.message.startsWith('Choose an image') ||
@@ -240,72 +231,14 @@ export function getPostErrorMessage(error: unknown) {
 }
 
 async function getSignedPostMediaUrls(paths: string[]) {
-  const urls = new Map<string, string>();
-
-  if (paths.length === 0) {
-    return urls;
-  }
-
-  const { data, error } = await supabase.storage
-    .from(POST_MEDIA_BUCKET)
-    .createSignedUrls(paths, SIGNED_URL_LIFETIME_SECONDS);
-
-  if (error) {
-    console.warn('[feed] Could not sign post media URLs.', error);
-    return urls;
-  }
-
-  data.forEach((item) => {
-    if (!item.error && item.path && item.signedUrl) {
-      urls.set(item.path, item.signedUrl);
-    }
-  });
-
-  return urls;
-}
-
-function createMediaId() {
-  const randomPart = () => Math.random().toString(36).slice(2, 12);
-
-  return `${Date.now().toString(36)}-${randomPart()}-${randomPart()}`;
-}
-
-function getUploadDetails(asset: ImagePickerAsset) {
-  const mimeType = asset.mimeType?.toLowerCase();
-
-  if (mimeType && mimeType in MIME_TYPE_DETAILS) {
-    return MIME_TYPE_DETAILS[mimeType as keyof typeof MIME_TYPE_DETAILS];
-  }
-
-  const fileName = asset.fileName ?? asset.uri;
-  const extension = fileName.split('.').pop()?.toLowerCase().split('?')[0];
-  const matchingMimeType = Object.keys(MIME_TYPE_DETAILS).find(
-    (key) => MIME_TYPE_DETAILS[key as keyof typeof MIME_TYPE_DETAILS].extension === extension
-  ) as keyof typeof MIME_TYPE_DETAILS | undefined;
-
-  if (matchingMimeType) {
-    return MIME_TYPE_DETAILS[matchingMimeType];
-  }
-
-  if (extension === 'jpeg') {
-    return MIME_TYPE_DETAILS['image/jpeg'];
-  }
-
-  throw new Error('Choose a JPG, PNG, WebP, HEIC, or HEIF image.');
-}
-
-async function readImageAsset(asset: ImagePickerAsset) {
   try {
-    const fileBody = asset.file
-      ? await asset.file.arrayBuffer()
-      : await fetch(asset.uri).then((response) => response.arrayBuffer());
-
-    if (fileBody.byteLength === 0) {
-      throw new Error('The selected image is empty.');
-    }
-
-    return fileBody;
-  } catch {
-    throw new Error('The selected image could not be read.');
+    return await createPrivateImageUrls(POST_MEDIA_BUCKET, paths);
+  } catch (error) {
+    console.warn('[feed] Could not sign post media URLs.', error);
+    return new Map<string, string>();
   }
+}
+
+export function getPostImageUrl(imagePath: string) {
+  return createPrivateImageUrl(POST_MEDIA_BUCKET, imagePath, 60 * 60);
 }
