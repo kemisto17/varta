@@ -61,23 +61,9 @@ A unique partial index allows only one historical like notification per
 recipient, actor, and post. Removing a like leaves the notification in history;
 liking the same post again does not create another notification.
 
-## Privileged public-badge assignment
+## Privileged badge assignment
 
 Students have no insert/update/delete grant on `badges` or `profile_badges`.
-An owner can create and assign a public badge through privileged SQL. The
-assignment trigger sends a notification only when `badges.is_public` is true.
-Private labels produce no notification.
-
-```sql
-insert into public.badges (name, description, is_public)
-values ('Coordinator', 'Campus community coordinator', true)
-on conflict (name) do update
-set description = excluded.description,
-    is_public = excluded.is_public;
-
-insert into public.profile_badges (user_id, badge_id)
-select '<student-profile-uuid>', badge.id
-from public.badges as badge
-where badge.name = 'Coordinator'
-on conflict (user_id, badge_id) do nothing;
-```
+Public assignments generate notifications; `owner_only` assignments do not.
+Use the exact lookup, assignment, removal, listing, and acceptance-test SQL in
+[`profile-badges-admin.md`](./profile-badges-admin.md).

@@ -36,6 +36,7 @@ import type { FeedCursor, FeedPost } from '../../types/post';
 import type { UserProfile } from '../../types/profile';
 import { Avatar } from '../Avatar';
 import { PostCard } from '../PostCard';
+import { ProfileBadges } from '../badges/ProfileBadges';
 import { ActionSheet } from '../moderation/ActionSheet';
 import { BlockUserSheet } from '../moderation/BlockUserSheet';
 import { ReportSheet } from '../moderation/ReportSheet';
@@ -576,6 +577,8 @@ function ProfileHeader({
         ) : null}
 
         {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
+
+        <ProfileBadges badges={profile.badges} />
 
         <View style={styles.postCount}>
           <Text style={styles.postCountValue}>{profile.postCount}</Text>

@@ -1,4 +1,5 @@
 import type { Tables } from './database';
+import type { ProfileBadge } from './badge';
 
 type InstituteRow = Tables<'institutes'>;
 type ProfileRow = Tables<'profiles'>;
@@ -6,6 +7,7 @@ type ProfileRow = Tables<'profiles'>;
 export type UserProfile = {
   avatarPath: ProfileRow['avatar_path'];
   avatarUrl: string | null;
+  badges: ProfileBadge[];
   bio: ProfileRow['bio'];
   branch: ProfileRow['branch'];
   fullName: ProfileRow['full_name'];

@@ -12,6 +12,7 @@ import {
   getAvatarUrl,
   uploadUserAvatar,
 } from './avatars';
+import { getProfileBadges } from './badges';
 import { isImageUploadError } from './storage';
 import { supabase } from './supabase';
 
@@ -100,17 +101,12 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     return null;
   }
 
-  let avatarUrl: string | null = null;
+  const [avatarUrl, badges] = await Promise.all([
+    getProfileAvatarUrl(data.avatar_path),
+    getProfileBadges(data.id),
+  ]);
 
-  if (data.avatar_path) {
-    try {
-      avatarUrl = await getAvatarUrl(data.avatar_path);
-    } catch (error) {
-      console.warn('[profile] Could not sign avatar URL.', error);
-    }
-  }
-
-  return mapUserProfile(data, avatarUrl);
+  return mapUserProfile(data, avatarUrl, badges);
 }
 
 export async function getInstitutes() {
@@ -269,7 +265,8 @@ function validateProfileUpdate(input: UpdateStudentProfileInput) {
 
 function mapUserProfile(
   row: UserProfileQueryRow,
-  avatarUrl: string | null
+  avatarUrl: string | null,
+  badges: UserProfile['badges']
 ): UserProfile {
   if (!row.institute) {
     throw new Error('Profile institute is unavailable.');
@@ -278,6 +275,7 @@ function mapUserProfile(
   return {
     avatarPath: row.avatar_path,
     avatarUrl,
+    badges,
     bio: row.bio,
     branch: row.branch,
     fullName: row.full_name,
@@ -292,6 +290,19 @@ function mapUserProfile(
     username: row.username,
     year: row.year,
   };
+}
+
+async function getProfileAvatarUrl(avatarPath: string | null) {
+  if (!avatarPath) {
+    return null;
+  }
+
+  try {
+    return await getAvatarUrl(avatarPath);
+  } catch (error) {
+    console.warn('[profile] Could not sign avatar URL.', error);
+    return null;
+  }
 }
 
 function isDuplicateUsernameError(error: unknown) {

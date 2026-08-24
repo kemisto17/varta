@@ -1,4 +1,5 @@
 import type { Tables } from './database';
+import type { ProfileBadge } from './badge';
 
 type InstituteRow = Tables<'institutes'>;
 type CommentRow = Tables<'comments'>;
@@ -17,6 +18,7 @@ export type FeedPostAuthor = {
     shortName: InstituteRow['short_name'];
   };
   isVerified: boolean;
+  primaryBadge: ProfileBadge | null;
   username: ProfileRow['username'];
   year: ProfileRow['year'];
 };

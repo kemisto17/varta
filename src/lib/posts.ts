@@ -1,9 +1,11 @@
 import type { QueryData } from '@supabase/supabase-js';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
+import type { ProfileBadge } from '../types/badge';
 import type { TablesInsert } from '../types/database';
 import type { FeedCursor, FeedPost } from '../types/post';
 import { getAvatarUrls } from './avatars';
+import { getPublicPrimaryBadges } from './badges';
 import { getLikedPostIds } from './postInteractions';
 import {
   createPrivateImageUrl,
@@ -117,16 +119,26 @@ async function getPostsPage(
         .filter((path): path is string => path !== null)
     ),
   ];
-  const [signedUrls, avatarUrls, likedPostIds] = await Promise.all([
-    getSignedPostMediaUrls(imagePaths),
-    getSignedAvatarUrls(avatarPaths),
-    getLikedPostIds(
-      pageRows.map((row) => row.id),
-      viewerUserId
-    ),
-  ]);
+  const [signedUrls, avatarUrls, likedPostIds, primaryBadges] =
+    await Promise.all([
+      getSignedPostMediaUrls(imagePaths),
+      getSignedAvatarUrls(avatarPaths),
+      getLikedPostIds(
+        pageRows.map((row) => row.id),
+        viewerUserId
+      ),
+      getPublicPrimaryBadges(
+        pageRows.flatMap((row) => (row.author ? [row.author.id] : []))
+      ),
+    ]);
   const posts = pageRows.flatMap((row) => {
-    const post = mapPostRow(row, signedUrls, avatarUrls, likedPostIds);
+    const post = mapPostRow(
+      row,
+      signedUrls,
+      avatarUrls,
+      likedPostIds,
+      primaryBadges
+    );
 
     return post ? [post] : [];
   });
@@ -156,13 +168,21 @@ export async function getPostById(postId: string, userId: string) {
   const avatarPaths = data.author?.avatar_path
     ? [data.author.avatar_path]
     : [];
-  const [signedUrls, avatarUrls, likedPostIds] = await Promise.all([
-    getSignedPostMediaUrls(imagePaths),
-    getSignedAvatarUrls(avatarPaths),
-    getLikedPostIds([data.id], userId),
-  ]);
+  const [signedUrls, avatarUrls, likedPostIds, primaryBadges] =
+    await Promise.all([
+      getSignedPostMediaUrls(imagePaths),
+      getSignedAvatarUrls(avatarPaths),
+      getLikedPostIds([data.id], userId),
+      getPublicPrimaryBadges(data.author ? [data.author.id] : []),
+    ]);
 
-  return mapPostRow(data, signedUrls, avatarUrls, likedPostIds);
+  return mapPostRow(
+    data,
+    signedUrls,
+    avatarUrls,
+    likedPostIds,
+    primaryBadges
+  );
 }
 
 export async function publishPost({
@@ -297,7 +317,8 @@ function mapPostRow(
   row: PostQueryRow,
   signedUrls: Map<string, string>,
   avatarUrls: Map<string, string>,
-  likedPostIds: Set<string>
+  likedPostIds: Set<string>,
+  primaryBadges: Map<string, ProfileBadge>
 ): FeedPost | null {
   if (!row.author || !row.author.institute) {
     return null;
@@ -318,6 +339,7 @@ function mapPostRow(
         shortName: row.author.institute.short_name,
       },
       isVerified: row.author.is_verified,
+      primaryBadge: primaryBadges.get(row.author.id) ?? null,
       username: row.author.username,
       year: row.author.year,
     },

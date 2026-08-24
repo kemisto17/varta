@@ -18,23 +18,32 @@ export type Database = {
         Row: {
           created_at: string
           description: string
+          icon: string
           id: string
-          is_public: boolean
           name: string
+          priority: number
+          slug: string
+          visibility: string
         }
         Insert: {
           created_at?: string
           description?: string
+          icon?: string
           id?: string
-          is_public?: boolean
           name: string
+          priority?: number
+          slug: string
+          visibility?: string
         }
         Update: {
           created_at?: string
           description?: string
+          icon?: string
           id?: string
-          is_public?: boolean
           name?: string
+          priority?: number
+          slug?: string
+          visibility?: string
         }
         Relationships: []
       }
@@ -263,22 +272,22 @@ export type Database = {
       }
       profile_badges: {
         Row: {
+          assigned_at: string
+          assigned_by: string | null
           badge_id: string
-          created_at: string
-          id: string
-          user_id: string
+          profile_id: string
         }
         Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
           badge_id: string
-          created_at?: string
-          id?: string
-          user_id: string
+          profile_id: string
         }
         Update: {
+          assigned_at?: string
+          assigned_by?: string | null
           badge_id?: string
-          created_at?: string
-          id?: string
-          user_id?: string
+          profile_id?: string
         }
         Relationships: [
           {
@@ -289,8 +298,8 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "profile_badges_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "profile_badges_profile_id_fkey"
+            columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

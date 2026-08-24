@@ -14,6 +14,7 @@ import { formatRelativeTimestamp } from '../lib/time';
 import type { FeedPost } from '../types/post';
 import { Avatar } from './Avatar';
 import { FullscreenImageViewer } from './FullscreenImageViewer';
+import { BadgePill } from './badges/BadgePill';
 import { ActionSheet } from './moderation/ActionSheet';
 
 type PostCardProps = {
@@ -78,9 +79,14 @@ export function PostCard({
           />
 
           <View style={styles.author}>
-            <Text numberOfLines={1} style={styles.name}>
-              {post.author.fullName}
-            </Text>
+            <View style={styles.nameRow}>
+              <Text numberOfLines={1} style={styles.name}>
+                {post.author.fullName}
+              </Text>
+              {post.author.primaryBadge ? (
+                <BadgePill badge={post.author.primaryBadge} compact />
+              ) : null}
+            </View>
             <Text numberOfLines={1} style={styles.identityMeta}>
               @{post.author.username} · {post.author.institute.shortName}
             </Text>
@@ -315,9 +321,16 @@ const styles = StyleSheet.create({
   },
 
   name: {
+    flexShrink: 1,
     fontSize: 14,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
 
   identityMeta: {
