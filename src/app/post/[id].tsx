@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 
+import { Avatar } from '../../components/Avatar';
 import { PostCard } from '../../components/PostCard';
 import { colors, radius, spacing } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
@@ -31,7 +32,6 @@ import {
   MAX_COMMENT_CHARACTERS,
   setPostLike,
 } from '../../lib/postInteractions';
-import { getInitials } from '../../lib/text';
 import { formatRelativeTimestamp } from '../../lib/time';
 import type { FeedPost, PostComment } from '../../types/post';
 
@@ -118,6 +118,18 @@ export default function PostDetailScreen() {
 
     router.replace('/');
   }, [router]);
+
+  const openAuthor = useCallback(
+    (authorId: string) => {
+      if (authorId === userId) {
+        router.navigate('/(tabs)/profile');
+        return;
+      }
+
+      router.push({ pathname: '/user/[id]', params: { id: authorId } });
+    },
+    [router, userId]
+  );
 
   const handleToggleLike = useCallback(
     async (currentPost: FeedPost) => {
@@ -352,6 +364,7 @@ export default function PostDetailScreen() {
                   currentUserId={userId}
                   isDeleting={isDeletingPost}
                   isLikePending={isLiking}
+                  onAuthorPress={(currentPost) => openAuthor(currentPost.authorId)}
                   onCommentPress={() => commentInputRef.current?.focus()}
                   onDelete={handleDeletePost}
                   onToggleLike={handleToggleLike}
@@ -377,6 +390,7 @@ export default function PostDetailScreen() {
                 comment={item}
                 currentUserId={userId}
                 isDeleting={deletingCommentIds.has(item.id)}
+                onAuthorPress={openAuthor}
                 onDelete={confirmDeleteComment}
               />
             )}
@@ -429,26 +443,44 @@ function CommentRow({
   comment,
   currentUserId,
   isDeleting,
+  onAuthorPress,
   onDelete,
 }: {
   comment: PostComment;
   currentUserId: string | null;
   isDeleting: boolean;
+  onAuthorPress: (authorId: string) => void;
   onDelete: (comment: PostComment) => void;
 }) {
   const isOwnComment = comment.authorId === currentUserId;
 
   return (
     <View style={styles.commentRow}>
-      <View style={styles.commentAvatar}>
-        <Text style={styles.commentAvatarText}>
-          {getInitials(comment.author.fullName)}
-        </Text>
-      </View>
+      <Pressable
+        accessibilityLabel={`Open ${comment.author.fullName}'s profile`}
+        accessibilityRole="button"
+        onPress={() => onAuthorPress(comment.authorId)}
+        style={({ pressed }) => pressed && styles.pressed}
+      >
+        <Avatar
+          fullName={comment.author.fullName}
+          size={36}
+          uri={comment.author.avatarUrl}
+          verified={comment.author.isVerified}
+        />
+      </Pressable>
 
       <View style={styles.commentBody}>
         <View style={styles.commentHeader}>
-          <View style={styles.commentIdentity}>
+          <Pressable
+            accessibilityLabel={`Open ${comment.author.fullName}'s profile`}
+            accessibilityRole="button"
+            onPress={() => onAuthorPress(comment.authorId)}
+            style={({ pressed }) => [
+              styles.commentIdentity,
+              pressed && styles.pressed,
+            ]}
+          >
             <Text numberOfLines={1} style={styles.commentAuthor}>
               {comment.author.fullName}
             </Text>
@@ -456,7 +488,7 @@ function CommentRow({
               {comment.author.branch} · Year {comment.author.year} ·{' '}
               {formatRelativeTimestamp(comment.createdAt)}
             </Text>
-          </View>
+          </Pressable>
 
           {isOwnComment ? (
             <Pressable
@@ -639,21 +671,6 @@ const styles = StyleSheet.create({
     borderTopColor: colors.borderSubtle,
     flexDirection: 'row',
     alignItems: 'flex-start',
-  },
-
-  commentAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.textPrimary,
-  },
-
-  commentAvatarText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.white,
   },
 
   commentBody: {

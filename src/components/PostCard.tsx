@@ -11,15 +11,16 @@ import {
 } from 'react-native';
 
 import { colors, radius, spacing } from '../constants/theme';
-import { getInitials } from '../lib/text';
 import { formatRelativeTimestamp } from '../lib/time';
 import type { FeedPost } from '../types/post';
+import { Avatar } from './Avatar';
 import { FullscreenImageViewer } from './FullscreenImageViewer';
 
 type PostCardProps = {
   currentUserId: string | null;
   isDeleting?: boolean;
   isLikePending?: boolean;
+  onAuthorPress?: (post: FeedPost) => void;
   onCommentPress?: (post: FeedPost) => void;
   onDelete?: (post: FeedPost) => void;
   onOpenPost?: (post: FeedPost) => void;
@@ -31,6 +32,7 @@ export function PostCard({
   currentUserId,
   isDeleting = false,
   isLikePending = false,
+  onAuthorPress,
   onCommentPress,
   onDelete,
   onOpenPost,
@@ -68,12 +70,21 @@ export function PostCard({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.userInfo}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {getInitials(post.author.fullName)}
-            </Text>
-          </View>
+        <Pressable
+          accessibilityLabel={`Open ${post.author.fullName}'s profile`}
+          accessibilityRole={onAuthorPress ? 'button' : undefined}
+          disabled={!onAuthorPress}
+          onPress={() => onAuthorPress?.(post)}
+          style={({ pressed }) => [
+            styles.userInfo,
+            pressed && onAuthorPress && styles.pressed,
+          ]}
+        >
+          <Avatar
+            fullName={post.author.fullName}
+            uri={post.author.avatarUrl}
+            verified={post.author.isVerified}
+          />
 
           <View style={styles.author}>
             <Text numberOfLines={1} style={styles.name}>
@@ -87,7 +98,7 @@ export function PostCard({
               {formatRelativeTimestamp(post.createdAt)}
             </Text>
           </View>
-        </View>
+        </Pressable>
 
         {canDelete ? (
           <Pressable
@@ -139,6 +150,7 @@ export function PostCard({
           <View style={styles.imageFrame}>
             <Image
               accessibilityLabel={`Photo posted by ${post.author.fullName}`}
+              cachePolicy="memory-disk"
               contentFit="cover"
               onError={() => setImageFailed(true)}
               source={{ uri: post.imageUrl }}
@@ -264,22 +276,6 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-  },
-
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.textPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  avatarText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.3,
   },
 
   author: {

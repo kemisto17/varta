@@ -3,6 +3,7 @@ import type { ImagePickerAsset } from 'expo-image-picker';
 
 import type { TablesInsert } from '../types/database';
 import type { FeedCursor, FeedPost } from '../types/post';
+import { getAvatarUrls } from './avatars';
 import { getLikedPostIds } from './postInteractions';
 import {
   createPrivateImageUrl,
@@ -31,6 +32,7 @@ const FEED_SELECT = `
     branch,
     year,
     avatar_path,
+    is_verified,
     institute:institutes!profiles_institute_id_fkey (
       id,
       name,
@@ -63,10 +65,30 @@ export async function getFeedPage(
   userId: string,
   cursor: FeedCursor | null = null
 ): Promise<FeedPage> {
+  return getPostsPage(userId, cursor);
+}
+
+export async function getUserPostsPage(
+  profileUserId: string,
+  viewerUserId: string,
+  cursor: FeedCursor | null = null
+): Promise<FeedPage> {
+  return getPostsPage(viewerUserId, cursor, profileUserId);
+}
+
+async function getPostsPage(
+  viewerUserId: string,
+  cursor: FeedCursor | null,
+  authorId: string | null = null
+): Promise<FeedPage> {
   let query = selectPosts()
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
     .limit(POSTS_PAGE_SIZE + 1);
+
+  if (authorId) {
+    query = query.eq('author_id', authorId);
+  }
 
   if (cursor) {
     query = query.or(
@@ -88,15 +110,23 @@ export async function getFeedPage(
         .filter((path): path is string => path !== null)
     ),
   ];
-  const [signedUrls, likedPostIds] = await Promise.all([
+  const avatarPaths = [
+    ...new Set(
+      pageRows
+        .map((row) => row.author?.avatar_path ?? null)
+        .filter((path): path is string => path !== null)
+    ),
+  ];
+  const [signedUrls, avatarUrls, likedPostIds] = await Promise.all([
     getSignedPostMediaUrls(imagePaths),
+    getSignedAvatarUrls(avatarPaths),
     getLikedPostIds(
       pageRows.map((row) => row.id),
-      userId
+      viewerUserId
     ),
   ]);
   const posts = pageRows.flatMap((row) => {
-    const post = mapPostRow(row, signedUrls, likedPostIds);
+    const post = mapPostRow(row, signedUrls, avatarUrls, likedPostIds);
 
     return post ? [post] : [];
   });
@@ -123,12 +153,16 @@ export async function getPostById(postId: string, userId: string) {
   }
 
   const imagePaths = data.image_path ? [data.image_path] : [];
-  const [signedUrls, likedPostIds] = await Promise.all([
+  const avatarPaths = data.author?.avatar_path
+    ? [data.author.avatar_path]
+    : [];
+  const [signedUrls, avatarUrls, likedPostIds] = await Promise.all([
     getSignedPostMediaUrls(imagePaths),
+    getSignedAvatarUrls(avatarPaths),
     getLikedPostIds([data.id], userId),
   ]);
 
-  return mapPostRow(data, signedUrls, likedPostIds);
+  return mapPostRow(data, signedUrls, avatarUrls, likedPostIds);
 }
 
 export async function publishPost({
@@ -246,6 +280,15 @@ async function getSignedPostMediaUrls(paths: string[]) {
   }
 }
 
+async function getSignedAvatarUrls(paths: string[]) {
+  try {
+    return await getAvatarUrls(paths);
+  } catch (error) {
+    console.warn('[feed] Could not sign avatar URLs.', error);
+    return new Map<string, string>();
+  }
+}
+
 export function getPostImageUrl(imagePath: string) {
   return createPrivateImageUrl(POST_MEDIA_BUCKET, imagePath, 60 * 60);
 }
@@ -253,6 +296,7 @@ export function getPostImageUrl(imagePath: string) {
 function mapPostRow(
   row: PostQueryRow,
   signedUrls: Map<string, string>,
+  avatarUrls: Map<string, string>,
   likedPostIds: Set<string>
 ): FeedPost | null {
   if (!row.author || !row.author.institute) {
@@ -262,6 +306,9 @@ function mapPostRow(
   return {
     author: {
       avatarPath: row.author.avatar_path,
+      avatarUrl: row.author.avatar_path
+        ? (avatarUrls.get(row.author.avatar_path) ?? null)
+        : null,
       branch: row.author.branch,
       fullName: row.author.full_name,
       id: row.author.id,
@@ -270,6 +317,7 @@ function mapPostRow(
         name: row.author.institute.name,
         shortName: row.author.institute.short_name,
       },
+      isVerified: row.author.is_verified,
       username: row.author.username,
       year: row.author.year,
     },

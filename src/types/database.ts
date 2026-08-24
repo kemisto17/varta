@@ -168,6 +168,7 @@ export type Database = {
           full_name: string
           id: string
           institute_id: string
+          is_verified: boolean
           updated_at: string
           username: string
           year: number
@@ -180,6 +181,7 @@ export type Database = {
           full_name: string
           id: string
           institute_id: string
+          is_verified?: boolean
           updated_at?: string
           username: string
           year: number
@@ -192,6 +194,7 @@ export type Database = {
           full_name?: string
           id?: string
           institute_id?: string
+          is_verified?: boolean
           updated_at?: string
           username?: string
           year?: number

@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,17 +11,18 @@ import {
   View,
 } from 'react-native';
 
+import { Avatar } from '../../components/Avatar';
 import { PostCard } from '../../components/PostCard';
 import { colors, radius, spacing } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useFeed } from '../../hooks/useFeed';
 import { useProfile } from '../../hooks/useProfile';
+import { getAvatarUrl } from '../../lib/avatars';
 import { deletePost, getPostErrorMessage } from '../../lib/posts';
 import {
   getInteractionErrorMessage,
   setPostLike,
 } from '../../lib/postInteractions';
-import { getInitials } from '../../lib/text';
 import type { FeedPost } from '../../types/post';
 
 export default function HomeScreen() {
@@ -48,6 +49,35 @@ export default function HomeScreen() {
   const [likePendingIds, setLikePendingIds] = useState<Set<string>>(
     () => new Set()
   );
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+    const avatarPath = profile?.avatar_path;
+
+    if (!avatarPath) {
+      setProfileAvatarUrl(null);
+      return () => {
+        isActive = false;
+      };
+    }
+
+    void getAvatarUrl(avatarPath)
+      .then((url) => {
+        if (isActive) {
+          setProfileAvatarUrl(url);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setProfileAvatarUrl(null);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [profile?.avatar_path]);
 
   useFocusEffect(
     useCallback(() => {
@@ -142,6 +172,18 @@ export default function HomeScreen() {
     [router]
   );
 
+  const openAuthor = useCallback(
+    (post: FeedPost) => {
+      if (post.authorId === session?.user.id) {
+        router.navigate('/(tabs)/profile');
+        return;
+      }
+
+      router.push({ pathname: '/user/[id]', params: { id: post.authorId } });
+    },
+    [router, session?.user.id]
+  );
+
   const isInitialLoading = status === 'idle' || status === 'loading';
 
   return (
@@ -187,11 +229,11 @@ export default function HomeScreen() {
                 <Text style={styles.greeting}>{getGreeting()}</Text>
               </View>
 
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {getInitials(profile?.full_name ?? 'Student')}
-                </Text>
-              </View>
+              <Avatar
+                fullName={profile?.full_name ?? 'Student'}
+                uri={profileAvatarUrl}
+                verified={profile?.is_verified}
+              />
             </View>
 
             <View style={styles.intro}>
@@ -244,6 +286,7 @@ export default function HomeScreen() {
             currentUserId={session?.user.id ?? null}
             isDeleting={deletingPostIds.has(item.id)}
             isLikePending={likePendingIds.has(item.id)}
+            onAuthorPress={openAuthor}
             onCommentPress={openPost}
             onDelete={handleDeletePost}
             onOpenPost={openPost}
@@ -351,21 +394,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: colors.textPrimary,
-  },
-
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.black,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  avatarText: {
-    color: colors.white,
-    fontSize: 13,
-    fontWeight: '700',
   },
 
   intro: {

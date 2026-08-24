@@ -7,6 +7,7 @@ type ProfileRow = Tables<'profiles'>;
 
 export type FeedPostAuthor = {
   avatarPath: ProfileRow['avatar_path'];
+  avatarUrl: string | null;
   branch: ProfileRow['branch'];
   fullName: ProfileRow['full_name'];
   id: ProfileRow['id'];
@@ -15,6 +16,7 @@ export type FeedPostAuthor = {
     name: InstituteRow['name'];
     shortName: InstituteRow['short_name'];
   };
+  isVerified: boolean;
   username: ProfileRow['username'];
   year: ProfileRow['year'];
 };
@@ -35,7 +37,16 @@ export type FeedPost = {
 export type FeedCursor = Pick<FeedPost, 'createdAt' | 'id'>;
 
 export type PostComment = {
-  author: Pick<FeedPostAuthor, 'branch' | 'fullName' | 'id' | 'year'>;
+  author: Pick<
+    FeedPostAuthor,
+    | 'avatarPath'
+    | 'avatarUrl'
+    | 'branch'
+    | 'fullName'
+    | 'id'
+    | 'isVerified'
+    | 'year'
+  >;
   authorId: CommentRow['author_id'];
   content: CommentRow['content'];
   createdAt: CommentRow['created_at'];

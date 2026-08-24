@@ -2,6 +2,7 @@ import type { QueryData } from '@supabase/supabase-js';
 
 import type { TablesInsert } from '../types/database';
 import type { PostComment } from '../types/post';
+import { getAvatarUrls } from './avatars';
 import { supabase } from './supabase';
 
 export const MAX_COMMENT_CHARACTERS = 500;
@@ -16,7 +17,9 @@ const COMMENT_SELECT = `
     id,
     full_name,
     branch,
-    year
+    year,
+    avatar_path,
+    is_verified
   )
 ` as const;
 
@@ -88,8 +91,17 @@ export async function getPostComments(postId: string) {
     throw error;
   }
 
+  const avatarPaths = [
+    ...new Set(
+      data
+        .map((row) => row.author?.avatar_path ?? null)
+        .filter((path): path is string => path !== null)
+    ),
+  ];
+  const avatarUrls = await getSignedCommentAvatarUrls(avatarPaths);
+
   return data.flatMap((row) => {
-    const comment = mapCommentRow(row);
+    const comment = mapCommentRow(row, avatarUrls);
 
     return comment ? [comment] : [];
   });
@@ -131,7 +143,10 @@ export async function createPostComment({
     throw error;
   }
 
-  const createdComment = mapCommentRow(data);
+  const avatarUrls = await getSignedCommentAvatarUrls(
+    data.author?.avatar_path ? [data.author.avatar_path] : []
+  );
+  const createdComment = mapCommentRow(data, avatarUrls);
 
   if (!createdComment) {
     throw new Error('Your comment was sent, but it could not be displayed.');
@@ -172,16 +187,33 @@ export function getInteractionErrorMessage(error: unknown) {
   return 'We could not save that change. Check your connection and try again.';
 }
 
-function mapCommentRow(row: CommentQueryRow): PostComment | null {
+async function getSignedCommentAvatarUrls(paths: string[]) {
+  try {
+    return await getAvatarUrls(paths);
+  } catch (error) {
+    console.warn('[comments] Could not sign avatar URLs.', error);
+    return new Map<string, string>();
+  }
+}
+
+function mapCommentRow(
+  row: CommentQueryRow,
+  avatarUrls: Map<string, string>
+): PostComment | null {
   if (!row.author) {
     return null;
   }
 
   return {
     author: {
+      avatarPath: row.author.avatar_path,
+      avatarUrl: row.author.avatar_path
+        ? (avatarUrls.get(row.author.avatar_path) ?? null)
+        : null,
       branch: row.author.branch,
       fullName: row.author.full_name,
       id: row.author.id,
+      isVerified: row.author.is_verified,
       year: row.author.year,
     },
     authorId: row.author_id,
