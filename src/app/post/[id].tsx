@@ -17,8 +17,12 @@ import {
 
 import { Avatar } from '../../components/Avatar';
 import { PostCard } from '../../components/PostCard';
+import { ActionSheet } from '../../components/moderation/ActionSheet';
+import { BlockUserSheet } from '../../components/moderation/BlockUserSheet';
+import { ReportSheet } from '../../components/moderation/ReportSheet';
 import { colors, radius, spacing } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
+import type { ModerationUser, ReportTarget } from '../../lib/moderation';
 import {
   deletePost,
   getPostById,
@@ -48,6 +52,7 @@ export default function PostDetailScreen() {
   const isLikeRequestPending = useRef(false);
   const isCommentRequestPending = useRef(false);
   const commentDeleteRequests = useRef(new Set<string>());
+  const [blockTarget, setBlockTarget] = useState<ModerationUser | null>(null);
   const [comments, setComments] = useState<PostComment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [deletingCommentIds, setDeletingCommentIds] = useState<Set<string>>(
@@ -58,6 +63,7 @@ export default function PostDetailScreen() {
   const [isLiking, setIsLiking] = useState(false);
   const [isSendingComment, setIsSendingComment] = useState(false);
   const [post, setPost] = useState<FeedPost | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [status, setStatus] = useState<DetailStatus>('loading');
 
   const loadDetail = useCallback(async () => {
@@ -258,20 +264,6 @@ export default function PostDetailScreen() {
     [userId]
   );
 
-  const confirmDeleteComment = useCallback(
-    (comment: PostComment) => {
-      Alert.alert('Delete this comment?', 'This cannot be undone.', [
-        { style: 'cancel', text: 'Cancel' },
-        {
-          onPress: () => void handleDeleteComment(comment),
-          style: 'destructive',
-          text: 'Delete',
-        },
-      ]);
-    },
-    [handleDeleteComment]
-  );
-
   const handleDeletePost = useCallback(
     async (currentPost: FeedPost) => {
       if (!userId || isDeletingPost) {
@@ -365,8 +357,21 @@ export default function PostDetailScreen() {
                   isDeleting={isDeletingPost}
                   isLikePending={isLiking}
                   onAuthorPress={(currentPost) => openAuthor(currentPost.authorId)}
+                  onBlockUser={(currentPost) =>
+                    setBlockTarget({
+                      fullName: currentPost.author.fullName,
+                      id: currentPost.authorId,
+                    })
+                  }
                   onCommentPress={() => commentInputRef.current?.focus()}
                   onDelete={handleDeletePost}
+                  onReport={(currentPost) =>
+                    setReportTarget({
+                      id: currentPost.id,
+                      label: 'Report this post',
+                      type: 'post',
+                    })
+                  }
                   onToggleLike={handleToggleLike}
                   post={post}
                 />
@@ -391,7 +396,14 @@ export default function PostDetailScreen() {
                 currentUserId={userId}
                 isDeleting={deletingCommentIds.has(item.id)}
                 onAuthorPress={openAuthor}
-                onDelete={confirmDeleteComment}
+                onDelete={handleDeleteComment}
+                onReport={(comment) =>
+                  setReportTarget({
+                    id: comment.id,
+                    label: 'Report this comment',
+                    type: 'comment',
+                  })
+                }
               />
             )}
             showsVerticalScrollIndicator={false}
@@ -435,6 +447,19 @@ export default function PostDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       )}
+
+      <ReportSheet
+        onClose={() => setReportTarget(null)}
+        reporterId={userId}
+        target={reportTarget}
+      />
+
+      <BlockUserSheet
+        currentUserId={userId}
+        onChanged={goBack}
+        onClose={() => setBlockTarget(null)}
+        user={blockTarget}
+      />
     </SafeAreaView>
   );
 }
@@ -445,14 +470,17 @@ function CommentRow({
   isDeleting,
   onAuthorPress,
   onDelete,
+  onReport,
 }: {
   comment: PostComment;
   currentUserId: string | null;
   isDeleting: boolean;
   onAuthorPress: (authorId: string) => void;
   onDelete: (comment: PostComment) => void;
+  onReport: (comment: PostComment) => void;
 }) {
   const isOwnComment = comment.authorId === currentUserId;
+  const [isOptionsVisible, setIsOptionsVisible] = useState(false);
 
   return (
     <View style={styles.commentRow}>
@@ -490,13 +518,13 @@ function CommentRow({
             </Text>
           </Pressable>
 
-          {isOwnComment ? (
+          {currentUserId ? (
             <Pressable
               accessibilityLabel="Comment options"
               accessibilityRole="button"
               disabled={isDeleting}
               hitSlop={10}
-              onPress={() => onDelete(comment)}
+              onPress={() => setIsOptionsVisible(true)}
               style={({ pressed }) => [
                 styles.commentMenu,
                 pressed && styles.pressed,
@@ -517,6 +545,34 @@ function CommentRow({
 
         <Text style={styles.commentContent}>{comment.content}</Text>
       </View>
+
+      <ActionSheet
+        actions={
+          isOwnComment
+            ? [
+                {
+                  label: 'Delete comment',
+                  onPress: () => onDelete(comment),
+                  tone: 'danger' as const,
+                },
+              ]
+            : [
+                {
+                  label: 'Report comment',
+                  onPress: () => onReport(comment),
+                  tone: 'danger' as const,
+                },
+              ]
+        }
+        message={
+          isOwnComment
+            ? 'This removes your comment from the conversation. This cannot be undone.'
+            : null
+        }
+        onClose={() => setIsOptionsVisible(false)}
+        title={isOwnComment ? 'Delete this comment?' : 'Comment options'}
+        visible={isOptionsVisible}
+      />
     </View>
   );
 }

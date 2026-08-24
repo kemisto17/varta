@@ -13,11 +13,14 @@ import {
 
 import { Avatar } from '../../components/Avatar';
 import { PostCard } from '../../components/PostCard';
+import { BlockUserSheet } from '../../components/moderation/BlockUserSheet';
+import { ReportSheet } from '../../components/moderation/ReportSheet';
 import { colors, radius, spacing } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useFeed } from '../../hooks/useFeed';
 import { useProfile } from '../../hooks/useProfile';
 import { getAvatarUrl } from '../../lib/avatars';
+import type { ModerationUser, ReportTarget } from '../../lib/moderation';
 import { deletePost, getPostErrorMessage } from '../../lib/posts';
 import {
   getInteractionErrorMessage,
@@ -42,6 +45,7 @@ export default function HomeScreen() {
     updatePostLike,
   } = useFeed();
   const likeRequestsRef = useRef(new Set<string>());
+  const [blockTarget, setBlockTarget] = useState<ModerationUser | null>(null);
   const [deletingPostIds, setDeletingPostIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -50,6 +54,7 @@ export default function HomeScreen() {
     () => new Set()
   );
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
 
   useEffect(() => {
     let isActive = true;
@@ -287,14 +292,40 @@ export default function HomeScreen() {
             isDeleting={deletingPostIds.has(item.id)}
             isLikePending={likePendingIds.has(item.id)}
             onAuthorPress={openAuthor}
+            onBlockUser={(post) =>
+              setBlockTarget({
+                fullName: post.author.fullName,
+                id: post.authorId,
+              })
+            }
             onCommentPress={openPost}
             onDelete={handleDeletePost}
             onOpenPost={openPost}
+            onReport={(post) =>
+              setReportTarget({
+                id: post.id,
+                label: 'Report this post',
+                type: 'post',
+              })
+            }
             onToggleLike={handleToggleLike}
             post={item}
           />
         )}
         showsVerticalScrollIndicator={false}
+      />
+
+      <ReportSheet
+        onClose={() => setReportTarget(null)}
+        reporterId={session?.user.id ?? null}
+        target={reportTarget}
+      />
+
+      <BlockUserSheet
+        currentUserId={session?.user.id ?? null}
+        onChanged={() => void refreshFeed()}
+        onClose={() => setBlockTarget(null)}
+        user={blockTarget}
       />
     </SafeAreaView>
   );

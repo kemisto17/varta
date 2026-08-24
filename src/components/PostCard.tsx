@@ -3,7 +3,6 @@ import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -15,15 +14,18 @@ import { formatRelativeTimestamp } from '../lib/time';
 import type { FeedPost } from '../types/post';
 import { Avatar } from './Avatar';
 import { FullscreenImageViewer } from './FullscreenImageViewer';
+import { ActionSheet } from './moderation/ActionSheet';
 
 type PostCardProps = {
   currentUserId: string | null;
   isDeleting?: boolean;
   isLikePending?: boolean;
   onAuthorPress?: (post: FeedPost) => void;
+  onBlockUser?: (post: FeedPost) => void;
   onCommentPress?: (post: FeedPost) => void;
   onDelete?: (post: FeedPost) => void;
   onOpenPost?: (post: FeedPost) => void;
+  onReport?: (post: FeedPost) => void;
   onToggleLike?: (post: FeedPost) => void;
   post: FeedPost;
 };
@@ -33,39 +35,28 @@ export function PostCard({
   isDeleting = false,
   isLikePending = false,
   onAuthorPress,
+  onBlockUser,
   onCommentPress,
   onDelete,
   onOpenPost,
+  onReport,
   onToggleLike,
   post,
 }: PostCardProps) {
   const canDelete = post.authorId === currentUserId && onDelete !== undefined;
+  const canModerate =
+    currentUserId !== null && post.authorId !== currentUserId;
+  const hasOptions =
+    canDelete || (canModerate && (onReport !== undefined || onBlockUser !== undefined));
   const [imageFailed, setImageFailed] = useState(false);
   const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
+  const [isOptionsVisible, setIsOptionsVisible] = useState(false);
 
   useEffect(() => {
     setImageFailed(false);
     setIsImageViewerVisible(false);
-  }, [post.imageUrl]);
-
-  const confirmDelete = () => {
-    if (!canDelete || isDeleting) {
-      return;
-    }
-
-    Alert.alert(
-      'Delete this post?',
-      'This removes the post and its photo from the campus feed.',
-      [
-        { style: 'cancel', text: 'Cancel' },
-        {
-          onPress: () => onDelete(post),
-          style: 'destructive',
-          text: 'Delete',
-        },
-      ]
-    );
-  };
+    setIsOptionsVisible(false);
+  }, [post.id, post.imageUrl]);
 
   return (
     <View style={styles.container}>
@@ -100,13 +91,13 @@ export function PostCard({
           </View>
         </Pressable>
 
-        {canDelete ? (
+        {hasOptions ? (
           <Pressable
             accessibilityLabel="Post options"
             accessibilityRole="button"
             disabled={isDeleting}
             hitSlop={12}
-            onPress={confirmDelete}
+            onPress={() => setIsOptionsVisible(true)}
             style={({ pressed }) => [
               styles.moreButton,
               pressed && styles.pressed,
@@ -248,6 +239,46 @@ export function PostCard({
         }
         onClose={() => setIsImageViewerVisible(false)}
         visible={isImageViewerVisible}
+      />
+
+      <ActionSheet
+        actions={
+          canDelete
+            ? [
+                {
+                  label: 'Delete post',
+                  onPress: () => onDelete(post),
+                  tone: 'danger' as const,
+                },
+              ]
+            : [
+                ...(onReport
+                  ? [
+                      {
+                        label: 'Report post',
+                        onPress: () => onReport(post),
+                      },
+                    ]
+                  : []),
+                ...(onBlockUser
+                  ? [
+                      {
+                        label: `Block ${post.author.fullName}`,
+                        onPress: () => onBlockUser(post),
+                        tone: 'danger' as const,
+                      },
+                    ]
+                  : []),
+              ]
+        }
+        message={
+          canDelete
+            ? 'This removes the post and its photo from the campus feed. This cannot be undone.'
+            : null
+        }
+        onClose={() => setIsOptionsVisible(false)}
+        title={canDelete ? 'Delete this post?' : 'Post options'}
+        visible={isOptionsVisible}
       />
     </View>
   );

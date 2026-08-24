@@ -16,6 +16,11 @@ import { colors, radius, spacing } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { getAuthErrorMessage } from '../../lib/auth';
 import {
+  getIsUserBlocked,
+  type ModerationUser,
+  type ReportTarget,
+} from '../../lib/moderation';
+import {
   deletePost,
   getPostErrorMessage,
   getUserPostsPage,
@@ -30,6 +35,9 @@ import type { FeedCursor, FeedPost } from '../../types/post';
 import type { UserProfile } from '../../types/profile';
 import { Avatar } from '../Avatar';
 import { PostCard } from '../PostCard';
+import { ActionSheet } from '../moderation/ActionSheet';
+import { BlockUserSheet } from '../moderation/BlockUserSheet';
+import { ReportSheet } from '../moderation/ReportSheet';
 
 type ProfileStatus = 'loading' | 'ready' | 'unavailable' | 'error';
 
@@ -49,6 +57,7 @@ export function StudentProfileScreen({
   const requestId = useRef(0);
   const likeRequests = useRef(new Set<string>());
   const loadMoreRequest = useRef(false);
+  const [blockTarget, setBlockTarget] = useState<ModerationUser | null>(null);
   const [cursor, setCursor] = useState<FeedCursor | null>(null);
   const [deletingPostIds, setDeletingPostIds] = useState<Set<string>>(
     () => new Set()
@@ -56,6 +65,8 @@ export function StudentProfileScreen({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [isProfileOptionsVisible, setIsProfileOptionsVisible] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [likePendingIds, setLikePendingIds] = useState<Set<string>>(
@@ -63,6 +74,7 @@ export function StudentProfileScreen({
   );
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [status, setStatus] = useState<ProfileStatus>('loading');
 
   const loadProfile = useCallback(
@@ -84,9 +96,12 @@ export function StudentProfileScreen({
       setErrorMessage(null);
 
       try {
-        const [nextProfile, page] = await Promise.all([
+        const [nextProfile, page, nextIsBlocked] = await Promise.all([
           getUserProfile(profileId),
           getUserPostsPage(profileId, viewerUserId),
+          isOwnProfile
+            ? Promise.resolve(false)
+            : getIsUserBlocked(viewerUserId, profileId),
         ]);
 
         if (requestId.current !== activeRequestId) {
@@ -96,6 +111,7 @@ export function StudentProfileScreen({
         if (!nextProfile) {
           setProfile(null);
           setPosts([]);
+          setIsBlocked(false);
           setStatus('unavailable');
           return;
         }
@@ -104,6 +120,7 @@ export function StudentProfileScreen({
         setPosts(page.posts);
         setCursor(page.cursor);
         setHasMore(page.hasMore);
+        setIsBlocked(nextIsBlocked);
         setStatus('ready');
       } catch (error) {
         if (requestId.current !== activeRequestId) {
@@ -121,7 +138,7 @@ export function StudentProfileScreen({
         }
       }
     },
-    [profileId, viewerUserId]
+    [isOwnProfile, profileId, viewerUserId]
   );
 
   useFocusEffect(
@@ -331,7 +348,10 @@ export function StudentProfileScreen({
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ProfileTopBar onBack={showBackButton ? goBack : undefined} />
+      <ProfileTopBar
+        onBack={showBackButton ? goBack : undefined}
+        onMore={isOwnProfile ? undefined : () => setIsProfileOptionsVisible(true)}
+      />
       <FlatList
         contentContainerStyle={styles.listContent}
         data={posts}
@@ -373,20 +393,87 @@ export function StudentProfileScreen({
             currentUserId={viewerUserId}
             isDeleting={deletingPostIds.has(item.id)}
             isLikePending={likePendingIds.has(item.id)}
+            onBlockUser={
+              isOwnProfile
+                ? undefined
+                : (post) =>
+                    setBlockTarget({
+                      fullName: post.author.fullName,
+                      id: post.authorId,
+                    })
+            }
             onCommentPress={openPost}
             onDelete={isOwnProfile ? handleDeletePost : undefined}
             onOpenPost={openPost}
+            onReport={
+              isOwnProfile
+                ? undefined
+                : (post) =>
+                    setReportTarget({
+                      id: post.id,
+                      label: 'Report this post',
+                      type: 'post',
+                    })
+            }
             onToggleLike={handleToggleLike}
             post={item}
           />
         )}
         showsVerticalScrollIndicator={false}
       />
+
+      <ActionSheet
+        actions={[
+          {
+            label: 'Report profile',
+            onPress: () =>
+              setReportTarget({
+                id: profile.id,
+                label: 'Report this profile',
+                type: 'profile',
+              }),
+          },
+          {
+            label: isBlocked ? 'Unblock student' : 'Block student',
+            onPress: () =>
+              setBlockTarget({
+                fullName: profile.fullName,
+                id: profile.id,
+              }),
+            tone: isBlocked ? 'default' : 'danger',
+          },
+        ]}
+        onClose={() => setIsProfileOptionsVisible(false)}
+        title="Profile options"
+        visible={isProfileOptionsVisible}
+      />
+
+      <ReportSheet
+        onClose={() => setReportTarget(null)}
+        reporterId={viewerUserId}
+        target={reportTarget}
+      />
+
+      <BlockUserSheet
+        currentUserId={viewerUserId}
+        mode={
+          isBlocked && blockTarget?.id === profile.id ? 'unblock' : 'block'
+        }
+        onChanged={() => void loadProfile(true)}
+        onClose={() => setBlockTarget(null)}
+        user={blockTarget}
+      />
     </SafeAreaView>
   );
 }
 
-function ProfileTopBar({ onBack }: { onBack?: () => void }) {
+function ProfileTopBar({
+  onBack,
+  onMore,
+}: {
+  onBack?: () => void;
+  onMore?: () => void;
+}) {
   return (
     <View style={styles.topBar}>
       {onBack ? (
@@ -411,7 +498,26 @@ function ProfileTopBar({ onBack }: { onBack?: () => void }) {
       )}
 
       <Text style={styles.topBarTitle}>Profile</Text>
-      <View style={styles.topBarButton} />
+      {onMore ? (
+        <Pressable
+          accessibilityLabel="Profile options"
+          accessibilityRole="button"
+          hitSlop={12}
+          onPress={onMore}
+          style={({ pressed }) => [
+            styles.topBarButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <SymbolView
+            name={{ android: 'more_horiz', ios: 'ellipsis', web: 'more_horiz' }}
+            size={21}
+            tintColor={colors.textPrimary}
+          />
+        </Pressable>
+      ) : (
+        <View style={styles.topBarButton} />
+      )}
     </View>
   );
 }
