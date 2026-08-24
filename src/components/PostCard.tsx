@@ -14,6 +14,7 @@ import { colors, radius, spacing } from '../constants/theme';
 import { getInitials } from '../lib/text';
 import { formatRelativeTimestamp } from '../lib/time';
 import type { FeedPost } from '../types/post';
+import { FullscreenImageViewer } from './FullscreenImageViewer';
 
 type PostCardProps = {
   currentUserId: string | null;
@@ -38,9 +39,11 @@ export function PostCard({
 }: PostCardProps) {
   const canDelete = post.authorId === currentUserId && onDelete !== undefined;
   const [imageFailed, setImageFailed] = useState(false);
+  const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
 
   useEffect(() => {
     setImageFailed(false);
+    setIsImageViewerVisible(false);
   }, [post.imageUrl]);
 
   const confirmDelete = () => {
@@ -115,15 +118,24 @@ export function PostCard({
         ) : null}
       </View>
 
-      <Pressable
-        accessibilityRole={onOpenPost ? 'button' : undefined}
-        disabled={!onOpenPost}
-        onPress={() => onOpenPost?.(post)}
-        style={({ pressed }) => pressed && onOpenPost && styles.bodyPressed}
-      >
-        {post.content ? <Text style={styles.content}>{post.content}</Text> : null}
+      {post.content ? (
+        <Pressable
+          accessibilityRole={onOpenPost ? 'button' : undefined}
+          disabled={!onOpenPost}
+          onPress={() => onOpenPost?.(post)}
+          style={({ pressed }) => pressed && onOpenPost && styles.bodyPressed}
+        >
+          <Text style={styles.content}>{post.content}</Text>
+        </Pressable>
+      ) : null}
 
-        {post.imageUrl && !imageFailed ? (
+      {post.imageUrl && !imageFailed ? (
+        <Pressable
+          accessibilityLabel={`View photo posted by ${post.author.fullName} fullscreen`}
+          accessibilityRole="button"
+          onPress={() => setIsImageViewerVisible(true)}
+          style={({ pressed }) => pressed && styles.imagePressed}
+        >
           <View style={styles.imageFrame}>
             <Image
               accessibilityLabel={`Photo posted by ${post.author.fullName}`}
@@ -134,12 +146,12 @@ export function PostCard({
               transition={180}
             />
           </View>
-        ) : post.imageUrl && imageFailed ? (
-          <View style={styles.imageUnavailable}>
-            <Text style={styles.imageUnavailableText}>Photo unavailable</Text>
-          </View>
-        ) : null}
-      </Pressable>
+        </Pressable>
+      ) : post.imageUrl && imageFailed ? (
+        <View style={styles.imageUnavailable}>
+          <Text style={styles.imageUnavailableText}>Photo unavailable</Text>
+        </View>
+      ) : null}
 
       <View style={styles.actions}>
         <Pressable
@@ -210,6 +222,21 @@ export function PostCard({
           <Text style={styles.actionText}>{post.commentCount}</Text>
         </Pressable>
       </View>
+
+      <FullscreenImageViewer
+        images={
+          post.imageUrl
+            ? [
+                {
+                  accessibilityLabel: `Photo posted by ${post.author.fullName}`,
+                  uri: post.imageUrl,
+                },
+              ]
+            : []
+        }
+        onClose={() => setIsImageViewerVisible(false)}
+        visible={isImageViewerVisible}
+      />
     </View>
   );
 }
@@ -352,6 +379,10 @@ const styles = StyleSheet.create({
 
   bodyPressed: {
     opacity: 0.72,
+  },
+
+  imagePressed: {
+    opacity: 0.86,
   },
 
   pressed: {
