@@ -13,6 +13,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { useVerification } from '../hooks/useVerification';
 import { AuthProvider } from '../providers/AuthProvider';
+import { NotificationsProvider } from '../providers/NotificationsProvider';
 import { ProfileProvider } from '../providers/ProfileProvider';
 import { VerificationProvider } from '../providers/VerificationProvider';
 
@@ -128,6 +129,7 @@ function AppNavigator() {
         <Stack.Protected guard={canAccessTabs}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="edit-profile" />
+          <Stack.Screen name="notifications" />
           <Stack.Screen name="post/[id]" />
           <Stack.Screen name="user/[id]" />
         </Stack.Protected>
@@ -141,7 +143,9 @@ export default function RootLayout() {
     <AuthProvider>
       <ProfileProvider>
         <VerificationProvider>
-          <AppNavigator />
+          <NotificationsProvider>
+            <AppNavigator />
+          </NotificationsProvider>
         </VerificationProvider>
       </ProfileProvider>
     </AuthProvider>

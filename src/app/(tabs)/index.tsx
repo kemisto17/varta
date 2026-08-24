@@ -1,4 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,6 +19,7 @@ import { ReportSheet } from '../../components/moderation/ReportSheet';
 import { colors, radius, spacing } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useFeed } from '../../hooks/useFeed';
+import { useNotifications } from '../../hooks/useNotifications';
 import { useProfile } from '../../hooks/useProfile';
 import { getAvatarUrl } from '../../lib/avatars';
 import type { ModerationUser, ReportTarget } from '../../lib/moderation';
@@ -32,6 +34,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { session } = useAuth();
   const { profile } = useProfile();
+  const { unreadCount } = useNotifications();
   const {
     errorMessage,
     hasMore,
@@ -234,11 +237,45 @@ export default function HomeScreen() {
                 <Text style={styles.greeting}>{getGreeting()}</Text>
               </View>
 
-              <Avatar
-                fullName={profile?.full_name ?? 'Student'}
-                uri={profileAvatarUrl}
-                verified={profile?.is_verified}
-              />
+              <View style={styles.headerActions}>
+                <Pressable
+                  accessibilityLabel={
+                    unreadCount > 0
+                      ? `Notifications, ${unreadCount} unread`
+                      : 'Notifications'
+                  }
+                  accessibilityRole="button"
+                  onPress={() => router.push('/notifications')}
+                  style={({ pressed }) => [
+                    styles.notificationButton,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <SymbolView
+                    name={{
+                      android: 'notifications_none',
+                      ios: unreadCount > 0 ? 'bell.fill' : 'bell',
+                      web: 'notifications_none',
+                    }}
+                    size={22}
+                    tintColor={colors.textPrimary}
+                  />
+
+                  {unreadCount > 0 ? (
+                    <View style={styles.unreadBadge}>
+                      <Text style={styles.unreadBadgeText}>
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </Text>
+                    </View>
+                  ) : null}
+                </Pressable>
+
+                <Avatar
+                  fullName={profile?.full_name ?? 'Student'}
+                  uri={profileAvatarUrl}
+                  verified={profile?.is_verified}
+                />
+              </View>
             </View>
 
             <View style={styles.intro}>
@@ -411,6 +448,40 @@ const styles = StyleSheet.create({
 
   headerCopy: {
     flex: 1,
+  },
+
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+
+  notificationButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  unreadBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 0,
+    minWidth: 17,
+    height: 17,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.background,
+    borderRadius: 9,
+    backgroundColor: colors.textPrimary,
+  },
+
+  unreadBadgeText: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: colors.white,
   },
 
   brand: {

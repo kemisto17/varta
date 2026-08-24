@@ -30,6 +30,7 @@ import {
   setPostLike,
 } from '../../lib/postInteractions';
 import { getUserProfile } from '../../lib/profile';
+import { deleteCurrentPushToken } from '../../lib/pushNotifications';
 import { supabase } from '../../lib/supabase';
 import type { FeedCursor, FeedPost } from '../../types/post';
 import type { UserProfile } from '../../types/profile';
@@ -301,13 +302,22 @@ export function StudentProfileScreen({
 
     setIsSigningOut(true);
     setErrorMessage(null);
+
+    if (viewerUserId) {
+      try {
+        await deleteCurrentPushToken(viewerUserId);
+      } catch (error) {
+        console.warn('[push] Could not remove the current device token.', error);
+      }
+    }
+
     const { error } = await supabase.auth.signOut();
 
     if (error) {
       setErrorMessage(getAuthErrorMessage(error.message));
       setIsSigningOut(false);
     }
-  }, [isSigningOut]);
+  }, [isSigningOut, viewerUserId]);
 
   if (status === 'loading') {
     return (
