@@ -58,7 +58,7 @@ const USER_PROFILE_SELECT = `
     name,
     short_name
   ),
-  posts(count)
+  posts!posts_author_id_fkey(count)
 ` as const;
 
 function selectUserProfiles() {
