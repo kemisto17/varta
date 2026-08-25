@@ -135,3 +135,13 @@ Trusted admin workflows are documented separately:
 ## Alpha auth note
 
 Email confirmation is currently disabled in the hosted development project so Expo Go testers do not land on localhost. Before a broader external alpha, configure the production mobile callback, re-enable email confirmation, and enable leaked-password protection in Supabase Auth.
+
+## License
+
+Varta is source-available for educational and non-commercial review.
+
+Commercial use, redistribution, public cloning, and derivative competing
+services are not permitted without prior written permission.
+
+Varta / VĀRTĀ branding and visual assets are proprietary.
+See the LICENSE file for details.
