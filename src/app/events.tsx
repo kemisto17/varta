@@ -2,8 +2,9 @@ import { useThemedStyles } from '../hooks/useTheme';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Pressable, RefreshControl, SafeAreaView, StyleSheet, Text, View, } from 'react-native';
+  ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View, } from 'react-native';
 
+import { SafeAreaScreen } from '../components/SafeAreaScreen';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { EventCard } from '../components/events/EventCard';
 import { radius, spacing, type ThemeColors } from '../constants/theme';
@@ -175,7 +176,7 @@ export default function EventsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <ScreenHeader title="Events" />
       <FlatList
         contentContainerStyle={[styles.content, events.length === 0 && styles.emptyContent]}
@@ -257,7 +258,7 @@ export default function EventsScreen() {
         )}
         showsVerticalScrollIndicator={false}
       />
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

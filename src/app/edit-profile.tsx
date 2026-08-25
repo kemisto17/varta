@@ -5,8 +5,9 @@ import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import {
-  Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
+  Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
 
+import { SafeAreaScreen } from '../components/SafeAreaScreen';
 import { Avatar } from '../components/Avatar';
 import { AuthField } from '../components/auth/AuthField';
 import { PrimaryButton } from '../components/auth/PrimaryButton';
@@ -163,7 +164,7 @@ export default function EditProfileScreen() {
   const displayedAvatarUrl = selectedAsset?.uri ?? (removeAvatar ? null : avatarUrl);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
@@ -325,7 +326,7 @@ export default function EditProfileScreen() {
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

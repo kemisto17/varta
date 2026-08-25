@@ -5,9 +5,10 @@ import type { ImagePickerAsset } from 'expo-image-picker';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import {
-  ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, View, } from 'react-native';
+  ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View, } from 'react-native';
 
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
+import { SafeAreaScreen } from '../SafeAreaScreen';
 import { getEventErrorMessage, MAX_EVENT_COVER_SIZE } from '../../lib/events';
 import type { CampusEvent, EventFormValues } from '../../types/event';
 import { ScreenHeader } from '../ScreenHeader';
@@ -137,7 +138,7 @@ export function EventFormScreen({
   const coverUri = coverAsset?.uri ?? initialEvent?.coverUrl ?? null;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <ScreenHeader title={title} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -260,7 +261,7 @@ export function EventFormScreen({
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

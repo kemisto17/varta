@@ -1,12 +1,15 @@
 import { useTheme } from '../../hooks/useTheme';
 import { Tabs } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-
+import { spacing } from '../../constants/theme';
 import { FeedProvider } from '../../providers/FeedProvider';
 
 export default function TabLayout() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, spacing.sm);
   return (
     <FeedProvider>
       <Tabs
@@ -20,9 +23,9 @@ export default function TabLayout() {
             backgroundColor: colors.surface,
             borderTopColor: colors.borderSubtle,
             borderTopWidth: 1,
-            height: 68,
-            paddingTop: 7,
-            paddingBottom: 7,
+            height: 52 + bottomPadding,
+            paddingTop: spacing.sm,
+            paddingBottom: bottomPadding,
           },
 
           tabBarLabelStyle: {

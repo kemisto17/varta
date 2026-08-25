@@ -3,8 +3,9 @@ import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useMemo } from 'react';
 import {
-  ActivityIndicator, Alert, Pressable, RefreshControl, SafeAreaView, SectionList, StyleSheet, Text, View, } from 'react-native';
+  ActivityIndicator, Alert, Pressable, RefreshControl, SectionList, StyleSheet, Text, View, } from 'react-native';
 
+import { SafeAreaScreen } from '../components/SafeAreaScreen';
 import { spacing, type ThemeColors } from '../constants/theme';
 import { useNotifications } from '../hooks/useNotifications';
 import { useVerification } from '../hooks/useVerification';
@@ -99,7 +100,7 @@ export default function NotificationsScreen() {
   const isInitialLoading = status === 'idle' || status === 'loading';
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <View style={styles.header}>
         <Pressable
           accessibilityLabel="Go back"
@@ -201,7 +202,7 @@ export default function NotificationsScreen() {
           stickySectionHeadersEnabled={false}
         />
       )}
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

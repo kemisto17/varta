@@ -1,8 +1,9 @@
 import { useThemedStyles } from '../../hooks/useTheme';
 import { useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useProfile } from '../../hooks/useProfile';
 import { useVerification } from '../../hooks/useVerification';
@@ -28,7 +29,7 @@ export default function VerificationPendingScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.brand}>VĀRTĀ</Text>
@@ -94,7 +95,7 @@ export default function VerificationPendingScreen() {
           </Pressable>
         </View>
       </View>
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

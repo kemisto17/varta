@@ -3,9 +3,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View, } from 'react-native';
+  ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View, } from 'react-native';
 
 import { Avatar } from '../../components/Avatar';
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { PostCard } from '../../components/PostCard';
 import { ActionSheet } from '../../components/moderation/ActionSheet';
 import { BlockUserSheet } from '../../components/moderation/BlockUserSheet';
@@ -331,7 +332,7 @@ export default function PostDetailScreen() {
   const canSendComment = commentText.trim().length > 0 && !isSendingComment;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <View style={styles.header}>
         <Pressable
           accessibilityLabel="Back"
@@ -505,7 +506,7 @@ export default function PostDetailScreen() {
         onClose={() => setBlockTarget(null)}
         user={blockTarget}
       />
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

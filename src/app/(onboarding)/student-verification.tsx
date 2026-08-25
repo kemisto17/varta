@@ -2,9 +2,10 @@ import type { ImagePickerAsset } from 'expo-image-picker';
 import { useThemedStyles } from '../../hooks/useTheme';
 import { useState } from 'react';
 import {
-  KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, View, } from 'react-native';
+  KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, } from 'react-native';
 
 import { AuthField } from '../../components/auth/AuthField';
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
 import { StudentIdPicker } from '../../components/verification/StudentIdPicker';
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
@@ -67,7 +68,7 @@ export default function StudentVerificationScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
@@ -144,7 +145,7 @@ export default function StudentVerificationScreen() {
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

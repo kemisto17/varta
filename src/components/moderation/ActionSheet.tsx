@@ -1,5 +1,6 @@
 import { useThemedStyles } from '../../hooks/useTheme';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 
@@ -27,6 +28,7 @@ export function ActionSheet({
   visible,
 }: ActionSheetProps) {
   const { styles } = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
   return (
     <Modal
       animationType="fade"
@@ -35,7 +37,7 @@ export function ActionSheet({
       transparent
       visible={visible}
     >
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { paddingTop: insets.top }]}>
         <Pressable
           accessibilityLabel="Close options"
           accessibilityRole="button"
@@ -43,7 +45,17 @@ export function ActionSheet({
           style={StyleSheet.absoluteFill}
         />
 
-        <View accessibilityViewIsModal style={styles.sheet}>
+        <View
+          accessibilityViewIsModal
+          style={[
+            styles.sheet,
+            {
+              paddingBottom: spacing.xl + insets.bottom,
+              paddingLeft: spacing.lg + insets.left,
+              paddingRight: spacing.lg + insets.right,
+            },
+          ]}
+        >
           <View style={styles.handle} />
           <Text style={styles.title}>{title}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}

@@ -129,6 +129,13 @@ Use two verified accounts where a blocking test is required.
    - Confirm the status bar changes between dark and light content.
    - Sign out and back in; the device appearance preference should remain.
 
+11. Safe areas and installed branding
+   - Check a standard screen, punch-hole screen, and notched screen when those device profiles are available.
+   - Test both gesture navigation and three-button Android navigation in Light and Dark modes.
+   - Confirm first and last scroll items, Create Post actions, comment Send controls, sheets, and fullscreen-image controls remain reachable.
+   - Check the launcher icon in a Varta development build, preview APK, or production build. Expo Go displays its own host-app icon and is not a valid launcher-icon test.
+   - The current speech-bubble V icon remains temporary until the approved V/VĀ monogram asset set is supplied.
+
 ## Security and privacy audit
 
 The hosted schema was reviewed with the following expectations:

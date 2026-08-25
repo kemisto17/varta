@@ -5,12 +5,12 @@ import {
   Alert,
   FlatList,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 
+import { SafeAreaScreen } from '../components/SafeAreaScreen';
 import { Avatar } from '../components/Avatar';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { radius, spacing, type ThemeColors } from '../constants/theme';
@@ -103,7 +103,7 @@ export default function BlockedUsersScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <ScreenHeader title="Blocked users" />
       {status === 'loading' ? (
         <View style={styles.state}>
@@ -178,7 +178,7 @@ export default function BlockedUsersScreen() {
           }}
         />
       )}
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

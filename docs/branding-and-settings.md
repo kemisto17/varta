@@ -15,6 +15,12 @@ The technical identifiers remain ASCII and stable so current authentication and 
 
 The root navigator, tab bar, status bar, modal surfaces, and native root background receive the same resolved palette. Fullscreen media intentionally retains a black viewer palette.
 
+## Safe areas and Android edge-to-edge
+
+`SafeAreaProvider` is mounted once above the application providers. Screen roots use the shared `SafeAreaScreen` component so status bars, camera cutouts, notches, and side insets are applied consistently. Stack screens own all four edges. Tab scenes omit only the bottom edge because the inset-aware tab bar owns that space; this prevents double padding.
+
+Android API 36 requires edge-to-edge rendering, so Varta does not attempt to disable it. Scrollable content stays inside its safe screen viewport, modal sheets add their own bottom and side insets, and fullscreen media may cover the display while its close control remains inside the top/right safe area. The resolved theme controls status-bar icon contrast.
+
 ## Splash assets
 
 - `assets/images/varta-wordmark-light.png` — black transparent VĀRTĀ wordmark for the warm-white launch surface.
@@ -33,7 +39,9 @@ When the approved monogram is supplied, prepare:
 - `varta-monochrome.png`: 1024 × 1024 transparent single-color mask for Android themed icons.
 - `varta-favicon.png`: at least 48 × 48 PNG derived from the same monogram.
 
-Then point `icon`, `ios.icon`, `android.adaptiveIcon.foregroundImage`, `android.adaptiveIcon.monochromeImage`, and `web.favicon` at the final files, retaining a near-white Android adaptive background. Validate the result in a release build; Expo Go cannot fully reproduce native splash and icon behavior.
+Then point `icon`, `ios.icon`, `android.adaptiveIcon.foregroundImage`, `android.adaptiveIcon.monochromeImage`, and `web.favicon` at the final files, retaining a near-white Android adaptive background.
+
+Expo Go does not demonstrate Varta's final installed launcher icon; it launches the project inside the Expo Go host app. Validate the actual icon and adaptive masks using a Varta development build, preview APK, or production build. Check circle, squircle, and rounded-square launchers before approving the asset.
 
 ## Settings behavior
 

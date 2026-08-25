@@ -5,8 +5,9 @@ import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import {
-  ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
+  ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
 
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
@@ -103,7 +104,7 @@ export default function CreateScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaScreen style={styles.screen} withinTabNavigator>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
@@ -242,7 +243,7 @@ export default function CreateScreen() {
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

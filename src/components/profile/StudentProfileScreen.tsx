@@ -3,7 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, SafeAreaView, StyleSheet, Text, View, } from 'react-native';
+  ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View, } from 'react-native';
 
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
@@ -26,6 +26,7 @@ import type { FeedCursor, FeedPost } from '../../types/post';
 import type { UserProfile } from '../../types/profile';
 import { Avatar } from '../Avatar';
 import { PostCard } from '../PostCard';
+import { SafeAreaScreen } from '../SafeAreaScreen';
 import { ProfileBadges } from '../badges/ProfileBadges';
 import { ActionSheet } from '../moderation/ActionSheet';
 import { BlockUserSheet } from '../moderation/BlockUserSheet';
@@ -288,19 +289,25 @@ export function StudentProfileScreen({
 
   if (status === 'loading') {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaScreen
+        style={styles.safeArea}
+        withinTabNavigator={!showBackButton}
+      >
         <ProfileTopBar
           onBack={showBackButton ? goBack : undefined}
           onSettings={isOwnProfile ? () => router.push('/settings') : undefined}
         />
         <ProfileSkeleton />
-      </SafeAreaView>
+      </SafeAreaScreen>
     );
   }
 
   if (status === 'error') {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaScreen
+        style={styles.safeArea}
+        withinTabNavigator={!showBackButton}
+      >
         <ProfileTopBar
           onBack={showBackButton ? goBack : undefined}
           onSettings={isOwnProfile ? () => router.push('/settings') : undefined}
@@ -311,13 +318,16 @@ export function StudentProfileScreen({
           onAction={() => void loadProfile()}
           title="Could not load profile"
         />
-      </SafeAreaView>
+      </SafeAreaScreen>
     );
   }
 
   if (status === 'unavailable' || !profile) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaScreen
+        style={styles.safeArea}
+        withinTabNavigator={!showBackButton}
+      >
         <ProfileTopBar
           onBack={showBackButton ? goBack : undefined}
           onSettings={isOwnProfile ? () => router.push('/settings') : undefined}
@@ -328,12 +338,15 @@ export function StudentProfileScreen({
           onAction={showBackButton ? goBack : () => void loadProfile()}
           title="Profile unavailable"
         />
-      </SafeAreaView>
+      </SafeAreaScreen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen
+      style={styles.safeArea}
+      withinTabNavigator={!showBackButton}
+    >
       <ProfileTopBar
         onBack={showBackButton ? goBack : undefined}
         onMore={isOwnProfile ? undefined : () => setIsProfileOptionsVisible(true)}
@@ -455,7 +468,7 @@ export function StudentProfileScreen({
         onClose={() => setBlockTarget(null)}
         user={blockTarget}
       />
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

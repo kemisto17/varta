@@ -8,8 +8,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import {
-  ActivityIndicator, Pressable, StyleSheet, Text, View, } from 'react-native';
+  ActivityIndicator, Pressable, StyleSheet, Text, } from 'react-native';
+import {
+  initialWindowMetrics,
+  SafeAreaProvider,
+} from 'react-native-safe-area-context';
 
+import { SafeAreaScreen } from '../components/SafeAreaScreen';
 import { spacing, type ThemeColors } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
@@ -47,19 +52,19 @@ function AppNavigator() {
 
   if (isLoading || isProfileLoading || isVerificationLoading) {
     return (
-      <View style={styles.loadingScreen}>
+      <SafeAreaScreen style={styles.loadingScreen}>
         <Text style={styles.brand}>VĀRTĀ</Text>
         <ActivityIndicator
           color={colors.textPrimary}
           style={styles.loadingIndicator}
         />
-      </View>
+      </SafeAreaScreen>
     );
   }
 
   if (isAuthenticated && profileStatus === 'error') {
     return (
-      <View style={styles.loadingScreen}>
+      <SafeAreaScreen style={styles.loadingScreen}>
         <Text style={styles.brand}>VĀRTĀ</Text>
         <Text accessibilityRole="alert" style={styles.loadError}>
           {profileErrorMessage}
@@ -74,7 +79,7 @@ function AppNavigator() {
         >
           <Text style={styles.retryLabel}>Try again</Text>
         </Pressable>
-      </View>
+      </SafeAreaScreen>
     );
   }
 
@@ -84,7 +89,7 @@ function AppNavigator() {
     verificationStatus === 'error'
   ) {
     return (
-      <View style={styles.loadingScreen}>
+      <SafeAreaScreen style={styles.loadingScreen}>
         <Text style={styles.brand}>VĀRTĀ</Text>
         <Text accessibilityRole="alert" style={styles.loadError}>
           {verificationErrorMessage}
@@ -99,7 +104,7 @@ function AppNavigator() {
         >
           <Text style={styles.retryLabel}>Try again</Text>
         </Pressable>
-      </View>
+      </SafeAreaScreen>
     );
   }
 
@@ -172,9 +177,11 @@ function AppNavigator() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <ThemedRoot />
-    </ThemeProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <ThemeProvider>
+        <ThemedRoot />
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 

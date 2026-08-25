@@ -3,6 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import {
@@ -26,6 +27,7 @@ export function ReportSheet({
   target,
 }: ReportSheetProps) {
   const { colors, styles } = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
   const [details, setDetails] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDuplicate, setIsDuplicate] = useState(false);
@@ -77,7 +79,7 @@ export function ReportSheet({
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}
+        style={[styles.overlay, { paddingTop: insets.top }]}
       >
         <Pressable
           accessibilityLabel="Close report"
@@ -91,7 +93,16 @@ export function ReportSheet({
           <View style={styles.handle} />
 
           {submitted ? (
-            <View style={styles.successState}>
+            <View
+              style={[
+                styles.successState,
+                {
+                  paddingBottom: spacing.xxl + insets.bottom,
+                  paddingLeft: spacing.lg + insets.left,
+                  paddingRight: spacing.lg + insets.right,
+                },
+              ]}
+            >
               <View style={styles.successIcon}>
                 <SymbolView
                   name={{
@@ -124,7 +135,14 @@ export function ReportSheet({
             </View>
           ) : (
             <ScrollView
-              contentContainerStyle={styles.content}
+              contentContainerStyle={[
+                styles.content,
+                {
+                  paddingBottom: spacing.xxl + insets.bottom,
+                  paddingLeft: spacing.lg + insets.left,
+                  paddingRight: spacing.lg + insets.right,
+                },
+              ]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >

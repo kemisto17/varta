@@ -1,14 +1,15 @@
 import { useThemedStyles } from '../../hooks/useTheme';
 import { Link } from 'expo-router';
 import {
-  Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, } from 'react-native';
+  Pressable, ScrollView, StyleSheet, Text, View, } from 'react-native';
 
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 
 export default function WelcomeScreen() {
   const { styles } = useThemedStyles(createStyles);
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -56,7 +57,7 @@ export default function WelcomeScreen() {
           </Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

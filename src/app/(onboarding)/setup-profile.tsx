@@ -1,9 +1,10 @@
 import { useThemedStyles } from '../../hooks/useTheme';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, } from 'react-native';
+  KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View, } from 'react-native';
 
 import { AuthField } from '../../components/auth/AuthField';
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
 import { InstituteSelectField } from '../../components/profile/InstituteSelectField';
 import { YearSelector } from '../../components/profile/YearSelector';
@@ -121,7 +122,7 @@ export default function SetupProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
@@ -231,7 +232,7 @@ export default function SetupProfileScreen() {
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

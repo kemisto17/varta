@@ -1,6 +1,7 @@
 import { useThemedStyles } from '../../hooks/useTheme';
 import { useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import type { InstituteOption } from '../../lib/profile';
@@ -19,6 +20,7 @@ export function InstituteSelectField({
   value,
 }: InstituteSelectFieldProps) {
   const { styles } = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
   const [isOpen, setIsOpen] = useState(false);
 
   const close = () => setIsOpen(false);
@@ -49,14 +51,23 @@ export function InstituteSelectField({
         transparent
         visible={isOpen}
       >
-        <View style={styles.modalRoot}>
+        <View style={[styles.modalRoot, { paddingTop: insets.top }]}>
           <Pressable
             accessibilityLabel="Close institute picker"
             onPress={close}
             style={StyleSheet.absoluteFill}
           />
 
-          <View style={styles.sheet}>
+          <View
+            style={[
+              styles.sheet,
+              {
+                paddingBottom: spacing.lg + insets.bottom,
+                paddingLeft: spacing.lg + insets.left,
+                paddingRight: spacing.lg + insets.right,
+              },
+            ]}
+          >
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetEyebrow}>YOUR CAMPUS</Text>
             <Text style={styles.sheetTitle}>Choose your institute</Text>

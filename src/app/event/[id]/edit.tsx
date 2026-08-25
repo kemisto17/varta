@@ -1,8 +1,9 @@
 import { useThemedStyles } from '../../../hooks/useTheme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { SafeAreaScreen } from '../../../components/SafeAreaScreen';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { EventFormScreen } from '../../../components/events/EventFormScreen';
 import { spacing, type ThemeColors } from '../../../constants/theme';
@@ -50,11 +51,11 @@ export default function EditEventScreen() {
   };
 
   if (isLoading) {
-    return <SafeAreaView style={styles.safeArea}><ScreenHeader title="Edit event" /><View style={styles.center}><ActivityIndicator color={colors.textSecondary} /></View></SafeAreaView>;
+    return <SafeAreaScreen style={styles.safeArea}><ScreenHeader title="Edit event" /><View style={styles.center}><ActivityIndicator color={colors.textSecondary} /></View></SafeAreaScreen>;
   }
 
   if (!event) {
-    return <SafeAreaView style={styles.safeArea}><ScreenHeader title="Edit event" /><View style={styles.center}><Text style={styles.title}>Editing unavailable</Text><Text style={styles.message}>You do not have permission to edit this event.</Text></View></SafeAreaView>;
+    return <SafeAreaScreen style={styles.safeArea}><ScreenHeader title="Edit event" /><View style={styles.center}><Text style={styles.title}>Editing unavailable</Text><Text style={styles.message}>You do not have permission to edit this event.</Text></View></SafeAreaScreen>;
   }
 
   return (

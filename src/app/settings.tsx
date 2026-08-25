@@ -4,13 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 
+import { SafeAreaScreen } from '../components/SafeAreaScreen';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SettingsRow } from '../components/settings/SettingsRow';
 import { SettingsSection } from '../components/settings/SettingsSection';
@@ -142,7 +142,7 @@ export default function SettingsScreen() {
     verificationStatus === 'verified' ? 'Verified student' : 'In progress';
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <ScreenHeader title="Settings" />
       <ScrollView
         contentContainerStyle={styles.content}
@@ -253,7 +253,7 @@ export default function SettingsScreen() {
 
         <Text style={styles.footer}>VĀRTĀ · Built for campus conversations</Text>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

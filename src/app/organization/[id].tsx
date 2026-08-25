@@ -3,8 +3,9 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, } from 'react-native';
+  ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, } from 'react-native';
 
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { EventCard } from '../../components/events/EventCard';
 import { OrganizationAvatar } from '../../components/organizations/OrganizationAvatar';
@@ -120,7 +121,7 @@ export default function OrganizationScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <ScreenHeader
         action={
           organization && isOrganizationManagerRole(organization.role) ? (
@@ -183,7 +184,7 @@ export default function OrganizationScreen() {
           ))}
         </ScrollView>
       )}
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

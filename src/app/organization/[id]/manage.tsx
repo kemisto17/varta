@@ -1,8 +1,9 @@
 import { useThemedStyles } from '../../../hooks/useTheme';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { SafeAreaScreen } from '../../../components/SafeAreaScreen';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { EventCard } from '../../../components/events/EventCard';
 import { radius, spacing, type ThemeColors } from '../../../constants/theme';
@@ -58,7 +59,7 @@ export default function ManageOrganizationScreen() {
   useFocusEffect(useCallback(() => { void loadPage(); }, [loadPage]));
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <ScreenHeader title="Manage" />
       {isLoading ? (
         <View style={styles.center}><ActivityIndicator color={colors.textSecondary} /></View>
@@ -96,7 +97,7 @@ export default function ManageOrganizationScreen() {
           ))}
         </ScrollView>
       )}
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

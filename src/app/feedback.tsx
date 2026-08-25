@@ -3,8 +3,9 @@ import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import {
-  ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
+  ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
 
+import { SafeAreaScreen } from '../components/SafeAreaScreen';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { radius, spacing, type ThemeColors } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
@@ -49,7 +50,7 @@ export default function FeedbackScreen() {
 
   if (submitted) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaScreen style={styles.safeArea}>
         <ScreenHeader title="Feedback" />
         <View style={styles.successState}>
           <View style={styles.successIcon}>
@@ -74,12 +75,12 @@ export default function FeedbackScreen() {
             <Text style={styles.doneButtonText}>Done</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </SafeAreaScreen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <ScreenHeader title="Feedback" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -164,7 +165,7 @@ export default function FeedbackScreen() {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

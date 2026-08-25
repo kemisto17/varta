@@ -3,9 +3,10 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, SafeAreaView, StyleSheet, Text, View, } from 'react-native';
+  ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View, } from 'react-native';
 
 import { Avatar } from '../../components/Avatar';
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { CampusNowSection } from '../../components/campus-now/CampusNowSection';
 import { PostCard } from '../../components/PostCard';
 import { BlockUserSheet } from '../../components/moderation/BlockUserSheet';
@@ -265,7 +266,7 @@ export default function HomeScreen() {
   const isInitialLoading = status === 'idle' || status === 'loading';
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea} withinTabNavigator>
       <FlatList
         contentContainerStyle={styles.content}
         data={posts}
@@ -456,7 +457,7 @@ export default function HomeScreen() {
         onClose={() => setBlockTarget(null)}
         user={blockTarget}
       />
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

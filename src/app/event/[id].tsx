@@ -4,9 +4,10 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, } from 'react-native';
+  ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View, } from 'react-native';
 
 import { FullscreenImageViewer } from '../../components/FullscreenImageViewer';
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
@@ -149,7 +150,7 @@ export default function EventDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea}>
       <ScreenHeader
         action={
           event?.canManage ? (
@@ -300,7 +301,7 @@ export default function EventDetailScreen() {
           visible={isImageOpen}
         />
       ) : null}
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 

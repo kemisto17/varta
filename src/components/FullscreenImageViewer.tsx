@@ -349,7 +349,10 @@ export function FullscreenImageViewer({
           onPress={onClose}
           style={({ pressed }) => [
             styles.closeButton,
-            { top: Math.max(insets.top, 8) + 8 },
+            {
+              right: Math.max(insets.right, 8) + 8,
+              top: Math.max(insets.top, 8) + 8,
+            },
             pressed && styles.closeButtonPressed,
           ]}
         >
@@ -468,7 +471,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
 
   closeButton: {
     position: 'absolute',
-    right: 16,
     width: 48,
     height: 48,
     borderRadius: 24,

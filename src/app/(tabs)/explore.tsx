@@ -4,9 +4,10 @@ import { SymbolView } from 'expo-symbols';
 import {
   useCallback, useEffect, useMemo, useRef, useState, } from 'react';
 import {
-  ActivityIndicator, Keyboard, Pressable, SafeAreaView, SectionList, StyleSheet, Text, TextInput, View, } from 'react-native';
+  ActivityIndicator, Keyboard, Pressable, SectionList, StyleSheet, Text, TextInput, View, } from 'react-native';
 
 import { Avatar } from '../../components/Avatar';
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { EventCard } from '../../components/events/EventCard';
 import { OrganizationAvatar } from '../../components/organizations/OrganizationAvatar';
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
@@ -274,7 +275,7 @@ export default function ExploreScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen style={styles.safeArea} withinTabNavigator>
       <SectionList
         contentContainerStyle={[
           styles.content,
@@ -404,7 +405,7 @@ export default function ExploreScreen() {
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={false}
       />
-    </SafeAreaView>
+    </SafeAreaScreen>
   );
 }
 
