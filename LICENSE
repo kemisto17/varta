@@ -1,21 +1,44 @@
-The MIT License (MIT)
+Varta Source Available License
+Version 1.0
 
-Copyright (c) 2015-present 650 Industries, Inc. (aka Expo)
+Copyright (c) 2026 Varta
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is granted to view, inspect, and study the source code of this
+repository for personal, educational, and non-commercial purposes only.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+You may:
+- View and study the source code.
+- Use portions of the code for personal learning and experimentation.
+- Modify the code privately for personal or educational purposes.
+
+You may NOT, without prior written permission:
+- Use this software or substantial portions of it for commercial purposes.
+- Sell, license, sublicense, or monetize this software.
+- Redistribute the source code or modified versions of the software.
+- Publish a fork or substantially similar copy intended to reproduce Varta.
+- Operate a public or commercial service substantially based on this software.
+- Rebrand, clone, or launch a competing product derived substantially from
+  this software.
+- Use the Varta or VĀRTĀ name, logos, wordmarks, visual identity, or other
+  branding assets.
+
+This license does not grant any trademark rights.
+
+The names "Varta" and "VĀRTĀ", associated logos, wordmarks, branding,
+design assets, and product identity are proprietary and may not be used
+without explicit written permission.
+
+Contributions submitted to this repository do not automatically grant the
+contributor ownership or licensing rights over the Varta product or brand.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES,
+OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+
+For commercial licensing, redistribution, partnership, or other permissions,
+contact the copyright holder.
+
+All rights not expressly granted under this license are reserved.
