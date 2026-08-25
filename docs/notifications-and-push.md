@@ -3,15 +3,16 @@
 ## What works now
 
 - In-app notifications are written by trusted Postgres triggers for likes,
-  comments, verification decisions, public badge assignments, and event
-  cancellations for interested students.
+  comments, new people followers, verification decisions, public badge
+  assignments, and event cancellations for interested students.
 - The app loads 25 notifications at a time, tracks unread state, and listens to
   Realtime inserts filtered to the signed-in user.
 - A physical-device development or release build can register multiple Expo
   push tokens per user. Tokens are never stored on `profiles`.
 - Notification responses are observed after the verified session resolves.
-  Post and event pushes open their detail screen; badge/approval pushes open
-  Profile; an otherwise valid notification opens the notification center.
+  Post and event pushes open their detail screen; new-follower pushes open the
+  follower's student profile; badge/approval pushes open Profile; an otherwise
+  valid notification opens the notification center.
 - `send-notification-push` is a service-role-only Edge Function that loads the
   notification and destination tokens on the server, then sends only
   type-allowlisted, non-sensitive copy to Expo.
@@ -23,11 +24,11 @@ Expo Go test.
 ## User preferences
 
 `public.notification_preferences` stores self-owned controls for likes,
-comments, public badges, and event cancellations. Its RLS policies permit only
-the signed-in student to select, insert, or update that row; clients cannot
-delete rows or change ownership. The trusted producer functions check the
-matching preference before inserting a notification, so these are functional
-controls rather than display-only switches.
+comments, new people followers, public badges, and event cancellations. Its
+RLS policies permit only the signed-in student to select, insert, or update
+that row; clients cannot delete rows or change ownership. The trusted producer
+functions check the matching preference before inserting a notification, so
+these are functional controls rather than display-only switches.
 
 Verification approved/rejected notifications remain enabled because they are
 essential account messages. Organization updates are not shown in Settings
@@ -86,6 +87,11 @@ liking the same post again does not create another notification.
 Event cancellation notifications follow the same trusted pattern. A unique
 partial index permits one cancellation notification per recipient and event,
 and `event_id` provides the in-app and future push deep-link target.
+
+People-follow notifications also retain one historical notification per
+recipient and actor. Unfollowing never creates or deletes a notification, and
+following the same student again does not spam a second notification. These
+notifications are intentionally unrelated to `organization_follows`.
 
 ## Privileged badge assignment
 

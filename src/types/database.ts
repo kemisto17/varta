@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_logs: {
+        Row: {
+          action: string
+          actor_role: Database["public"]["Enums"]["admin_role"]
+          actor_user_id: string
+          created_at: string
+          id: number
+          metadata: Json
+          target_id: string | null
+          target_type: string
+        }
+        Insert: {
+          action: string
+          actor_role: Database["public"]["Enums"]["admin_role"]
+          actor_user_id: string
+          created_at?: string
+          id?: never
+          metadata?: Json
+          target_id?: string | null
+          target_type: string
+        }
+        Update: {
+          action?: string
+          actor_role?: Database["public"]["Enums"]["admin_role"]
+          actor_user_id?: string
+          created_at?: string
+          id?: never
+          metadata?: Json
+          target_id?: string | null
+          target_type?: string
+        }
+        Relationships: []
+      }
+      admin_users: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          is_active: boolean
+          role: Database["public"]["Enums"]["admin_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          is_active?: boolean
+          role: Database["public"]["Enums"]["admin_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          is_active?: boolean
+          role?: Database["public"]["Enums"]["admin_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       badges: {
         Row: {
           created_at: string
@@ -277,6 +337,7 @@ export type Database = {
           badges_enabled: boolean
           comments_enabled: boolean
           events_enabled: boolean
+          follows_enabled: boolean
           likes_enabled: boolean
           updated_at: string
           user_id: string
@@ -285,6 +346,7 @@ export type Database = {
           badges_enabled?: boolean
           comments_enabled?: boolean
           events_enabled?: boolean
+          follows_enabled?: boolean
           likes_enabled?: boolean
           updated_at?: string
           user_id: string
@@ -293,6 +355,7 @@ export type Database = {
           badges_enabled?: boolean
           comments_enabled?: boolean
           events_enabled?: boolean
+          follows_enabled?: boolean
           likes_enabled?: boolean
           updated_at?: string
           user_id?: string
@@ -471,9 +534,12 @@ export type Database = {
         Row: {
           avatar_path: string | null
           created_at: string
+          deactivated_at: string | null
+          deactivated_by: string | null
           description: string
           id: string
           institute_id: string | null
+          is_active: boolean
           is_verified: boolean
           name: string
           slug: string
@@ -483,9 +549,12 @@ export type Database = {
         Insert: {
           avatar_path?: string | null
           created_at?: string
+          deactivated_at?: string | null
+          deactivated_by?: string | null
           description?: string
           id?: string
           institute_id?: string | null
+          is_active?: boolean
           is_verified?: boolean
           name: string
           slug: string
@@ -495,9 +564,12 @@ export type Database = {
         Update: {
           avatar_path?: string | null
           created_at?: string
+          deactivated_at?: string | null
+          deactivated_by?: string | null
           description?: string
           id?: string
           institute_id?: string | null
+          is_active?: boolean
           is_verified?: boolean
           name?: string
           slug?: string
@@ -619,6 +691,39 @@ export type Database = {
           {
             foreignKeyName: "profile_badges_profile_id_fkey"
             columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_follows: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_follows_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_follows_following_id_fkey"
+            columns: ["following_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -919,6 +1024,50 @@ export type Database = {
           slug: string
         }[]
       }
+      get_followed_organizations_page: {
+        Args: {
+          cursor_created_at?: string
+          cursor_organization_id?: string
+          result_limit?: number
+        }
+        Returns: {
+          avatar_path: string
+          campus_short_name: string
+          created_at: string
+          is_verified: boolean
+          name: string
+          organization_id: string
+        }[]
+      }
+      get_profile_connections: {
+        Args: {
+          connection_kind: string
+          cursor_created_at?: string
+          cursor_profile_id?: string
+          result_limit?: number
+          target_profile_id: string
+        }
+        Returns: {
+          avatar_path: string
+          branch: string
+          created_at: string
+          full_name: string
+          institute_short_name: string
+          is_followed_by_current_user: boolean
+          is_verified: boolean
+          profile_id: string
+          username: string
+          year: number
+        }[]
+      }
+      get_profile_social_summary: {
+        Args: { target_profile_id: string }
+        Returns: {
+          follower_count: number
+          following_count: number
+          is_followed_by_current_user: boolean
+        }[]
+      }
       search_events: {
         Args: { result_limit?: number; search_query: string }
         Returns: {
@@ -964,6 +1113,7 @@ export type Database = {
       }
     }
     Enums: {
+      admin_role: "super_admin" | "admin" | "moderator" | "reviewer"
       notification_type:
         | "post_like"
         | "post_comment"
@@ -971,6 +1121,7 @@ export type Database = {
         | "verification_rejected"
         | "badge_assigned"
         | "event_cancelled"
+        | "profile_follow"
       report_reason:
         | "spam"
         | "harassment"
@@ -1108,6 +1259,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      admin_role: ["super_admin", "admin", "moderator", "reviewer"],
       notification_type: [
         "post_like",
         "post_comment",
@@ -1115,6 +1267,7 @@ export const Constants = {
         "verification_rejected",
         "badge_assigned",
         "event_cancelled",
+        "profile_follow",
       ],
       report_reason: [
         "spam",

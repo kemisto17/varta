@@ -3,20 +3,27 @@ import { supabase } from './supabase';
 
 export type NotificationPreferences = Pick<
   Tables<'notification_preferences'>,
-  'badges_enabled' | 'comments_enabled' | 'events_enabled' | 'likes_enabled'
+  | 'badges_enabled'
+  | 'comments_enabled'
+  | 'events_enabled'
+  | 'follows_enabled'
+  | 'likes_enabled'
 >;
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   badges_enabled: true,
   comments_enabled: true,
   events_enabled: true,
+  follows_enabled: true,
   likes_enabled: true,
 };
 
 export async function getNotificationPreferences(userId: string) {
   const { data, error } = await supabase
     .from('notification_preferences')
-    .select('likes_enabled, comments_enabled, badges_enabled, events_enabled')
+    .select(
+      'likes_enabled, comments_enabled, follows_enabled, badges_enabled, events_enabled'
+    )
     .eq('user_id', userId)
     .maybeSingle();
 

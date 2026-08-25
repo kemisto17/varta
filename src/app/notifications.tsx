@@ -70,6 +70,14 @@ export default function NotificationsScreen() {
         return;
       }
 
+      if (notification.type === 'profile_follow' && notification.actor_id) {
+        router.push({
+          pathname: '/user/[id]',
+          params: { id: notification.actor_id },
+        });
+        return;
+      }
+
       if (notification.type === 'verification_rejected') {
         refreshVerification();
         router.back();

@@ -2,6 +2,7 @@ import type { QueryData } from '@supabase/supabase-js';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
 import type {
+  Database,
   Tables,
   TablesInsert,
   TablesUpdate,
@@ -89,15 +90,23 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     return null;
   }
 
-  const { data, error } = await selectUserProfiles()
-    .eq('id', userId)
-    .maybeSingle();
+  const [profileResult, socialSummaryResult] = await Promise.all([
+    selectUserProfiles().eq('id', userId).maybeSingle(),
+    supabase
+      .rpc('get_profile_social_summary', { target_profile_id: userId })
+      .maybeSingle(),
+  ]);
+  const { data, error } = profileResult;
 
   if (error) {
     throw error;
   }
 
-  if (!data || !data.institute) {
+  if (socialSummaryResult.error) {
+    throw socialSummaryResult.error;
+  }
+
+  if (!data || !data.institute || !socialSummaryResult.data) {
     return null;
   }
 
@@ -106,7 +115,12 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     getProfileBadges(data.id),
   ]);
 
-  return mapUserProfile(data, avatarUrl, badges);
+  return mapUserProfile(
+    data,
+    avatarUrl,
+    badges,
+    socialSummaryResult.data
+  );
 }
 
 export async function getInstitutes() {
@@ -266,7 +280,8 @@ function validateProfileUpdate(input: UpdateStudentProfileInput) {
 function mapUserProfile(
   row: UserProfileQueryRow,
   avatarUrl: string | null,
-  badges: UserProfile['badges']
+  badges: UserProfile['badges'],
+  socialSummary: Database['public']['Functions']['get_profile_social_summary']['Returns'][number]
 ): UserProfile {
   if (!row.institute) {
     throw new Error('Profile institute is unavailable.');
@@ -279,12 +294,15 @@ function mapUserProfile(
     bio: row.bio,
     branch: row.branch,
     fullName: row.full_name,
+    followerCount: socialSummary.follower_count,
+    followingCount: socialSummary.following_count,
     id: row.id,
     institute: {
       id: row.institute.id,
       name: row.institute.name,
       shortName: row.institute.short_name,
     },
+    isFollowedByCurrentUser: socialSummary.is_followed_by_current_user,
     isVerified: row.is_verified,
     postCount: row.posts[0]?.count ?? 0,
     username: row.username,

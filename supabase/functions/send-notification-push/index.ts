@@ -7,10 +7,12 @@ type NotificationType =
   | 'post_comment'
   | 'event_cancelled'
   | 'post_like'
+  | 'profile_follow'
   | 'verification_approved'
   | 'verification_rejected';
 
 type NotificationRecord = {
+  actor_id: string | null;
   id: string;
   event_id: string | null;
   post_id: string | null;
@@ -57,7 +59,7 @@ Deno.serve(async (request: Request) => {
   });
   const { data: rawNotification, error: notificationError } = await supabase
     .from('notifications')
-    .select('id, recipient_id, type, title, post_id, event_id')
+    .select('id, recipient_id, actor_id, type, title, post_id, event_id')
     .eq('id', notificationId)
     .single();
 
@@ -89,6 +91,8 @@ Deno.serve(async (request: Request) => {
       notificationId: notification.id,
       eventId: notification.event_id,
       postId: notification.post_id,
+      profileId:
+        notification.type === 'profile_follow' ? notification.actor_id : null,
       type: notification.type,
     },
     sound: 'default',
@@ -126,6 +130,7 @@ function getSafePushBody(notification: NotificationRecord) {
   switch (notification.type) {
     case 'post_like':
     case 'post_comment':
+    case 'profile_follow':
       return notification.title;
     case 'badge_assigned':
       return 'You received a new badge.';
@@ -182,6 +187,7 @@ function isNotificationRecord(value: unknown): value is NotificationRecord {
     typeof value.recipient_id === 'string' &&
     typeof value.title === 'string' &&
     isNotificationType(value.type) &&
+    (value.actor_id === null || typeof value.actor_id === 'string') &&
     (value.post_id === null || typeof value.post_id === 'string')
     && (value.event_id === null || typeof value.event_id === 'string')
   );
@@ -195,6 +201,7 @@ function isNotificationType(value: unknown): value is NotificationType {
   return (
     value === 'post_like' ||
     value === 'post_comment' ||
+    value === 'profile_follow' ||
     value === 'event_cancelled' ||
     value === 'verification_approved' ||
     value === 'verification_rejected' ||

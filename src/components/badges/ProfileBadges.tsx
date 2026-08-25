@@ -57,9 +57,9 @@ export function ProfileBadges({
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
-    maxWidth: 360,
+    width: '100%',
     marginTop: spacing.lg,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
 
   eyebrow: {
@@ -73,7 +73,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   badges: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: spacing.sm,
   },
 
