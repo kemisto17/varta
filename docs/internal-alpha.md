@@ -16,7 +16,7 @@ Before sharing an Expo QR code:
 - At least two verified test students exist at the same university.
 - At least one official organization and one future published event exist.
 - The tester has the exact version/commit identifier and knows where to send feedback.
-- The final icon limitation is understood: the current icon remains temporary until the approved VĀ monogram is supplied.
+- The configured VĀ launcher icon has been checked in a development build, preview APK, or production build rather than judged through Expo Go.
 
 Email confirmation is intentionally disabled only for Expo Go development. Before inviting external testers, configure a mobile auth callback, re-enable confirmation, and enable leaked-password protection in Supabase Auth.
 
@@ -134,7 +134,7 @@ Use two verified accounts where a blocking test is required.
    - Test both gesture navigation and three-button Android navigation in Light and Dark modes.
    - Confirm first and last scroll items, Create Post actions, comment Send controls, sheets, and fullscreen-image controls remain reachable.
    - Check the launcher icon in a Varta development build, preview APK, or production build. Expo Go displays its own host-app icon and is not a valid launcher-icon test.
-   - The current speech-bubble V icon remains temporary until the approved V/VĀ monogram asset set is supplied.
+   - Confirm the configured VĀ mark remains centered and readable under circle, squircle, rounded-square, and themed-icon masks.
 
 ## Security and privacy audit
 
@@ -197,6 +197,6 @@ Do not expose this query or a feedback-list screen to the mobile role. Treat mes
 - Search does not include post content or full-text ranking.
 - Product analytics are not added in this milestone; server table counts and the private feedback queue provide the minimum alpha signal without introducing a new data processor.
 - Native push delivery still depends on device permissions, Expo credentials, and the documented server function.
-- The current icon is intentionally temporary. Replace it only with the approved near-white/black V or VĀ monogram described in branding-and-settings.md.
+- The full VĀRTĀ launcher alternative is retained but not configured because it becomes too small at common launcher sizes; the VĀ monogram is the production candidate.
 - Account deletion is not exposed because a privileged, session-revoking deletion flow is not implemented yet.
 - Device testing is required for camera/gallery behavior, keyboard layout, and deep links even when automated checks pass.

@@ -54,7 +54,7 @@ Post full-text search, public organization management, direct messaging, and pro
    npx expo start --clear
    ~~~
 
-The display/product name is `Varta`; the in-app wordmark is `VĀRTĀ`. The Expo slug and URL scheme remain `campus` so existing development deep links and auth configuration continue to work. See [docs/branding-and-settings.md](docs/branding-and-settings.md) for the splash assets and final icon handoff.
+The display/product name is `Varta`; the in-app wordmark is `VĀRTĀ`. The Expo slug and URL scheme remain `campus` so existing development deep links and auth configuration continue to work. See [docs/branding-and-settings.md](docs/branding-and-settings.md) for the splash and launcher assets.
 
 ## Development checks
 

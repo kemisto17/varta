@@ -28,20 +28,16 @@ Android API 36 requires edge-to-edge rendering, so Varta does not attempt to dis
 
 Both assets are deterministic text renders rather than screenshots. Expo's splash plugin selects the appropriate asset from the native system appearance before JavaScript loads.
 
-## Final icon handoff
+## Launcher icon assets
 
-`assets/images/varta-icon.png` remains the current working icon so builds stay valid. It is not the approved final direction because it contains the older speech-bubble mark.
+- `assets/images/varta-icon-monogram.png` — configured opaque launcher icon with a centered black VĀ on the warm near-white brand background.
+- `assets/images/varta-adaptive-monogram.png` — configured transparent VĀ foreground for Android adaptive and themed icons; Expo supplies `#F8F7F4` as the adaptive background layer.
+- `assets/images/varta-icon-wordmark.png` — prepared full-wordmark alternative with centered black VĀRTĀ on warm near-white.
+- `assets/images/varta-icon.png` — retained only as the unreferenced legacy speech-bubble asset.
 
-When the approved monogram is supplied, prepare:
+The full wordmark occupies roughly half the canvas width but only about 13% of its height. It is balanced at source size, yet becomes too small to read reliably at common launcher sizes. The VĀ monogram is therefore the configured variant. Its Android foreground occupies 48% of the 108 dp layer width (about 52 dp), is centered, and remains inside Android's 66 × 66 dp mask-safe zone.
 
-- `varta-icon.png`: 1024 × 1024 opaque PNG, near-white background with a centered black V or VĀ monogram and generous safe space.
-- `varta-adaptive-foreground.png`: 1024 × 1024 transparent PNG containing only the black monogram inside the central safe area.
-- `varta-monochrome.png`: 1024 × 1024 transparent single-color mask for Android themed icons.
-- `varta-favicon.png`: at least 48 × 48 PNG derived from the same monogram.
-
-Then point `icon`, `ios.icon`, `android.adaptiveIcon.foregroundImage`, `android.adaptiveIcon.monochromeImage`, and `web.favicon` at the final files, retaining a near-white Android adaptive background.
-
-Expo Go does not demonstrate Varta's final installed launcher icon; it launches the project inside the Expo Go host app. Validate the actual icon and adaptive masks using a Varta development build, preview APK, or production build. Check circle, squircle, and rounded-square launchers before approving the asset.
+Expo Go does not demonstrate Varta's final installed launcher icon; it launches the project inside the Expo Go host app. Validate the actual icon and adaptive masks using a Varta development build, preview APK, or production build. Check circle, squircle, rounded-square, and themed-icon launchers before approving the asset.
 
 ## Settings behavior
 

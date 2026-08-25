@@ -4,18 +4,19 @@
     "slug": "campus",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/varta-icon.png",
+    "icon": "./assets/images/varta-icon-monogram.png",
     "scheme": "campus",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F8F7F4",
     "ios": {
-      "icon": "./assets/images/varta-icon.png",
+      "icon": "./assets/images/varta-icon-monogram.png",
       "userInterfaceStyle": "automatic"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#111111",
-        "foregroundImage": "./assets/images/varta-icon.png"
+        "backgroundColor": "#F8F7F4",
+        "foregroundImage": "./assets/images/varta-adaptive-monogram.png",
+        "monochromeImage": "./assets/images/varta-adaptive-monogram.png"
       },
       "backgroundColor": "#F8F7F4",
       "userInterfaceStyle": "automatic",
@@ -23,7 +24,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/varta-icon.png",
+      "favicon": "./assets/images/varta-icon-monogram.png",
       "backgroundColor": "#F8F7F4"
     },
     "plugins": [
