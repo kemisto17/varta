@@ -5,12 +5,14 @@ import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
 type NotificationType =
   | 'badge_assigned'
   | 'post_comment'
+  | 'event_cancelled'
   | 'post_like'
   | 'verification_approved'
   | 'verification_rejected';
 
 type NotificationRecord = {
   id: string;
+  event_id: string | null;
   post_id: string | null;
   recipient_id: string;
   title: string;
@@ -55,7 +57,7 @@ Deno.serve(async (request: Request) => {
   });
   const { data: rawNotification, error: notificationError } = await supabase
     .from('notifications')
-    .select('id, recipient_id, type, title, post_id')
+    .select('id, recipient_id, type, title, post_id, event_id')
     .eq('id', notificationId)
     .single();
 
@@ -85,6 +87,7 @@ Deno.serve(async (request: Request) => {
     channelId: 'default',
     data: {
       notificationId: notification.id,
+      eventId: notification.event_id,
       postId: notification.post_id,
       type: notification.type,
     },
@@ -126,6 +129,8 @@ function getSafePushBody(notification: NotificationRecord) {
       return notification.title;
     case 'badge_assigned':
       return 'You received a new badge.';
+    case 'event_cancelled':
+      return 'An event you saved has been cancelled.';
     case 'verification_approved':
       return 'Your Varta account is verified.';
     case 'verification_rejected':
@@ -178,6 +183,7 @@ function isNotificationRecord(value: unknown): value is NotificationRecord {
     typeof value.title === 'string' &&
     isNotificationType(value.type) &&
     (value.post_id === null || typeof value.post_id === 'string')
+    && (value.event_id === null || typeof value.event_id === 'string')
   );
 }
 
@@ -189,6 +195,7 @@ function isNotificationType(value: unknown): value is NotificationType {
   return (
     value === 'post_like' ||
     value === 'post_comment' ||
+    value === 'event_cancelled' ||
     value === 'verification_approved' ||
     value === 'verification_rejected' ||
     value === 'badge_assigned'

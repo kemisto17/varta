@@ -39,3 +39,105 @@ export function formatRelativeTimestamp(
 
   return new Intl.DateTimeFormat('en', options).format(date);
 }
+
+export function formatEventStart(timestamp: string, now = new Date()) {
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const time = new Intl.DateTimeFormat('en', {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+
+  if (isSameLocalDay(date, now)) {
+    return `Today · ${time}`;
+  }
+
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  if (isSameLocalDay(date, tomorrow)) {
+    return `Tomorrow · ${time}`;
+  }
+
+  const dateLabel = new Intl.DateTimeFormat('en', {
+    day: 'numeric',
+    month: 'short',
+    ...(date.getFullYear() === now.getFullYear()
+      ? {}
+      : { year: 'numeric' as const }),
+  }).format(date);
+
+  return `${dateLabel} · ${time}`;
+}
+
+export function formatEventDateRange(startsAt: string, endsAt: string | null) {
+  const start = new Date(startsAt);
+
+  if (Number.isNaN(start.getTime())) {
+    return '';
+  }
+
+  const startLabel = formatEventStart(startsAt);
+
+  if (!endsAt) {
+    return startLabel;
+  }
+
+  const end = new Date(endsAt);
+
+  if (Number.isNaN(end.getTime())) {
+    return startLabel;
+  }
+
+  if (isSameLocalDay(start, end)) {
+    return `${startLabel} – ${new Intl.DateTimeFormat('en', {
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(end)}`;
+  }
+
+  return `${startLabel} – ${new Intl.DateTimeFormat('en', {
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    month: 'short',
+  }).format(end)}`;
+}
+
+export function formatDateInput(date: Date) {
+  return new Intl.DateTimeFormat('en', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+export function formatTimeInput(date: Date) {
+  return new Intl.DateTimeFormat('en', {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
+export function isEventHappeningNow(
+  startsAt: string,
+  endsAt: string | null,
+  now = Date.now()
+) {
+  const start = Date.parse(startsAt);
+  const end = endsAt ? Date.parse(endsAt) : start + 2 * HOUR;
+
+  return start <= now && end >= now;
+}
+
+function isSameLocalDay(left: Date, right: Date) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
+}

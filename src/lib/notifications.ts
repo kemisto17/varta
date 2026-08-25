@@ -20,7 +20,7 @@ export async function getNotificationsPage(
   let query = supabase
     .from('notifications')
     .select(
-      'id, recipient_id, actor_id, type, post_id, comment_id, badge_id, title, body, read_at, created_at'
+      'id, recipient_id, actor_id, type, post_id, comment_id, badge_id, event_id, title, body, read_at, created_at'
     )
     .eq('recipient_id', userId)
     .order('created_at', { ascending: false })

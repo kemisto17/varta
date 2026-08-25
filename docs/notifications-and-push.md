@@ -3,7 +3,8 @@
 ## What works now
 
 - In-app notifications are written by trusted Postgres triggers for likes,
-  comments, verification decisions, and public badge assignments.
+  comments, verification decisions, public badge assignments, and event
+  cancellations for interested students.
 - The app loads 25 notifications at a time, tracks unread state, and listens to
   Realtime inserts filtered to the signed-in user.
 - A physical-device development or release build can register multiple Expo
@@ -60,6 +61,10 @@ Function secret if Expo push access-token security is enabled.
 A unique partial index allows only one historical like notification per
 recipient, actor, and post. Removing a like leaves the notification in history;
 liking the same post again does not create another notification.
+
+Event cancellation notifications follow the same trusted pattern. A unique
+partial index permits one cancellation notification per recipient and event,
+and `event_id` provides the in-app and future push deep-link target.
 
 ## Privileged badge assignment
 

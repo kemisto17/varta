@@ -89,6 +89,122 @@ export type Database = {
           },
         ]
       }
+      event_interests: {
+        Row: {
+          created_at: string
+          event_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_interests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_interests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          cover_path: string | null
+          created_at: string
+          created_by: string
+          description: string
+          ends_at: string | null
+          id: string
+          institute_id: string | null
+          location: string
+          organization_id: string | null
+          registration_url: string | null
+          starts_at: string
+          status: string
+          title: string
+          university_id: string
+          updated_at: string
+        }
+        Insert: {
+          cover_path?: string | null
+          created_at?: string
+          created_by: string
+          description?: string
+          ends_at?: string | null
+          id?: string
+          institute_id?: string | null
+          location?: string
+          organization_id?: string | null
+          registration_url?: string | null
+          starts_at: string
+          status?: string
+          title: string
+          university_id: string
+          updated_at?: string
+        }
+        Update: {
+          cover_path?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          ends_at?: string | null
+          id?: string
+          institute_id?: string | null
+          location?: string
+          organization_id?: string | null
+          registration_url?: string | null
+          starts_at?: string
+          status?: string
+          title?: string
+          university_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_institute_id_fkey"
+            columns: ["institute_id"]
+            isOneToOne: false
+            referencedRelation: "institutes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       institutes: {
         Row: {
           created_at: string
@@ -131,6 +247,7 @@ export type Database = {
           body: string
           comment_id: string | null
           created_at: string
+          event_id: string | null
           id: string
           post_id: string | null
           read_at: string | null
@@ -144,6 +261,7 @@ export type Database = {
           body?: string
           comment_id?: string | null
           created_at?: string
+          event_id?: string | null
           id?: string
           post_id?: string | null
           read_at?: string | null
@@ -157,6 +275,7 @@ export type Database = {
           body?: string
           comment_id?: string | null
           created_at?: string
+          event_id?: string | null
           id?: string
           post_id?: string | null
           read_at?: string | null
@@ -187,6 +306,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "notifications_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "notifications_post_id_fkey"
             columns: ["post_id"]
             isOneToOne: false
@@ -198,6 +324,132 @@ export type Database = {
             columns: ["recipient_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_follows: {
+        Row: {
+          created_at: string
+          organization_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          organization_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          organization_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_follows_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_follows_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_members: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          organization_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          organization_id: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          organization_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          avatar_path: string | null
+          created_at: string
+          description: string
+          id: string
+          institute_id: string | null
+          is_verified: boolean
+          name: string
+          slug: string
+          university_id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_path?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          institute_id?: string | null
+          is_verified?: boolean
+          name: string
+          slug: string
+          university_id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_path?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          institute_id?: string | null
+          is_verified?: boolean
+          name?: string
+          slug?: string
+          university_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizations_institute_id_fkey"
+            columns: ["institute_id"]
+            isOneToOne: false
+            referencedRelation: "institutes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizations_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
             referencedColumns: ["id"]
           },
         ]
@@ -595,6 +847,7 @@ export type Database = {
         | "verification_approved"
         | "verification_rejected"
         | "badge_assigned"
+        | "event_cancelled"
       report_reason:
         | "spam"
         | "harassment"
@@ -738,6 +991,7 @@ export const Constants = {
         "verification_approved",
         "verification_rejected",
         "badge_assigned",
+        "event_cancelled",
       ],
       report_reason: [
         "spam",

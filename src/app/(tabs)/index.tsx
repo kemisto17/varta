@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { Avatar } from '../../components/Avatar';
+import { CampusNowSection } from '../../components/campus-now/CampusNowSection';
 import { PostCard } from '../../components/PostCard';
 import { BlockUserSheet } from '../../components/moderation/BlockUserSheet';
 import { ReportSheet } from '../../components/moderation/ReportSheet';
@@ -22,6 +23,11 @@ import { useFeed } from '../../hooks/useFeed';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useProfile } from '../../hooks/useProfile';
 import { getAvatarUrl } from '../../lib/avatars';
+import {
+  getCampusNowEvents,
+  getEventErrorMessage,
+  setEventInterest,
+} from '../../lib/events';
 import type { ModerationUser, ReportTarget } from '../../lib/moderation';
 import { deletePost, getPostErrorMessage } from '../../lib/posts';
 import {
@@ -29,6 +35,7 @@ import {
   setPostLike,
 } from '../../lib/postInteractions';
 import type { FeedPost } from '../../types/post';
+import type { CampusEvent } from '../../types/event';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -48,6 +55,9 @@ export default function HomeScreen() {
     updatePostLike,
   } = useFeed();
   const likeRequestsRef = useRef(new Set<string>());
+  const [campusNowError, setCampusNowError] = useState<string | null>(null);
+  const [campusNowEvents, setCampusNowEvents] = useState<CampusEvent[]>([]);
+  const [campusNowLoading, setCampusNowLoading] = useState(true);
   const [blockTarget, setBlockTarget] = useState<ModerationUser | null>(null);
   const [deletingPostIds, setDeletingPostIds] = useState<Set<string>>(
     () => new Set()
@@ -56,6 +66,9 @@ export default function HomeScreen() {
   const [likePendingIds, setLikePendingIds] = useState<Set<string>>(
     () => new Set()
   );
+  const [eventInterestPendingIds, setEventInterestPendingIds] = useState<
+    Set<string>
+  >(() => new Set());
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
 
@@ -87,10 +100,73 @@ export default function HomeScreen() {
     };
   }, [profile?.avatar_path]);
 
+  const refreshCampusNow = useCallback(async () => {
+    const userId = session?.user.id;
+
+    if (!userId) {
+      return;
+    }
+
+    setCampusNowError(null);
+    setCampusNowLoading(true);
+
+    try {
+      setCampusNowEvents(await getCampusNowEvents(userId));
+    } catch (error) {
+      console.warn('[campus-now] Could not load campus events.', error);
+      setCampusNowError('Check your connection and try again.');
+    } finally {
+      setCampusNowLoading(false);
+    }
+  }, [session?.user.id]);
+
   useFocusEffect(
     useCallback(() => {
-      void refreshFeed();
-    }, [refreshFeed])
+      void Promise.all([refreshFeed(), refreshCampusNow()]);
+    }, [refreshCampusNow, refreshFeed])
+  );
+
+  const handleToggleEventInterest = useCallback(
+    async (event: CampusEvent) => {
+      const userId = session?.user.id;
+
+      if (!userId || eventInterestPendingIds.has(event.id)) {
+        return;
+      }
+
+      const nextInterested = !event.isInterested;
+      setEventInterestPendingIds((current) => new Set(current).add(event.id));
+      setCampusNowEvents((current) =>
+        current.map((item) =>
+          item.id === event.id ? { ...item, isInterested: nextInterested } : item
+        )
+      );
+
+      try {
+        await setEventInterest({
+          eventId: event.id,
+          isInterested: nextInterested,
+          userId,
+        });
+      } catch (error) {
+        console.warn('[campus-now] Could not update event interest.', error);
+        setCampusNowEvents((current) =>
+          current.map((item) =>
+            item.id === event.id
+              ? { ...item, isInterested: event.isInterested }
+              : item
+          )
+        );
+        setCampusNowError(getEventErrorMessage(error));
+      } finally {
+        setEventInterestPendingIds((current) => {
+          const next = new Set(current);
+          next.delete(event.id);
+          return next;
+        });
+      }
+    },
+    [eventInterestPendingIds, session?.user.id]
   );
 
   const handleDeletePost = useCallback(
@@ -285,9 +361,22 @@ export default function HomeScreen() {
               </Text>
             </View>
 
+            <CampusNowSection
+              errorMessage={campusNowError}
+              events={campusNowEvents}
+              interestPendingIds={eventInterestPendingIds}
+              isLoading={campusNowLoading}
+              onEventPress={(event) =>
+                router.push({ pathname: '/event/[id]', params: { id: event.id } })
+              }
+              onInterestToggle={handleToggleEventInterest}
+              onRetry={() => void refreshCampusNow()}
+              onSeeAll={() => router.push('/events')}
+            />
+
             <View style={styles.feedHeader}>
-              <Text style={styles.sectionEyebrow}>YOUR UNIVERSITY</Text>
-              <Text style={styles.sectionTitle}>Campus feed</Text>
+              <Text style={styles.sectionEyebrow}>CAMPUS FEED</Text>
+              <Text style={styles.sectionTitle}>Latest</Text>
             </View>
 
             {errorMessage && posts.length > 0 ? (
@@ -321,7 +410,7 @@ export default function HomeScreen() {
         }
         onEndReached={() => void loadMore()}
         onEndReachedThreshold={0.35}
-        onRefresh={() => void refreshFeed()}
+        onRefresh={() => void Promise.all([refreshFeed(), refreshCampusNow()])}
         refreshing={isRefreshing}
         renderItem={({ item }) => (
           <PostCard

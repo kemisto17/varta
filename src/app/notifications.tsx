@@ -67,6 +67,14 @@ export default function NotificationsScreen() {
         return;
       }
 
+      if (notification.type === 'event_cancelled' && notification.event_id) {
+        router.push({
+          pathname: '/event/[id]',
+          params: { id: notification.event_id },
+        });
+        return;
+      }
+
       if (notification.type === 'verification_rejected') {
         refreshVerification();
         router.back();

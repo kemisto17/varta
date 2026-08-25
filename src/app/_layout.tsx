@@ -132,6 +132,12 @@ function AppNavigator() {
           <Stack.Screen name="notifications" />
           <Stack.Screen name="post/[id]" />
           <Stack.Screen name="user/[id]" />
+          <Stack.Screen name="events" />
+          <Stack.Screen name="event/[id]" />
+          <Stack.Screen name="event/[id]/edit" />
+          <Stack.Screen name="organization/[id]" />
+          <Stack.Screen name="organization/[id]/manage" />
+          <Stack.Screen name="organization/[id]/create-event" />
         </Stack.Protected>
       </Stack>
     </>

@@ -36,13 +36,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Vārtā to select photos for posts and student verification.",
+          "photosPermission": "Allow Vārtā to select photos for posts, event covers, and student verification.",
           "cameraPermission": false,
           "microphonePermission": false
         }
       ],
       "expo-notifications",
-      "expo-sqlite"
+      "expo-sqlite",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
