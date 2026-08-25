@@ -22,6 +22,7 @@ Post full-text search, public organization management, direct messaging, and pro
 
 - Node.js and npm
 - Expo Go or a compatible Expo development build
+- An Expo account for EAS development, preview, or production builds
 - A Supabase project and the Supabase CLI for schema work
 
 ## Local setup
@@ -54,7 +55,35 @@ Post full-text search, public organization management, direct messaging, and pro
    npx expo start --clear
    ~~~
 
-The display/product name is `Varta`; the in-app wordmark is `VĀRTĀ`. The Expo slug and URL scheme remain `campus` so existing development deep links and auth configuration continue to work. See [docs/branding-and-settings.md](docs/branding-and-settings.md) for the splash and launcher assets.
+The display/product name is `Varta`; the in-app wordmark is `VĀRTĀ`. The Expo slug and installed-app URL scheme are both `varta`, and the Android application ID is `com.kemisto17.varta`. See [docs/branding-and-settings.md](docs/branding-and-settings.md) for the splash and launcher assets.
+
+## Development and Android builds
+
+Expo Go remains useful for fast JavaScript/UI work, but it does not show Varta's
+launcher icon or faithfully exercise native startup and remote push. Use the
+target that matches the test:
+
+| Target | Purpose | Command |
+| --- | --- | --- |
+| Expo Go | Fast local UI and Supabase work with Expo Go limitations | `npx expo start --clear` |
+| Development build | Varta's native shell plus developer tools | `npx eas-cli@latest build --platform android --profile development`, then `npx expo start --dev-client` |
+| Preview APK | Production-like, directly installable internal alpha | `npx eas-cli@latest build --platform android --profile preview` |
+| Production AAB | Future Google Play upload; not directly installable | `npx eas-cli@latest build --platform android --profile production` |
+
+Before the first cloud build, sign in and link the repository to the correct EAS
+project:
+
+~~~bash
+npx eas-cli@latest login
+npx eas-cli@latest init
+~~~
+
+`eas init` writes the real EAS project ID; do not invent one. Configure both
+`EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in the EAS
+`preview` environment before running the preview command. They are public
+mobile-client configuration, not secrets. Never add a database password,
+service-role key, or admin credential. The exact setup and real-device gate are
+in [docs/preview-build.md](docs/preview-build.md).
 
 ## Development checks
 

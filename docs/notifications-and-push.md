@@ -9,6 +9,9 @@
   Realtime inserts filtered to the signed-in user.
 - A physical-device development or release build can register multiple Expo
   push tokens per user. Tokens are never stored on `profiles`.
+- Notification responses are observed after the verified session resolves.
+  Post and event pushes open their detail screen; badge/approval pushes open
+  Profile; an otherwise valid notification opens the notification center.
 - `send-notification-push` is a service-role-only Edge Function that loads the
   notification and destination tokens on the server, then sends only
   type-allowlisted, non-sensitive copy to Expo.
@@ -38,8 +41,8 @@ Before testing remote push:
 
 1. Link or create the correct EAS project with `npx eas-cli@latest init`. This
    writes the real `extra.eas.projectId` used by token registration.
-2. Install/configure an Expo development client and create an `eas.json`
-   development profile for the intended Android or iOS app identifier.
+2. Build the committed `development` profile. It uses `expo-dev-client`, the
+   `development` EAS environment, and an installable Android APK.
 3. Configure APNs/FCM credentials through EAS, then install the development
    build on a physical device.
 4. Open Varta as a verified user and grant notification permission. The app
@@ -49,6 +52,10 @@ Before testing remote push:
 The registration path exits before importing `expo-notifications` in Expo Go,
 on web, on emulators, or before an EAS project ID exists. This keeps existing
 Expo Go development stable.
+
+The preview APK uses the same response-routing code without development tools.
+Cold-start and background notification taps still require a physical-device
+test after the EAS project ID and Android push credentials exist.
 
 ## Trusted delivery wiring still required
 

@@ -191,7 +191,7 @@ Do not expose this query or a feedback-list screen to the mobile role. Treat mes
 
 ## Known alpha constraints
 
-- Expo Go development keeps the legacy campus URL scheme to avoid breaking existing links; the visible product name and artwork are Varta.
+- Installed builds use the `varta` URL scheme and `com.kemisto17.varta` Android application ID. Old `campus://` development links are intentionally retired.
 - Email confirmation is disabled until the mobile callback is configured.
 - Organization avatar upload is admin-managed; the client is read-only.
 - Search does not include post content or full-text ranking.

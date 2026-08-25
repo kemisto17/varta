@@ -233,7 +233,7 @@ export default function SettingsScreen() {
         ) : null}
 
         <SettingsSection title="About">
-          <SettingsRow label="VĀRTĀ" value="University community" />
+          <SettingsRow label="Varta" value="Internal Alpha" />
           <SettingsRow label="Version" value={version} />
           <SettingsRow
             isLast

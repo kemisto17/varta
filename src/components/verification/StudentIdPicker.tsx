@@ -6,6 +6,7 @@ import {
   ActivityIndicator, Image, Pressable, StyleSheet, Text, View, } from 'react-native';
 
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
+import { requestImageLibraryAccess } from '../../lib/imagePicker';
 import { MAX_VERIFICATION_FILE_SIZE } from '../../lib/verification';
 
 type StudentIdPickerProps = {
@@ -27,10 +28,7 @@ export function StudentIdPicker({
     onError(null);
 
     try {
-      const permission =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (!permission.granted) {
+      if (!(await requestImageLibraryAccess())) {
         onError('Allow photo access to choose your college ID image.');
         return;
       }

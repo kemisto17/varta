@@ -11,6 +11,7 @@ import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
+import { requestImageLibraryAccess } from '../../lib/imagePicker';
 import {
   getPostErrorMessage,
   MAX_POST_CHARACTERS,
@@ -43,9 +44,7 @@ export default function CreateScreen() {
     setErrorMessage(null);
 
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (!permission.granted) {
+      if (!(await requestImageLibraryAccess())) {
         setErrorMessage('Allow photo access to add an image to your post.');
         return;
       }

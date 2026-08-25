@@ -5,6 +5,7 @@ import Constants, {
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 
+import { getPushNotificationDestination } from './notificationRouting';
 import { supabase } from './supabase';
 
 export type PushRegistrationResult =
@@ -88,6 +89,44 @@ export async function subscribeToPushTokenChanges(userId: string) {
         console.warn('[push] Could not refresh the device push token.', error);
       });
   });
+
+  return () => subscription.remove();
+}
+
+export async function subscribeToPushNotificationResponses(
+  onOpen: (destination: NonNullable<ReturnType<typeof getPushNotificationDestination>>) => void
+) {
+  const capability = getPushCapability();
+
+  if (!capability.supported) {
+    return () => undefined;
+  }
+
+  const Notifications = await import('expo-notifications');
+  const handleResponse = (
+    response: ReturnType<typeof Notifications.getLastNotificationResponse>
+  ) => {
+    if (!response) {
+      return;
+    }
+
+    const destination = getPushNotificationDestination(
+      response.notification.request.content.data
+    );
+
+    if (!destination) {
+      return;
+    }
+
+    Notifications.clearLastNotificationResponse();
+    onOpen(destination);
+  };
+
+  handleResponse(Notifications.getLastNotificationResponse());
+
+  const subscription = Notifications.addNotificationResponseReceivedListener(
+    handleResponse
+  );
 
   return () => subscription.remove();
 }

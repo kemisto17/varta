@@ -5,9 +5,10 @@
 - Display/product name: `Varta`
 - Visual wordmark: `VĀRTĀ`
 - Technical package name: `varta`
-- Existing Expo slug and deep-link scheme: `campus`
+- Expo slug and deep-link scheme: `varta`
+- Android application ID: `com.kemisto17.varta`
 
-The technical identifiers remain ASCII and stable so current authentication and development links do not break.
+These identifiers are the stable internal-alpha identity. Changing the Android application ID later would create a different installed app and Play Store listing.
 
 ## Appearance architecture
 
@@ -37,7 +38,7 @@ Both assets are deterministic text renders rather than screenshots. Expo's splas
 
 The full wordmark occupies roughly half the canvas width but only about 13% of its height. It is balanced at source size, yet becomes too small to read reliably at common launcher sizes. The VĀ monogram is therefore the configured variant. Its Android foreground occupies 48% of the 108 dp layer width (about 52 dp), is centered, and remains inside Android's 66 × 66 dp mask-safe zone.
 
-Expo Go does not demonstrate Varta's final installed launcher icon; it launches the project inside the Expo Go host app. Validate the actual icon and adaptive masks using a Varta development build, preview APK, or production build. Check circle, squircle, rounded-square, and themed-icon launchers before approving the asset.
+Expo Go does not demonstrate Varta's final installed launcher icon; it launches the project inside the Expo Go host app. Validate the actual icon and adaptive masks using a Varta development build, preview APK, or production build. Check circle, squircle, rounded-square, and themed-icon launchers before approving the asset. The preview build keeps the VĀ fallback configured because the full VĀRTĀ wordmark is only about 13% of the square asset's height and is not reliably readable at launcher size.
 
 ## Settings behavior
 

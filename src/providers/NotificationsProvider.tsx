@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
 
 import type {
   NotificationContextValue,
@@ -19,11 +20,13 @@ import {
 } from '../lib/notifications';
 import {
   registerForPushNotifications,
+  subscribeToPushNotificationResponses,
   subscribeToPushTokenChanges,
 } from '../lib/pushNotifications';
 import { supabase } from '../lib/supabase';
 
 export function NotificationsProvider({ children }: PropsWithChildren) {
+  const router = useRouter();
   const { session } = useAuth();
   const { status: verificationStatus } = useVerification();
   const userId = session?.user.id ?? null;
@@ -172,6 +175,37 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
       removeTokenListener?.();
     };
   }, [canLoadNotifications, userId]);
+
+  useEffect(() => {
+    if (!canLoadNotifications) {
+      return;
+    }
+
+    let isActive = true;
+    let removeResponseListener: (() => void) | undefined;
+
+    void subscribeToPushNotificationResponses((destination) => {
+      if (isActive) {
+        router.push(destination);
+      }
+    })
+      .then((removeListener) => {
+        if (!isActive) {
+          removeListener();
+          return;
+        }
+
+        removeResponseListener = removeListener;
+      })
+      .catch((error: unknown) => {
+        console.warn('[push] Could not listen for notification taps.', error);
+      });
+
+    return () => {
+      isActive = false;
+      removeResponseListener?.();
+    };
+  }, [canLoadNotifications, router]);
 
   const refreshNotifications = useCallback(
     () => loadInitial(status === 'ready'),

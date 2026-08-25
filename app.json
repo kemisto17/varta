@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "Varta",
-    "slug": "campus",
-    "version": "1.0.0",
+    "slug": "varta",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/varta-icon-monogram.png",
-    "scheme": "campus",
+    "scheme": "varta",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F8F7F4",
     "ios": {
@@ -13,6 +13,8 @@
       "userInterfaceStyle": "automatic"
     },
     "android": {
+      "package": "com.kemisto17.varta",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#F8F7F4",
         "foregroundImage": "./assets/images/varta-adaptive-monogram.png",
@@ -20,6 +22,12 @@
       },
       "backgroundColor": "#F8F7F4",
       "userInterfaceStyle": "automatic",
+      "blockedPermissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {

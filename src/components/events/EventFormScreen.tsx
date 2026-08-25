@@ -10,6 +10,7 @@ import {
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { SafeAreaScreen } from '../SafeAreaScreen';
 import { getEventErrorMessage, MAX_EVENT_COVER_SIZE } from '../../lib/events';
+import { requestImageLibraryAccess } from '../../lib/imagePicker';
 import type { CampusEvent, EventFormValues } from '../../types/event';
 import { ScreenHeader } from '../ScreenHeader';
 import { EventDateTimeField } from './EventDateTimeField';
@@ -53,9 +54,7 @@ export function EventFormScreen({
     setErrorMessage(null);
 
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (!permission.granted) {
+      if (!(await requestImageLibraryAccess())) {
         setErrorMessage('Allow photo access to add an event cover.');
         return;
       }

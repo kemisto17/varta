@@ -16,6 +16,7 @@ import { radius, spacing, type ThemeColors } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { MAX_AVATAR_SIZE } from '../lib/avatars';
+import { requestImageLibraryAccess } from '../lib/imagePicker';
 import {
   getProfileUpdateErrorMessage,
   getUserProfile,
@@ -82,9 +83,7 @@ export default function EditProfileScreen() {
     setErrorMessage(null);
 
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (!permission.granted) {
+      if (!(await requestImageLibraryAccess())) {
         setErrorMessage('Allow photo access to choose a profile photo.');
         return;
       }
