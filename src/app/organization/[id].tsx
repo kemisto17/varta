@@ -13,6 +13,7 @@ import {
 
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { EventCard } from '../../components/events/EventCard';
+import { OrganizationAvatar } from '../../components/organizations/OrganizationAvatar';
 import { colors, radius, spacing } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { getOrganizationUpcomingEvents, setEventInterest } from '../../lib/events';
@@ -148,7 +149,11 @@ export default function OrganizationScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.hero}>
-            <View style={styles.avatar}><Text style={styles.avatarText}>{organization.name.slice(0, 1).toUpperCase()}</Text></View>
+            <OrganizationAvatar
+              name={organization.name}
+              size={82}
+              uri={organization.avatarUrl}
+            />
             <View style={styles.nameRow}>
               <Text style={styles.name}>{organization.name}</Text>
               {organization.isVerified ? (
@@ -197,8 +202,6 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
   manageLabel: { padding: spacing.sm, fontSize: 13, fontWeight: '700', color: colors.textPrimary },
   hero: { alignItems: 'center', paddingVertical: spacing.lg },
-  avatar: { width: 82, height: 82, borderRadius: 41, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.textPrimary },
-  avatarText: { fontSize: 27, fontWeight: '700', color: colors.white },
   nameRow: { marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   name: { maxWidth: 280, fontSize: 25, fontWeight: '700', textAlign: 'center', color: colors.textPrimary },
   description: { maxWidth: 330, marginTop: spacing.sm, fontSize: 14, lineHeight: 21, textAlign: 'center', color: colors.textSecondary },

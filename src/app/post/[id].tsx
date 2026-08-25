@@ -31,8 +31,9 @@ import {
 import {
   createPostComment,
   deletePostComment,
+  type CommentCursor,
   getInteractionErrorMessage,
-  getPostComments,
+  getPostCommentsPage,
   MAX_COMMENT_CHARACTERS,
   setPostLike,
 } from '../../lib/postInteractions';
@@ -51,9 +52,12 @@ export default function PostDetailScreen() {
   const detailRequestId = useRef(0);
   const isLikeRequestPending = useRef(false);
   const isCommentRequestPending = useRef(false);
+  const isLoadingMoreCommentsRef = useRef(false);
   const commentDeleteRequests = useRef(new Set<string>());
   const [blockTarget, setBlockTarget] = useState<ModerationUser | null>(null);
   const [comments, setComments] = useState<PostComment[]>([]);
+  const [commentCursor, setCommentCursor] = useState<CommentCursor | null>(null);
+  const [hasMoreComments, setHasMoreComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [deletingCommentIds, setDeletingCommentIds] = useState<Set<string>>(
     () => new Set()
@@ -61,6 +65,7 @@ export default function PostDetailScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDeletingPost, setIsDeletingPost] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+  const [isLoadingMoreComments, setIsLoadingMoreComments] = useState(false);
   const [isSendingComment, setIsSendingComment] = useState(false);
   const [post, setPost] = useState<FeedPost | null>(null);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
@@ -78,9 +83,9 @@ export default function PostDetailScreen() {
     setErrorMessage(null);
 
     try {
-      const [nextPost, nextComments] = await Promise.all([
+      const [nextPost, commentPage] = await Promise.all([
         getPostById(postId, userId),
-        getPostComments(postId),
+        getPostCommentsPage(postId),
       ]);
 
       if (detailRequestId.current !== activeRequestId) {
@@ -90,12 +95,16 @@ export default function PostDetailScreen() {
       if (!nextPost) {
         setPost(null);
         setComments([]);
+        setCommentCursor(null);
+        setHasMoreComments(false);
         setStatus('unavailable');
         return;
       }
 
       setPost(nextPost);
-      setComments(nextComments);
+      setComments(commentPage.comments);
+      setCommentCursor(commentPage.cursor);
+      setHasMoreComments(commentPage.hasMore);
       setStatus('ready');
     } catch (error) {
       if (detailRequestId.current !== activeRequestId) {
@@ -115,6 +124,41 @@ export default function PostDetailScreen() {
       detailRequestId.current += 1;
     };
   }, [loadDetail]);
+
+  const loadMoreComments = useCallback(async () => {
+    if (
+      !postId ||
+      !commentCursor ||
+      !hasMoreComments ||
+      isLoadingMoreCommentsRef.current
+    ) {
+      return;
+    }
+
+    isLoadingMoreCommentsRef.current = true;
+    setIsLoadingMoreComments(true);
+
+    try {
+      const page = await getPostCommentsPage(postId, commentCursor);
+
+      setComments((current) => {
+        const existingIds = new Set(current.map((comment) => comment.id));
+
+        return [
+          ...current,
+          ...page.comments.filter((comment) => !existingIds.has(comment.id)),
+        ];
+      });
+      setCommentCursor(page.cursor);
+      setHasMoreComments(page.hasMore);
+    } catch (error) {
+      console.warn('[post-detail] Could not load more comments.', error);
+      setErrorMessage('More comments could not be loaded. Try again.');
+    } finally {
+      isLoadingMoreCommentsRef.current = false;
+      setIsLoadingMoreComments(false);
+    }
+  }, [commentCursor, hasMoreComments, postId]);
 
   const goBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -390,6 +434,16 @@ export default function PostDetailScreen() {
                 ) : null}
               </>
             }
+            ListFooterComponent={
+              isLoadingMoreComments ? (
+                <ActivityIndicator
+                  color={colors.textSecondary}
+                  style={styles.footerLoader}
+                />
+              ) : null
+            }
+            onEndReached={() => void loadMoreComments()}
+            onEndReachedThreshold={0.35}
             renderItem={({ item }) => (
               <CommentRow
                 comment={item}
@@ -700,8 +754,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     color: colors.danger,
-    backgroundColor: '#F5ECEA',
+    backgroundColor: colors.dangerSoft,
   },
+
+  footerLoader: { marginVertical: spacing.lg },
 
   emptyComments: {
     minHeight: 160,

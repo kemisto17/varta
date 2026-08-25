@@ -17,11 +17,11 @@ export type ModerationUser = {
   id: string;
 };
 
-export const REPORT_REASONS: ReadonlyArray<{
+export const REPORT_REASONS: readonly {
   description: string;
   label: string;
   value: ReportReason;
-}> = [
+}[] = [
   {
     description: 'Repeated or misleading promotion.',
     label: 'Spam',

@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
   },
 
   unreadRow: {
-    backgroundColor: '#FCFCFB',
+    backgroundColor: colors.surfaceMuted,
   },
 
   pressedRow: {

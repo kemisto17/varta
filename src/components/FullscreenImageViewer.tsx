@@ -28,6 +28,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { colors } from '../constants/theme';
+
 export type FullscreenViewerImage = {
   accessibilityLabel?: string;
   uri: string;
@@ -346,7 +348,7 @@ export function FullscreenImageViewer({
 
         {imageLoadState === 'loading' ? (
           <View pointerEvents="none" style={styles.feedback}>
-            <ActivityIndicator color="#D4D4D8" />
+            <ActivityIndicator color={colors.viewerMuted} />
           </View>
         ) : imageLoadState === 'error' ? (
           <View pointerEvents="none" style={styles.feedback}>
@@ -370,7 +372,7 @@ export function FullscreenImageViewer({
           <SymbolView
             name={{ android: 'close', ios: 'xmark', web: 'close' }}
             size={20}
-            tintColor="#FFFFFF"
+            tintColor={colors.white}
           />
         </Pressable>
       </GestureHandlerRootView>
@@ -444,7 +446,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: '#050505',
+    backgroundColor: colors.viewerBackground,
   },
 
   gestureSurface: {
@@ -477,7 +479,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     lineHeight: 21,
-    color: '#D4D4D8',
+    color: colors.viewerMuted,
   },
 
   closeButton: {
@@ -489,7 +491,7 @@ const styles = StyleSheet.create({
     zIndex: 3,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(24, 24, 27, 0.76)',
+    backgroundColor: colors.viewerOverlay,
   },
 
   closeButtonPressed: {

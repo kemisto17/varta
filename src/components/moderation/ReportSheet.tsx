@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(17, 17, 17, 0.34)',
+    backgroundColor: colors.overlay,
   },
 
   sheet: {
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     color: colors.danger,
-    backgroundColor: '#F5ECEA',
+    backgroundColor: colors.dangerSoft,
   },
 
   primaryButton: {
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EAF3EC',
+    backgroundColor: colors.successSoft,
   },
 
   successTitle: {

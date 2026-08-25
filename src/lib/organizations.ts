@@ -1,5 +1,8 @@
 import type { CampusOrganization, OrganizationRole } from '../types/organization';
+import { createPrivateImageUrl, createPrivateImageUrls } from './storage';
 import { supabase } from './supabase';
+
+export const ORGANIZATION_MEDIA_BUCKET = 'organization-media';
 
 const ORGANIZATION_SELECT = `
   id,
@@ -30,8 +33,11 @@ export async function getOrganizationById(
     return null;
   }
 
-  const [{ data: membership, error: roleError }, { data: follow, error: followError }] =
-    await Promise.all([
+  const [
+    { data: membership, error: roleError },
+    { data: follow, error: followError },
+    avatarUrl,
+  ] = await Promise.all([
       supabase
         .from('organization_members')
         .select('role')
@@ -44,6 +50,7 @@ export async function getOrganizationById(
         .eq('organization_id', organizationId)
         .eq('user_id', userId)
         .maybeSingle(),
+      getOrganizationAvatarUrl(organization.avatar_path),
     ]);
 
   if (roleError) {
@@ -56,6 +63,7 @@ export async function getOrganizationById(
 
   return {
     avatarPath: organization.avatar_path,
+    avatarUrl,
     description: organization.description,
     id: organization.id,
     instituteId: organization.institute_id,
@@ -66,6 +74,23 @@ export async function getOrganizationById(
     slug: organization.slug,
     universityId: organization.university_id,
   };
+}
+
+export function getOrganizationAvatarUrls(paths: string[]) {
+  return createPrivateImageUrls(ORGANIZATION_MEDIA_BUCKET, paths);
+}
+
+async function getOrganizationAvatarUrl(path: string | null) {
+  if (!path) {
+    return null;
+  }
+
+  try {
+    return await createPrivateImageUrl(ORGANIZATION_MEDIA_BUCKET, path);
+  } catch (error) {
+    console.warn('[organization] Could not load organization image.', error);
+    return null;
+  }
 }
 
 export async function setOrganizationFollow({

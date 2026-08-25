@@ -391,6 +391,7 @@ export function StudentProfileScreen({
             isOwnProfile={isOwnProfile}
             isSigningOut={isSigningOut}
             onEdit={() => router.push('/edit-profile')}
+            onFeedback={() => router.push('/feedback')}
             onSignOut={() => void handleSignOut()}
             profile={profile}
           />
@@ -538,6 +539,7 @@ function ProfileHeader({
   isOwnProfile,
   isSigningOut,
   onEdit,
+  onFeedback,
   onSignOut,
   profile,
 }: {
@@ -545,6 +547,7 @@ function ProfileHeader({
   isOwnProfile: boolean;
   isSigningOut: boolean;
   onEdit: () => void;
+  onFeedback: () => void;
   onSignOut: () => void;
   profile: UserProfile;
 }) {
@@ -598,6 +601,28 @@ function ProfileHeader({
               ]}
             >
               <Text style={styles.editButtonText}>Edit profile</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={onFeedback}
+              style={({ pressed }) => [
+                styles.feedbackButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <SymbolView
+                name={{
+                  android: 'chat_bubble_outline',
+                  ios: 'bubble.left',
+                  web: 'chat_bubble_outline',
+                }}
+                size={15}
+                tintColor={colors.textSecondary}
+              />
+              <Text style={styles.feedbackButtonText}>
+                Send alpha feedback
+              </Text>
             </Pressable>
 
             <Pressable
@@ -825,6 +850,22 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
 
+  feedbackButton: {
+    minHeight: 40,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+
+  feedbackButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+
   signOutButton: {
     minHeight: 36,
     marginTop: spacing.sm,
@@ -848,7 +889,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     color: colors.danger,
-    backgroundColor: '#F5ECEA',
+    backgroundColor: colors.dangerSoft,
   },
 
   postsHeading: {

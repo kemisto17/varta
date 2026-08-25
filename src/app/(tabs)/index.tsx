@@ -355,7 +355,7 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.intro}>
-              <Text style={styles.heading}>What's happening?</Text>
+              <Text style={styles.heading}>What’s happening?</Text>
               <Text style={styles.subheading}>
                 Discussions, updates and everything happening around campus.
               </Text>
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#F5ECEA',
+    backgroundColor: colors.dangerSoft,
   },
 
   inlineErrorText: {

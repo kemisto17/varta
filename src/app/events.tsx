@@ -29,6 +29,7 @@ export default function EventsScreen() {
   const router = useRouter();
   const { session } = useAuth();
   const { profile } = useProfile();
+  const eventsCountRef = useRef(0);
   const requestIdRef = useRef(0);
   const [cursor, setCursor] = useState<EventCursor | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -73,6 +74,7 @@ export default function EventsScreen() {
         }
 
         setCursor(page.cursor);
+        eventsCountRef.current = page.events.length;
         setEvents(page.events);
         setHasMore(page.hasMore);
         setStatus('ready');
@@ -83,7 +85,7 @@ export default function EventsScreen() {
 
         console.warn('[events] Could not load event list.', error);
         setErrorMessage('Check your connection and try again.');
-        setStatus(events.length > 0 ? 'ready' : 'error');
+        setStatus(eventsCountRef.current > 0 ? 'ready' : 'error');
       } finally {
         setIsRefreshing(false);
       }
@@ -116,12 +118,17 @@ export default function EventsScreen() {
         cursor
       );
       setCursor(page.cursor);
-      setEvents((current) => [
-        ...current,
-        ...page.events.filter(
-          (event) => !current.some((existing) => existing.id === event.id)
-        ),
-      ]);
+      setEvents((current) => {
+        const nextEvents = [
+          ...current,
+          ...page.events.filter(
+            (event) => !current.some((existing) => existing.id === event.id)
+          ),
+        ];
+
+        eventsCountRef.current = nextEvents.length;
+        return nextEvents;
+      });
       setHasMore(page.hasMore);
     } catch (error) {
       console.warn('[events] Could not load more events.', error);
@@ -181,7 +188,7 @@ export default function EventsScreen() {
         keyExtractor={(event) => event.id}
         ListHeaderComponent={
           <>
-            <Text style={styles.heading}>What's happening</Text>
+            <Text style={styles.heading}>What’s happening</Text>
             <Text style={styles.subheading}>Official events across your campus.</Text>
             <View style={styles.filters}>
               {FILTERS.map((item) => (

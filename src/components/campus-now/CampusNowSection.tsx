@@ -47,7 +47,7 @@ export function CampusNowSection({
         </View>
       ) : errorMessage ? (
         <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>Couldn't load campus events.</Text>
+          <Text style={styles.stateTitle}>Couldn’t load campus events.</Text>
           <Text style={styles.stateMessage}>{errorMessage}</Text>
           <Pressable accessibilityRole="button" onPress={onRetry}>
             <Text style={styles.retry}>Try again</Text>

@@ -133,16 +133,6 @@ export async function uploadImage({
 
   const path = `${pathBase}.${detectedDetails.extension}`;
 
-  if (__DEV__) {
-    console.debug('[image-upload] Prepared binary upload.', {
-      bucket,
-      byteLength: fileBody.byteLength,
-      contentType: detectedDetails.contentType,
-      path,
-      uri: source.uri,
-    });
-  }
-
   const { error } = await supabase.storage.from(bucket).upload(path, fileBody, {
     cacheControl,
     contentType: detectedDetails.contentType,

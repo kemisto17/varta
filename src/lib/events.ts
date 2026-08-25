@@ -67,6 +67,25 @@ export async function getCampusNowEvents(userId: string) {
     .slice(0, 3);
 }
 
+export async function getUpcomingDiscoveryEvents(
+  userId: string,
+  limit = 4
+) {
+  const nowIso = new Date().toISOString();
+  const { data, error } = await selectEvents()
+    .eq('status', 'published')
+    .or(`starts_at.gte.${nowIso},ends_at.gte.${nowIso}`)
+    .order('starts_at', { ascending: true })
+    .order('id', { ascending: true })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  return mapEventRows(data, userId);
+}
+
 export async function getEventsPage(
   {
     filter = 'all',

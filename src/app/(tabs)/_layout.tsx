@@ -50,6 +50,24 @@ export default function TabLayout() {
         />
 
         <Tabs.Screen
+          name="explore"
+          options={{
+            title: 'Explore',
+            tabBarIcon: ({ color, focused }) => (
+              <SymbolView
+                name={{
+                  ios: focused ? 'magnifyingglass.circle.fill' : 'magnifyingglass',
+                  android: 'search',
+                  web: 'search',
+                }}
+                tintColor={color}
+                size={22}
+              />
+            ),
+          }}
+        />
+
+        <Tabs.Screen
           name="create"
           options={{
             title: 'Create',

@@ -6,6 +6,7 @@ export type OrganizationRole = 'owner' | 'admin' | 'editor';
 
 export type CampusOrganization = {
   avatarPath: OrganizationRow['avatar_path'];
+  avatarUrl: string | null;
   description: OrganizationRow['description'];
   id: OrganizationRow['id'];
   instituteId: OrganizationRow['institute_id'];

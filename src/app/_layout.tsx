@@ -129,6 +129,7 @@ function AppNavigator() {
         <Stack.Protected guard={canAccessTabs}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="edit-profile" />
+          <Stack.Screen name="feedback" />
           <Stack.Screen name="notifications" />
           <Stack.Screen name="post/[id]" />
           <Stack.Screen name="user/[id]" />

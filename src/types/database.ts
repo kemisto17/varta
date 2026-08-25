@@ -205,6 +205,38 @@ export type Database = {
           },
         ]
       }
+      feedback: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          message: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          message: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          message?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       institutes: {
         Row: {
           created_at: string
@@ -838,7 +870,63 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_discovery_organizations: {
+        Args: { result_limit?: number }
+        Returns: {
+          avatar_path: string
+          description: string
+          id: string
+          institute_id: string
+          institute_name: string
+          institute_short_name: string
+          is_verified: boolean
+          name: string
+          slug: string
+        }[]
+      }
+      search_events: {
+        Args: { result_limit?: number; search_query: string }
+        Returns: {
+          cover_path: string
+          ends_at: string
+          id: string
+          location: string
+          organization_id: string
+          organization_is_verified: boolean
+          organization_name: string
+          starts_at: string
+          title: string
+        }[]
+      }
+      search_organizations: {
+        Args: { result_limit?: number; search_query: string }
+        Returns: {
+          avatar_path: string
+          description: string
+          id: string
+          institute_id: string
+          institute_name: string
+          institute_short_name: string
+          is_verified: boolean
+          name: string
+          slug: string
+        }[]
+      }
+      search_people: {
+        Args: { result_limit?: number; search_query: string }
+        Returns: {
+          avatar_path: string
+          branch: string
+          full_name: string
+          id: string
+          institute_id: string
+          institute_name: string
+          institute_short_name: string
+          is_verified: boolean
+          username: string
+          year: number
+        }[]
+      }
     }
     Enums: {
       notification_type:

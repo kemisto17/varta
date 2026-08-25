@@ -6,6 +6,18 @@ import { getAvatarUrls } from './avatars';
 import { supabase } from './supabase';
 
 export const MAX_COMMENT_CHARACTERS = 500;
+export const COMMENTS_PAGE_SIZE = 30;
+
+export type CommentCursor = {
+  createdAt: string;
+  id: string;
+};
+
+export type CommentPage = {
+  comments: PostComment[];
+  cursor: CommentCursor | null;
+  hasMore: boolean;
+};
 
 const COMMENT_SELECT = `
   id,
@@ -81,30 +93,53 @@ export async function setPostLike({
   }
 }
 
-export async function getPostComments(postId: string) {
-  const { data, error } = await selectComments()
+export async function getPostCommentsPage(
+  postId: string,
+  cursor: CommentCursor | null = null
+): Promise<CommentPage> {
+  let query = selectComments()
     .eq('post_id', postId)
     .order('created_at', { ascending: true })
-    .order('id', { ascending: true });
+    .order('id', { ascending: true })
+    .limit(COMMENTS_PAGE_SIZE + 1);
+
+  if (cursor) {
+    query = query.or(
+      `created_at.gt."${cursor.createdAt}",and(created_at.eq."${cursor.createdAt}",id.gt.${cursor.id})`
+    );
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw error;
   }
 
+  const pageRows = data.slice(0, COMMENTS_PAGE_SIZE);
+
   const avatarPaths = [
     ...new Set(
-      data
+      pageRows
         .map((row) => row.author?.avatar_path ?? null)
         .filter((path): path is string => path !== null)
     ),
   ];
   const avatarUrls = await getSignedCommentAvatarUrls(avatarPaths);
 
-  return data.flatMap((row) => {
+  const comments = pageRows.flatMap((row) => {
     const comment = mapCommentRow(row, avatarUrls);
 
     return comment ? [comment] : [];
   });
+  const lastRow = pageRows.at(-1) ?? null;
+
+  return {
+    comments,
+    cursor: lastRow
+      ? { createdAt: lastRow.created_at, id: lastRow.id }
+      : null,
+    hasMore: data.length > COMMENTS_PAGE_SIZE,
+  };
 }
 
 export async function createPostComment({
