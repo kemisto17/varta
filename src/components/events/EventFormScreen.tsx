@@ -1,23 +1,13 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+  ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, View, } from 'react-native';
 
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { getEventErrorMessage, MAX_EVENT_COVER_SIZE } from '../../lib/events';
 import type { CampusEvent, EventFormValues } from '../../types/event';
 import { ScreenHeader } from '../ScreenHeader';
@@ -38,6 +28,7 @@ export function EventFormScreen({
   submitLabel,
   title,
 }: EventFormScreenProps) {
+  const { colors, styles } = useThemedStyles(createStyles);
   const defaultStart = initialEvent ? new Date(initialEvent.startsAt) : getDefaultStart();
   const [coverAsset, setCoverAsset] = useState<ImagePickerAsset | null>(null);
   const [description, setDescription] = useState(initialEvent?.description ?? '');
@@ -274,6 +265,7 @@ export function EventFormScreen({
 }
 
 function Field({ children, label }: { children: React.ReactNode; label: string }) {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -300,7 +292,7 @@ function combineDateAndTime(datePart: Date, timePart: Date) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   keyboard: { flex: 1 },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },

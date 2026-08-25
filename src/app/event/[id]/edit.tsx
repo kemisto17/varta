@@ -1,15 +1,17 @@
+import { useThemedStyles } from '../../../hooks/useTheme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { EventFormScreen } from '../../../components/events/EventFormScreen';
-import { colors, spacing } from '../../../constants/theme';
+import { spacing, type ThemeColors } from '../../../constants/theme';
 import { useAuth } from '../../../hooks/useAuth';
 import { getEventById, updateOrganizationEvent } from '../../../lib/events';
 import type { EventDetail, EventFormValues } from '../../../types/event';
 
 export default function EditEventScreen() {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string | string[] }>();
   const eventId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -66,7 +68,7 @@ export default function EditEventScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 20, fontWeight: '700', textAlign: 'center', color: colors.textPrimary },

@@ -1,20 +1,14 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+  ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, } from 'react-native';
 
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { EventCard } from '../../components/events/EventCard';
 import { OrganizationAvatar } from '../../components/organizations/OrganizationAvatar';
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { getOrganizationUpcomingEvents, setEventInterest } from '../../lib/events';
 import {
@@ -29,6 +23,7 @@ import type { CampusOrganization } from '../../types/organization';
 type PageStatus = 'loading' | 'ready' | 'unavailable' | 'error';
 
 export default function OrganizationScreen() {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string | string[] }>();
   const organizationId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -193,10 +188,11 @@ export default function OrganizationScreen() {
 }
 
 function State({ actionLabel, message, onAction, title }: { actionLabel?: string; message: string; onAction?: () => void; title: string }) {
+  const { styles } = useThemedStyles(createStyles);
   return <View style={styles.center}><Text style={styles.stateTitle}>{title}</Text><Text style={styles.stateMessage}>{message}</Text>{actionLabel && onAction ? <Pressable accessibilityRole="button" onPress={onAction} style={styles.stateButton}><Text style={styles.stateButtonText}>{actionLabel}</Text></Pressable> : null}</View>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },

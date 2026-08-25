@@ -1,8 +1,9 @@
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { useThemedStyles } from '../../hooks/useTheme';
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { formatDateInput, formatTimeInput } from '../../lib/time';
 
 type EventDateTimeFieldProps = {
@@ -13,6 +14,7 @@ type EventDateTimeFieldProps = {
 };
 
 export function EventDateTimeField({ label, mode, onChange, value }: EventDateTimeFieldProps) {
+  const { colors, resolvedTheme, styles } = useThemedStyles(createStyles);
   const [isOpen, setIsOpen] = useState(false);
 
   const handleChange = (event: DateTimePickerEvent, selected?: Date) => {
@@ -40,9 +42,12 @@ export function EventDateTimeField({ label, mode, onChange, value }: EventDateTi
       {isOpen ? (
         <View style={styles.pickerWrap}>
           <DateTimePicker
+            accentColor={colors.textPrimary}
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             mode={mode}
             onChange={handleChange}
+            textColor={colors.textPrimary}
+            themeVariant={resolvedTheme}
             value={value}
           />
           {Platform.OS === 'ios' ? (
@@ -56,7 +61,7 @@ export function EventDateTimeField({ label, mode, onChange, value }: EventDateTi
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   field: { flex: 1 },
   label: { marginBottom: spacing.sm, fontSize: 12, fontWeight: '600', color: colors.textSecondary },
   control: { minHeight: 50, paddingHorizontal: spacing.md, justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surface },

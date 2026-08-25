@@ -1,6 +1,7 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 
 export type ActionSheetAction = {
   closeOnPress?: boolean;
@@ -25,6 +26,7 @@ export function ActionSheet({
   title,
   visible,
 }: ActionSheetProps) {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <Modal
       animationType="fade"
@@ -93,7 +95,7 @@ export function ActionSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',

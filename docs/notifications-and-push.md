@@ -17,6 +17,20 @@ In-app notifications continue to work in Expo Go. Remote push does not work in
 Expo Go on current Expo SDKs, so no remote push claim should be made from an
 Expo Go test.
 
+## User preferences
+
+`public.notification_preferences` stores self-owned controls for likes,
+comments, public badges, and event cancellations. Its RLS policies permit only
+the signed-in student to select, insert, or update that row; clients cannot
+delete rows or change ownership. The trusted producer functions check the
+matching preference before inserting a notification, so these are functional
+controls rather than display-only switches.
+
+Verification approved/rejected notifications remain enabled because they are
+essential account messages. Organization updates are not shown in Settings
+until a corresponding trusted producer exists. Push delivery is downstream of
+the notification row, so disabled activity does not enter the delivery queue.
+
 ## Development build setup
 
 The repository intentionally does not invent an EAS project ID or credentials.

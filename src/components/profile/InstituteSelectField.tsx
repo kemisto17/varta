@@ -1,7 +1,8 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import type { InstituteOption } from '../../lib/profile';
 
 type InstituteSelectFieldProps = {
@@ -17,6 +18,7 @@ export function InstituteSelectField({
   options,
   value,
 }: InstituteSelectFieldProps) {
+  const { styles } = useThemedStyles(createStyles);
   const [isOpen, setIsOpen] = useState(false);
 
   const close = () => setIsOpen(false);
@@ -110,7 +112,7 @@ export function InstituteSelectField({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     gap: spacing.sm,
   },

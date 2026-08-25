@@ -1,20 +1,13 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+  KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, } from 'react-native';
 
 import { AuthField } from '../../components/auth/AuthField';
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
 import { InstituteSelectField } from '../../components/profile/InstituteSelectField';
 import { YearSelector } from '../../components/profile/YearSelector';
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
 import {
@@ -28,6 +21,7 @@ import {
 const USERNAME_PATTERN = /^[a-z0-9._]+$/;
 
 export default function SetupProfileScreen() {
+  const { styles } = useThemedStyles(createStyles);
   const { session } = useAuth();
   const { markProfileCreated } = useProfile();
   const [fullName, setFullName] = useState('');
@@ -150,7 +144,7 @@ export default function SetupProfileScreen() {
             <Text style={styles.eyebrow}>MAKE IT YOURS</Text>
             <Text style={styles.title}>Set up your profile.</Text>
             <Text style={styles.subtitle}>
-              A few details help Vārtā place you in the right campus conversation.
+              A few details help Varta place you in the right campus conversation.
             </Text>
           </View>
 
@@ -241,7 +235,7 @@ export default function SetupProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,

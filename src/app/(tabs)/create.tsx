@@ -1,23 +1,13 @@
 import * as ImagePicker from 'expo-image-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
+import { useThemedStyles } from '../../hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+  ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
 
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
 import {
@@ -29,6 +19,7 @@ import {
 import { getInitials } from '../../lib/text';
 
 export default function CreateScreen() {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const { session } = useAuth();
   const { profile } = useProfile();
@@ -200,7 +191,7 @@ export default function CreateScreen() {
                 <SymbolView
                   name={{ android: 'close', ios: 'xmark', web: 'close' }}
                   size={18}
-                  tintColor={colors.white}
+                  tintColor={colors.viewerForeground}
                 />
               </Pressable>
             </View>
@@ -261,7 +252,7 @@ function formatYear(year: number) {
   return `${year}${suffix} year`;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,

@@ -1,3 +1,4 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { Link } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -5,7 +6,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { AuthField } from '../../components/auth/AuthField';
 import { AuthScaffold } from '../../components/auth/AuthScaffold';
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
-import { colors, spacing } from '../../constants/theme';
+import { spacing, type ThemeColors } from '../../constants/theme';
 import {
   getAuthErrorMessage,
   isValidEmail,
@@ -14,6 +15,7 @@ import {
 import { supabase } from '../../lib/supabase';
 
 export default function LoginScreen() {
+  const { styles } = useThemedStyles(createStyles);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -93,7 +95,7 @@ export default function LoginScreen() {
       </View>
 
       <Text style={styles.accountPrompt}>
-        New to Vārtā?{' '}
+        New to Varta?{' '}
         <Link href="/(auth)/register" replace style={styles.accountLink}>
           Create an account
         </Link>
@@ -102,7 +104,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   title: {
     fontSize: 36,
     lineHeight: 42,

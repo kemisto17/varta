@@ -1,23 +1,17 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { Link } from 'expo-router';
 import type { PropsWithChildren } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+  KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, } from 'react-native';
 
-import { colors, spacing } from '../../constants/theme';
+import { spacing, type ThemeColors } from '../../constants/theme';
 
 type AuthScaffoldProps = PropsWithChildren<{
   showBack?: boolean;
 }>;
 
 export function AuthScaffold({ children, showBack = true }: AuthScaffoldProps) {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -59,7 +53,7 @@ export function AuthScaffold({ children, showBack = true }: AuthScaffoldProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,

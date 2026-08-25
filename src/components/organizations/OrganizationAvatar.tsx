@@ -1,8 +1,9 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, radius } from '../../constants/theme';
+import { radius, type ThemeColors } from '../../constants/theme';
 
 export function OrganizationAvatar({
   name,
@@ -13,6 +14,7 @@ export function OrganizationAvatar({
   size?: number;
   uri?: string | null;
 }) {
+  const { styles } = useThemedStyles(createStyles);
   const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export function OrganizationAvatar({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   avatar: {
     overflow: 'hidden',
     alignItems: 'center',

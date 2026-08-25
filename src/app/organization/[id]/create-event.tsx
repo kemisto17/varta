@@ -1,10 +1,11 @@
+import { useThemedStyles } from '../../../hooks/useTheme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { EventFormScreen } from '../../../components/events/EventFormScreen';
-import { colors, spacing } from '../../../constants/theme';
+import { spacing, type ThemeColors } from '../../../constants/theme';
 import { useAuth } from '../../../hooks/useAuth';
 import { createOrganizationEvent } from '../../../lib/events';
 import { getOrganizationById, isOrganizationManagerRole } from '../../../lib/organizations';
@@ -12,6 +13,7 @@ import type { EventFormValues } from '../../../types/event';
 import type { CampusOrganization } from '../../../types/organization';
 
 export default function CreateEventScreen() {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string | string[] }>();
   const organizationId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -69,7 +71,7 @@ export default function CreateEventScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 20, fontWeight: '700', textAlign: 'center', color: colors.textPrimary },

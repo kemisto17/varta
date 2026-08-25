@@ -1,8 +1,9 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { useState } from 'react';
 import { Alert, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useVerification } from '../../hooks/useVerification';
 import { supabase } from '../../lib/supabase';
 import {
@@ -11,6 +12,7 @@ import {
 } from '../../lib/verification';
 
 export default function VerificationRejectedScreen() {
+  const { styles } = useThemedStyles(createStyles);
   const { markVerificationDeleted, verification } = useVerification();
   const [isResetting, setIsResetting] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -119,7 +121,7 @@ export default function VerificationRejectedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,

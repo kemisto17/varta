@@ -6,41 +6,51 @@
     "orientation": "portrait",
     "icon": "./assets/images/varta-icon.png",
     "scheme": "campus",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F8F7F4",
     "ios": {
-      "icon": "./assets/images/varta-icon.png"
+      "icon": "./assets/images/varta-icon.png",
+      "userInterfaceStyle": "automatic"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#111111",
         "foregroundImage": "./assets/images/varta-icon.png"
       },
+      "backgroundColor": "#F8F7F4",
+      "userInterfaceStyle": "automatic",
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/varta-icon.png"
+      "favicon": "./assets/images/varta-icon.png",
+      "backgroundColor": "#F8F7F4"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#111111",
-          "image": "./assets/images/varta-icon.png",
-          "imageWidth": 112
+          "backgroundColor": "#F8F7F4",
+          "image": "./assets/images/varta-wordmark-light.png",
+          "imageWidth": 190,
+          "dark": {
+            "backgroundColor": "#111110",
+            "image": "./assets/images/varta-wordmark-dark.png"
+          }
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Vārtā to select photos for posts, event covers, and student verification.",
+          "photosPermission": "Allow Varta to select photos for posts, event covers, and student verification.",
           "cameraPermission": false,
           "microphonePermission": false
         }
       ],
       "expo-notifications",
       "expo-sqlite",
+      "expo-system-ui",
       "@react-native-community/datetimepicker"
     ],
     "experiments": {

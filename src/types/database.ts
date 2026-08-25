@@ -272,6 +272,41 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          badges_enabled: boolean
+          comments_enabled: boolean
+          events_enabled: boolean
+          likes_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          badges_enabled?: boolean
+          comments_enabled?: boolean
+          events_enabled?: boolean
+          likes_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          badges_enabled?: boolean
+          comments_enabled?: boolean
+          events_enabled?: boolean
+          likes_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           actor_id: string | null

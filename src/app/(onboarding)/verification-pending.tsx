@@ -1,13 +1,15 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useProfile } from '../../hooks/useProfile';
 import { useVerification } from '../../hooks/useVerification';
 import { supabase } from '../../lib/supabase';
 
 export default function VerificationPendingScreen() {
+  const { styles } = useThemedStyles(createStyles);
   const { profile } = useProfile();
   const { refreshVerification } = useVerification();
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -43,7 +45,7 @@ export default function VerificationPendingScreen() {
           <Text style={styles.subtitle}>
             We’re checking your student status
             {profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}.
-            You’ll get access to Vārtā once your account is approved.
+            You’ll get access to Varta once your account is approved.
           </Text>
         </View>
 
@@ -96,7 +98,7 @@ export default function VerificationPendingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,

@@ -1,28 +1,15 @@
+import { useTheme, useThemedStyles } from '../../hooks/useTheme';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+  useCallback, useEffect, useMemo, useRef, useState, } from 'react';
 import {
-  ActivityIndicator,
-  Keyboard,
-  Pressable,
-  SafeAreaView,
-  SectionList,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+  ActivityIndicator, Keyboard, Pressable, SafeAreaView, SectionList, StyleSheet, Text, TextInput, View, } from 'react-native';
 
 import { Avatar } from '../../components/Avatar';
 import { EventCard } from '../../components/events/EventCard';
 import { OrganizationAvatar } from '../../components/organizations/OrganizationAvatar';
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import {
   addRecentSearch,
@@ -72,6 +59,7 @@ const EMPTY_DISCOVERY_RESULTS: DiscoveryResults = {
 };
 
 export default function ExploreScreen() {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const { session } = useAuth();
   const userId = session?.user.id ?? null;
@@ -427,6 +415,7 @@ function PersonResult({
   onPress: () => void;
   person: SearchPerson;
 }) {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -462,6 +451,7 @@ function OrganizationResult({
   onPress: () => void;
   organization: SearchOrganization;
 }) {
+  const { colors, styles } = useThemedStyles(createStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -505,6 +495,7 @@ function EventResult({
   event: SearchEvent;
   onPress: () => void;
 }) {
+  const { colors, styles } = useThemedStyles(createStyles);
   const date = new Date(event.starts_at);
   const month = new Intl.DateTimeFormat('en', { month: 'short' })
     .format(date)
@@ -547,6 +538,7 @@ function EventResult({
 }
 
 function Chevron() {
+  const { colors } = useTheme();
   return (
     <SymbolView
       name={{ android: 'chevron_right', ios: 'chevron.right', web: 'chevron_right' }}
@@ -575,6 +567,7 @@ function ExploreEmptyState({
   searchError: string | null;
   searchStatus: SearchStatus;
 }) {
+  const { colors, styles } = useThemedStyles(createStyles);
   if (isSearchMode && searchStatus === 'searching') {
     return null;
   }
@@ -646,6 +639,7 @@ function StateCard({
   onAction?: () => void;
   title: string;
 }) {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <View style={styles.stateCard}>
       <Text style={styles.stateTitle}>{title}</Text>
@@ -663,7 +657,7 @@ function StateCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   content: {
     paddingHorizontal: spacing.lg,

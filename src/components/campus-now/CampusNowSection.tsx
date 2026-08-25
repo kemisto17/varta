@@ -1,6 +1,7 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import type { CampusEvent } from '../../types/event';
 import { EventCard } from '../events/EventCard';
 
@@ -25,6 +26,7 @@ export function CampusNowSection({
   onRetry,
   onSeeAll,
 }: CampusNowSectionProps) {
+  const { colors, styles } = useThemedStyles(createStyles);
   return (
     <View style={styles.section}>
       <View style={styles.headingRow}>
@@ -83,7 +85,7 @@ export function CampusNowSection({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   section: { marginTop: spacing.xxl },
   headingRow: {
     marginBottom: spacing.md,

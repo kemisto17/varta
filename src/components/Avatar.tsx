@@ -1,8 +1,9 @@
+import { useThemedStyles } from '../hooks/useTheme';
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../constants/theme';
+import { type ThemeColors } from '../constants/theme';
 import { getInitials } from '../lib/text';
 
 type AvatarProps = {
@@ -18,6 +19,7 @@ export function Avatar({
   uri = null,
   verified = false,
 }: AvatarProps) {
+  const { styles } = useThemedStyles(createStyles);
   const [imageFailed, setImageFailed] = useState(false);
   const borderWidth = verified ? 2 : 0;
   const innerSize = size - borderWidth * 2;
@@ -77,7 +79,7 @@ export function Avatar({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   frame: {
     alignItems: 'center',
     justifyContent: 'center',

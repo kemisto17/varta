@@ -1,15 +1,11 @@
+import { useThemedStyles } from '../hooks/useTheme';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+  ActivityIndicator, Pressable, StyleSheet, Text, View, } from 'react-native';
 
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing, type ThemeColors } from '../constants/theme';
 import { formatRelativeTimestamp } from '../lib/time';
 import type { FeedPost } from '../types/post';
 import { Avatar } from './Avatar';
@@ -44,6 +40,7 @@ export function PostCard({
   onToggleLike,
   post,
 }: PostCardProps) {
+  const { colors, styles } = useThemedStyles(createStyles);
   const canDelete = post.authorId === currentUserId && onDelete !== undefined;
   const canModerate =
     currentUserId !== null && post.authorId !== currentUserId;
@@ -296,7 +293,7 @@ function formatYear(year: number) {
   return `${year}${suffix} year`;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     paddingVertical: spacing.lg,
     borderTopWidth: 1,

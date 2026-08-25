@@ -1,7 +1,8 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import type { ProfileBadge } from '../../types/badge';
 import { BadgePill } from './BadgePill';
 
@@ -14,6 +15,7 @@ export function ProfileBadges({
   badges,
   maxVisible = 4,
 }: ProfileBadgesProps) {
+  const { styles } = useThemedStyles(createStyles);
   const [isExpanded, setIsExpanded] = useState(false);
   const hasOverflow = badges.length > maxVisible;
   const visibleBadges = isExpanded ? badges : badges.slice(0, maxVisible);
@@ -53,7 +55,7 @@ export function ProfileBadges({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     maxWidth: 360,
     marginTop: spacing.lg,

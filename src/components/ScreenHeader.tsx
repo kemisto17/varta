@@ -1,8 +1,9 @@
+import { useThemedStyles } from '../hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, spacing } from '../constants/theme';
+import { spacing, type ThemeColors } from '../constants/theme';
 
 type ScreenHeaderProps = {
   action?: React.ReactNode;
@@ -15,6 +16,7 @@ export function ScreenHeader({
   fallbackRoute = '/',
   title,
 }: ScreenHeaderProps) {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
 
   const goBack = () => {
@@ -48,7 +50,7 @@ export function ScreenHeader({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   header: {
     minHeight: 60,
     paddingHorizontal: spacing.sm,

@@ -1,11 +1,7 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-} from 'react-native';
+import { useThemedStyles } from '../../hooks/useTheme';
+import { ActivityIndicator, Pressable, StyleSheet, Text, } from 'react-native';
 
-import { colors, radius } from '../../constants/theme';
+import { radius, type ThemeColors } from '../../constants/theme';
 
 type PrimaryButtonProps = {
   disabled?: boolean;
@@ -20,6 +16,7 @@ export function PrimaryButton({
   label,
   onPress,
 }: PrimaryButtonProps) {
+  const { colors, styles } = useThemedStyles(createStyles);
   const isDisabled = disabled || isLoading;
 
   return (
@@ -42,7 +39,7 @@ export function PrimaryButton({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   button: {
     minHeight: 54,
     borderRadius: radius.md,

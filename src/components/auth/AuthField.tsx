@@ -1,13 +1,15 @@
 import type { TextInputProps } from 'react-native';
+import { useThemedStyles } from '../../hooks/useTheme';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 
 type AuthFieldProps = TextInputProps & {
   label: string;
 };
 
 export function AuthField({ label, style, ...inputProps }: AuthFieldProps) {
+  const { colors, styles } = useThemedStyles(createStyles);
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
@@ -21,7 +23,7 @@ export function AuthField({ label, style, ...inputProps }: AuthFieldProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     gap: spacing.sm,
   },

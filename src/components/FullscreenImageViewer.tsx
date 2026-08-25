@@ -1,34 +1,17 @@
+import { useThemedStyles } from '../hooks/useTheme';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+  ActivityIndicator, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View, } from 'react-native';
 import {
-  Gesture,
-  GestureDetector,
-  GestureHandlerRootView,
-} from 'react-native-gesture-handler';
+  Gesture, GestureDetector, GestureHandlerRootView, } from 'react-native-gesture-handler';
 import Animated, {
-  cancelAnimation,
-  Extrapolation,
-  interpolate,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+  cancelAnimation, Extrapolation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors } from '../constants/theme';
+import { type ThemeColors } from '../constants/theme';
 
 export type FullscreenViewerImage = {
   accessibilityLabel?: string;
@@ -54,6 +37,7 @@ export function FullscreenImageViewer({
   onClose,
   visible,
 }: FullscreenImageViewerProps) {
+  const { colors, styles } = useThemedStyles(createStyles);
   const { height: viewportHeight, width: viewportWidth } =
     useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -372,7 +356,7 @@ export function FullscreenImageViewer({
           <SymbolView
             name={{ android: 'close', ios: 'xmark', web: 'close' }}
             size={20}
-            tintColor={colors.white}
+            tintColor={colors.viewerForeground}
           />
         </Pressable>
       </GestureHandlerRootView>
@@ -435,7 +419,7 @@ function getSpringConfig() {
   };
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   root: {
     flex: 1,
   },

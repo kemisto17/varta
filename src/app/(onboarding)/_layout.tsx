@@ -1,6 +1,7 @@
+import { useTheme } from '../../hooks/useTheme';
 import { Stack } from 'expo-router';
 
-import { colors } from '../../constants/theme';
+
 import { useProfile } from '../../hooks/useProfile';
 import { useVerification } from '../../hooks/useVerification';
 
@@ -9,6 +10,7 @@ export const unstable_settings = {
 };
 
 export default function OnboardingLayout() {
+  const { colors } = useTheme();
   const { status: profileStatus } = useProfile();
   const { status: verificationStatus } = useVerification();
 

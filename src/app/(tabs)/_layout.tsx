@@ -1,10 +1,12 @@
+import { useTheme } from '../../hooks/useTheme';
 import { Tabs } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 
-import { colors } from '../../constants/theme';
+
 import { FeedProvider } from '../../providers/FeedProvider';
 
 export default function TabLayout() {
+  const { colors } = useTheme();
   return (
     <FeedProvider>
       <Tabs

@@ -1,16 +1,11 @@
 import * as ImagePicker from 'expo-image-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
+import { useThemedStyles } from '../../hooks/useTheme';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+  ActivityIndicator, Image, Pressable, StyleSheet, Text, View, } from 'react-native';
 
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { MAX_VERIFICATION_FILE_SIZE } from '../../lib/verification';
 
 type StudentIdPickerProps = {
@@ -24,6 +19,7 @@ export function StudentIdPicker({
   onChange,
   onError,
 }: StudentIdPickerProps) {
+  const { colors, styles } = useThemedStyles(createStyles);
   const [isPicking, setIsPicking] = useState(false);
 
   const handlePick = async () => {
@@ -147,7 +143,7 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     gap: spacing.sm,
   },

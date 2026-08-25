@@ -1,18 +1,11 @@
+import { useThemedStyles } from '../hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useMemo } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  SafeAreaView,
-  SectionList,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+  ActivityIndicator, Alert, Pressable, RefreshControl, SafeAreaView, SectionList, StyleSheet, Text, View, } from 'react-native';
 
-import { colors, spacing } from '../constants/theme';
+import { spacing, type ThemeColors } from '../constants/theme';
 import { useNotifications } from '../hooks/useNotifications';
 import { useVerification } from '../hooks/useVerification';
 import type { AppNotification } from '../lib/notifications';
@@ -24,6 +17,7 @@ type NotificationSection = {
 };
 
 export default function NotificationsScreen() {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const { refreshVerification } = useVerification();
   const {
@@ -185,8 +179,15 @@ export default function NotificationsScreen() {
           }
           onEndReached={() => void loadMore()}
           onEndReachedThreshold={0.35}
-          onRefresh={() => void refreshNotifications()}
-          refreshing={isRefreshing}
+          refreshControl={
+            <RefreshControl
+              colors={[colors.textPrimary]}
+              onRefresh={() => void refreshNotifications()}
+              progressBackgroundColor={colors.surfaceElevated}
+              refreshing={isRefreshing}
+              tintColor={colors.textPrimary}
+            />
+          }
           renderItem={({ item }) => (
             <NotificationRow
               notification={item}
@@ -210,6 +211,7 @@ type NotificationRowProps = {
 };
 
 function NotificationRow({ notification, onPress }: NotificationRowProps) {
+  const { styles } = useThemedStyles(createStyles);
   const isUnread = notification.read_at === null;
   const body = getVisibleBody(notification);
 
@@ -265,6 +267,7 @@ function NotificationsState({
   onAction,
   title,
 }: NotificationsStateProps) {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <View style={styles.state}>
       <Text style={styles.stateTitle}>{title}</Text>
@@ -286,6 +289,7 @@ function NotificationsState({
 }
 
 function NotificationsSkeleton() {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <View accessibilityLabel="Loading notifications" style={styles.skeleton}>
       <View style={[styles.skeletonBlock, styles.skeletonSection]} />
@@ -348,7 +352,7 @@ function getVisibleBody(notification: AppNotification) {
   return notification.body || null;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,

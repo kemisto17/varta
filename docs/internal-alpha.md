@@ -16,6 +16,7 @@ Before sharing an Expo QR code:
 - At least two verified test students exist at the same university.
 - At least one official organization and one future published event exist.
 - The tester has the exact version/commit identifier and knows where to send feedback.
+- The final icon limitation is understood: the current icon remains temporary until the approved VĀ monogram is supplied.
 
 Email confirmation is intentionally disabled only for Expo Go development. Before inviting external testers, configure a mobile auth callback, re-enable confirmation, and enable leaked-password protection in Supabase Auth.
 
@@ -100,15 +101,17 @@ Use two verified accounts where a blocking test is required.
    - Edit name, username, branch, year, bio, and avatar.
    - Open another student's profile.
    - Submit a report and verify duplicate open reports are prevented.
-   - Block and unblock the second tester.
+   - Block the second tester, then open Profile → Settings → Blocked users and unblock them.
 
 7. Notifications
    - Open the notification list from the Home header.
    - Mark one and then all notifications read.
    - Test notification links to a deleted target.
+   - In Settings, disable Likes and cause a new like from the second account; confirm no new like notification is created.
+   - Re-enable Likes and repeat. Repeat the same smoke test for Comments, Badges, and Events where trusted setup is available.
 
 8. Feedback
-   - Open Send alpha feedback from the signed-in student's Profile.
+   - Open Send feedback from Profile → Settings.
    - Submit one bug, idea, and other report.
    - Confirm the success state appears.
    - Confirm the mobile client cannot list feedback rows.
@@ -118,6 +121,14 @@ Use two verified accounts where a blocking test is required.
    - Select an unsupported or oversized image.
    - Confirm user-facing recovery text appears and the app does not log signed URLs, local image URIs, or storage paths.
 
+10. Appearance and settings
+   - Set System, then change the device from Light to Dark while Varta is open.
+   - Force Light while the device is dark, then force Dark while the device is light.
+   - Restart the app and confirm the selected preference persists without a bright launch flash.
+   - Confirm tab bars, headers, auth, onboarding, feed, profiles, organization/event screens, search, notifications, sheets, form fields, and fallback avatars remain legible in both modes.
+   - Confirm the status bar changes between dark and light content.
+   - Sign out and back in; the device appearance preference should remain.
+
 ## Security and privacy audit
 
 The hosted schema was reviewed with the following expectations:
@@ -125,6 +136,7 @@ The hosted schema was reviewed with the following expectations:
 - Every public app table has RLS enabled.
 - profiles, posts, comments, post_likes, organizations, and events are limited to verified university visibility.
 - event_interests, organization_follows, notifications, push_tokens, and user_blocks expose only the signed-in user's rows.
+- notification_preferences permits only self-owned select/insert/update and no client delete.
 - organization_members exposes only the signed-in user's role assignment.
 - student_verifications and verification documents expose only the signed-in student's record/object.
 - reports permit insert only; ordinary clients cannot read the moderation queue.
@@ -178,4 +190,6 @@ Do not expose this query or a feedback-list screen to the mobile role. Treat mes
 - Search does not include post content or full-text ranking.
 - Product analytics are not added in this milestone; server table counts and the private feedback queue provide the minimum alpha signal without introducing a new data processor.
 - Native push delivery still depends on device permissions, Expo credentials, and the documented server function.
+- The current icon is intentionally temporary. Replace it only with the approved near-white/black V or VĀ monogram described in branding-and-settings.md.
+- Account deletion is not exposed because a privileged, session-revoking deletion flow is not implemented yet.
 - Device testing is required for camera/gallery behavior, keyboard layout, and deep links even when automated checks pass.

@@ -1,19 +1,10 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+  ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
 
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import {
   createReport,
   getModerationErrorMessage,
@@ -34,6 +25,7 @@ export function ReportSheet({
   reporterId,
   target,
 }: ReportSheetProps) {
+  const { colors, styles } = useThemedStyles(createStyles);
   const [details, setDetails] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDuplicate, setIsDuplicate] = useState(false);
@@ -245,7 +237,7 @@ export function ReportSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',

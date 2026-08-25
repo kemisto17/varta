@@ -1,23 +1,30 @@
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+  DarkTheme,
+  DefaultTheme,
+  Stack,
+  ThemeProvider as NavigationThemeProvider,
+} from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import {
+  ActivityIndicator, Pressable, StyleSheet, Text, View, } from 'react-native';
 
-import { colors, spacing } from '../constants/theme';
+import { spacing, type ThemeColors } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
+import { useTheme, useThemedStyles } from '../hooks/useTheme';
 import { useVerification } from '../hooks/useVerification';
 import { AuthProvider } from '../providers/AuthProvider';
 import { NotificationsProvider } from '../providers/NotificationsProvider';
 import { ProfileProvider } from '../providers/ProfileProvider';
 import { VerificationProvider } from '../providers/VerificationProvider';
+import { ThemeProvider } from '../providers/ThemeProvider';
+
+void SplashScreen.preventAutoHideAsync();
 
 function AppNavigator() {
+  const { colors, resolvedTheme, styles } = useThemedStyles(createStyles);
   const { isLoading, session } = useAuth();
   const {
     errorMessage: profileErrorMessage,
@@ -107,10 +114,26 @@ function AppNavigator() {
     isAuthenticated &&
     profileStatus === 'ready' &&
     verificationStatus === 'verified';
+  const baseNavigationTheme =
+    resolvedTheme === 'dark' ? DarkTheme : DefaultTheme;
+  const navigationTheme = {
+    ...baseNavigationTheme,
+    colors: {
+      ...baseNavigationTheme.colors,
+      background: colors.background,
+      border: colors.borderSubtle,
+      card: colors.surface,
+      notification: colors.danger,
+      primary: colors.textPrimary,
+      text: colors.textPrimary,
+    },
+  };
 
   return (
-    <>
-      <StatusBar style="dark" />
+    <NavigationThemeProvider value={navigationTheme}>
+      <StatusBar
+        style={resolvedTheme === 'dark' ? 'light' : 'dark'}
+      />
 
       <Stack
         screenOptions={{
@@ -129,6 +152,8 @@ function AppNavigator() {
         <Stack.Protected guard={canAccessTabs}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="edit-profile" />
+          <Stack.Screen name="settings" />
+          <Stack.Screen name="blocked-users" />
           <Stack.Screen name="feedback" />
           <Stack.Screen name="notifications" />
           <Stack.Screen name="post/[id]" />
@@ -141,11 +166,31 @@ function AppNavigator() {
           <Stack.Screen name="organization/[id]/create-event" />
         </Stack.Protected>
       </Stack>
-    </>
+    </NavigationThemeProvider>
   );
 }
 
 export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <ThemedRoot />
+    </ThemeProvider>
+  );
+}
+
+function ThemedRoot() {
+  const { isReady } = useTheme();
+
+  useEffect(() => {
+    if (isReady) {
+      void SplashScreen.hideAsync();
+    }
+  }, [isReady]);
+
+  if (!isReady) {
+    return null;
+  }
+
   return (
     <AuthProvider>
       <ProfileProvider>
@@ -159,7 +204,7 @@ export default function RootLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   loadingScreen: {
     flex: 1,
     alignItems: 'center',

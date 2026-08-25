@@ -1,10 +1,11 @@
+import { useThemedStyles } from '../../../hooks/useTheme';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { EventCard } from '../../../components/events/EventCard';
-import { colors, radius, spacing } from '../../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../../constants/theme';
 import { useAuth } from '../../../hooks/useAuth';
 import { getManagedOrganizationEvents } from '../../../lib/events';
 import { getOrganizationById, isOrganizationManagerRole } from '../../../lib/organizations';
@@ -12,6 +13,7 @@ import type { ManageableEvent } from '../../../types/event';
 import type { CampusOrganization } from '../../../types/organization';
 
 export default function ManageOrganizationScreen() {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string | string[] }>();
   const organizationId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -98,7 +100,7 @@ export default function ManageOrganizationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },

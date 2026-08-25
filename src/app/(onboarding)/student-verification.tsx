@@ -1,19 +1,13 @@
 import type { ImagePickerAsset } from 'expo-image-picker';
+import { useThemedStyles } from '../../hooks/useTheme';
 import { useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+  KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, View, } from 'react-native';
 
 import { AuthField } from '../../components/auth/AuthField';
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
 import { StudentIdPicker } from '../../components/verification/StudentIdPicker';
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
 import { useVerification } from '../../hooks/useVerification';
@@ -23,6 +17,7 @@ import {
 } from '../../lib/verification';
 
 export default function StudentVerificationScreen() {
+  const { styles } = useThemedStyles(createStyles);
   const { session } = useAuth();
   const { profile } = useProfile();
   const { markVerificationSubmitted } = useVerification();
@@ -95,7 +90,7 @@ export default function StudentVerificationScreen() {
             <Text style={styles.eyebrow}>CAMPUS ACCESS</Text>
             <Text style={styles.title}>Confirm you’re a student.</Text>
             <Text style={styles.subtitle}>
-              One private check keeps Vārtā’s campus conversation limited to
+              One private check keeps Varta’s campus conversation limited to
               students.
             </Text>
           </View>
@@ -153,7 +148,7 @@ export default function StudentVerificationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,

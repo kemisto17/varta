@@ -1,23 +1,16 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+  ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, SafeAreaView, StyleSheet, Text, View, } from 'react-native';
 
 import { Avatar } from '../../components/Avatar';
 import { CampusNowSection } from '../../components/campus-now/CampusNowSection';
 import { PostCard } from '../../components/PostCard';
 import { BlockUserSheet } from '../../components/moderation/BlockUserSheet';
 import { ReportSheet } from '../../components/moderation/ReportSheet';
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useFeed } from '../../hooks/useFeed';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -38,6 +31,7 @@ import type { FeedPost } from '../../types/post';
 import type { CampusEvent } from '../../types/event';
 
 export default function HomeScreen() {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const { session } = useAuth();
   const { profile } = useProfile();
@@ -410,8 +404,17 @@ export default function HomeScreen() {
         }
         onEndReached={() => void loadMore()}
         onEndReachedThreshold={0.35}
-        onRefresh={() => void Promise.all([refreshFeed(), refreshCampusNow()])}
-        refreshing={isRefreshing}
+        refreshControl={
+          <RefreshControl
+            colors={[colors.textPrimary]}
+            onRefresh={() =>
+              void Promise.all([refreshFeed(), refreshCampusNow()])
+            }
+            progressBackgroundColor={colors.surfaceElevated}
+            refreshing={isRefreshing}
+            tintColor={colors.textPrimary}
+          />
+        }
         renderItem={({ item }) => (
           <PostCard
             currentUserId={session?.user.id ?? null}
@@ -465,6 +468,7 @@ type FeedStateProps = {
 };
 
 function FeedState({ actionLabel, message, onAction, title }: FeedStateProps) {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <View style={styles.stateCard}>
       <Text style={styles.stateTitle}>{title}</Text>
@@ -484,6 +488,7 @@ function FeedState({ actionLabel, message, onAction, title }: FeedStateProps) {
 }
 
 function FeedSkeleton() {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <View accessibilityLabel="Loading campus posts" style={styles.skeletonList}>
       {[0, 1, 2].map((item) => (
@@ -517,7 +522,7 @@ function getGreeting() {
   return 'Good evening.';
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,

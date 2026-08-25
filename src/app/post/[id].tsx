@@ -1,26 +1,16 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+  ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View, } from 'react-native';
 
 import { Avatar } from '../../components/Avatar';
 import { PostCard } from '../../components/PostCard';
 import { ActionSheet } from '../../components/moderation/ActionSheet';
 import { BlockUserSheet } from '../../components/moderation/BlockUserSheet';
 import { ReportSheet } from '../../components/moderation/ReportSheet';
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import type { ModerationUser, ReportTarget } from '../../lib/moderation';
 import {
@@ -43,6 +33,7 @@ import type { FeedPost, PostComment } from '../../types/post';
 type DetailStatus = 'loading' | 'ready' | 'unavailable' | 'error';
 
 export default function PostDetailScreen() {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string | string[] }>();
   const postId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -533,6 +524,7 @@ function CommentRow({
   onDelete: (comment: PostComment) => void;
   onReport: (comment: PostComment) => void;
 }) {
+  const { colors, styles } = useThemedStyles(createStyles);
   const isOwnComment = comment.authorId === currentUserId;
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
 
@@ -632,6 +624,7 @@ function CommentRow({
 }
 
 function DetailSkeleton() {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <View accessibilityLabel="Loading post and comments" style={styles.skeleton}>
       <View style={styles.skeletonHeader}>
@@ -668,6 +661,7 @@ function DetailState({
   onAction: () => void;
   title: string;
 }) {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <View style={styles.state}>
       <Text style={styles.stateTitle}>{title}</Text>
@@ -686,7 +680,7 @@ function DetailState({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,

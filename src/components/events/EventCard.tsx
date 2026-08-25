@@ -1,8 +1,9 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { formatEventStart, isEventHappeningNow } from '../../lib/time';
 import type { CampusEvent } from '../../types/event';
 
@@ -19,6 +20,7 @@ export function EventCard({
   onInterestToggle,
   onPress,
 }: EventCardProps) {
+  const { colors, styles } = useThemedStyles(createStyles);
   const isCancelled = event.status === 'cancelled';
   const happeningNow = isEventHappeningNow(event.startsAt, event.endsAt);
 
@@ -105,7 +107,7 @@ export function EventCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     marginBottom: spacing.md,
     overflow: 'hidden',

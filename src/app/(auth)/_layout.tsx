@@ -1,12 +1,14 @@
+import { useTheme } from '../../hooks/useTheme';
 import { Stack } from 'expo-router';
 
-import { colors } from '../../constants/theme';
+
 
 export const unstable_settings = {
   initialRouteName: 'welcome',
 };
 
 export default function AuthLayout() {
+  const { colors } = useTheme();
   return (
     <Stack
       screenOptions={{

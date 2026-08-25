@@ -1,18 +1,12 @@
+import { useThemedStyles } from '../hooks/useTheme';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+  ActivityIndicator, FlatList, Pressable, RefreshControl, SafeAreaView, StyleSheet, Text, View, } from 'react-native';
 
 import { ScreenHeader } from '../components/ScreenHeader';
 import { EventCard } from '../components/events/EventCard';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing, type ThemeColors } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { getEventErrorMessage, getEventsPage, setEventInterest } from '../lib/events';
@@ -26,6 +20,7 @@ const FILTERS: { label: string; value: EventFilter }[] = [
 ];
 
 export default function EventsScreen() {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const { session } = useAuth();
   const { profile } = useProfile();
@@ -241,8 +236,15 @@ export default function EventsScreen() {
         }
         onEndReached={() => void loadMore()}
         onEndReachedThreshold={0.4}
-        onRefresh={() => void loadEvents(filter, true)}
-        refreshing={isRefreshing}
+        refreshControl={
+          <RefreshControl
+            colors={[colors.textPrimary]}
+            onRefresh={() => void loadEvents(filter, true)}
+            progressBackgroundColor={colors.surfaceElevated}
+            refreshing={isRefreshing}
+            tintColor={colors.textPrimary}
+          />
+        }
         renderItem={({ item }) => (
           <EventCard
             event={item}
@@ -259,7 +261,7 @@ export default function EventsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   emptyContent: { flexGrow: 1 },

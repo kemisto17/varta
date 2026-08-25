@@ -1,22 +1,14 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+  ActivityIndicator, Alert, Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, } from 'react-native';
 
 import { FullscreenImageViewer } from '../../components/FullscreenImageViewer';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import {
   cancelOrganizationEvent,
@@ -30,6 +22,7 @@ import type { EventDetail } from '../../types/event';
 type DetailStatus = 'loading' | 'ready' | 'unavailable' | 'error';
 
 export default function EventDetailScreen() {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string | string[] }>();
   const eventId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -318,6 +311,7 @@ function Fact({
   icon: React.ComponentProps<typeof SymbolView>['name'];
   text: string;
 }) {
+  const { colors, styles } = useThemedStyles(createStyles);
   return (
     <View style={styles.fact}>
       <SymbolView name={icon} size={19} tintColor={colors.textSecondary} />
@@ -327,6 +321,7 @@ function Fact({
 }
 
 function State({ actionLabel, message, onAction, title }: { actionLabel?: string; message: string; onAction?: () => void; title: string }) {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <View style={styles.center}>
       <Text style={styles.stateTitle}>{title}</Text>
@@ -340,7 +335,7 @@ function State({ actionLabel, message, onAction, title }: { actionLabel?: string
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
   content: { paddingBottom: spacing.xxl },

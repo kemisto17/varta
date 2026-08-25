@@ -1,3 +1,4 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { Link } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -5,7 +6,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { AuthField } from '../../components/auth/AuthField';
 import { AuthScaffold } from '../../components/auth/AuthScaffold';
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
-import { colors, spacing } from '../../constants/theme';
+import { spacing, type ThemeColors } from '../../constants/theme';
 import {
   getAuthErrorMessage,
   isValidEmail,
@@ -14,6 +15,7 @@ import {
 import { supabase } from '../../lib/supabase';
 
 export default function RegisterScreen() {
+  const { styles } = useThemedStyles(createStyles);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmedPassword, setConfirmedPassword] = useState('');
@@ -68,7 +70,7 @@ export default function RegisterScreen() {
         <Text style={styles.title}>Check your inbox.</Text>
         <Text style={styles.subtitle}>
           We sent a confirmation link to {confirmationEmail}. Open it to finish
-          creating your Vārtā account.
+          creating your Varta account.
         </Text>
 
         <Link href="/(auth)/login" replace style={styles.successLink}>
@@ -147,7 +149,7 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   successEyebrow: {
     marginBottom: spacing.md,
     fontSize: 11,

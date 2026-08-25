@@ -1,26 +1,17 @@
 import * as ImagePicker from 'expo-image-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
+import { useThemedStyles } from '../hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+  Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
 
 import { Avatar } from '../components/Avatar';
 import { AuthField } from '../components/auth/AuthField';
 import { PrimaryButton } from '../components/auth/PrimaryButton';
 import { YearSelector } from '../components/profile/YearSelector';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing, type ThemeColors } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { MAX_AVATAR_SIZE } from '../lib/avatars';
@@ -33,6 +24,7 @@ import {
 } from '../lib/profile';
 
 export default function EditProfileScreen() {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const { session } = useAuth();
   const { markProfileCreated, profile } = useProfile();
@@ -207,7 +199,7 @@ export default function EditProfileScreen() {
             <Text style={styles.eyebrow}>YOUR CAMPUS IDENTITY</Text>
             <Text style={styles.title}>Keep it current.</Text>
             <Text style={styles.subtitle}>
-              The details students use to recognize you across Vārtā.
+              The details students use to recognize you across Varta.
             </Text>
           </View>
 
@@ -337,7 +329,7 @@ export default function EditProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,

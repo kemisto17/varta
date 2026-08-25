@@ -1,4 +1,5 @@
 import type { Enums, TablesInsert } from '../types/database';
+import { getAvatarUrls } from './avatars';
 import { supabase } from './supabase';
 
 export const MAX_REPORT_DETAILS_CHARACTERS = 1000;
@@ -15,6 +16,12 @@ export type ReportTarget = {
 export type ModerationUser = {
   fullName: string;
   id: string;
+};
+
+export type BlockedUser = ModerationUser & {
+  avatarUrl: string | null;
+  blockedAt: string;
+  username: string;
 };
 
 export const REPORT_REASONS: readonly {
@@ -144,6 +151,59 @@ export async function unblockUser(blockerId: string, blockedId: string) {
   if (error) {
     throw error;
   }
+}
+
+export async function getBlockedUsers(blockerId: string): Promise<BlockedUser[]> {
+  const { data: blocks, error: blocksError } = await supabase
+    .from('user_blocks')
+    .select('blocked_id, created_at')
+    .eq('blocker_id', blockerId)
+    .order('created_at', { ascending: false });
+
+  if (blocksError) {
+    throw blocksError;
+  }
+
+  const blockedIds = blocks.map((block) => block.blocked_id);
+
+  if (blockedIds.length === 0) {
+    return [];
+  }
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('id, full_name, username, avatar_path')
+    .in('id', blockedIds);
+
+  if (profilesError) {
+    throw profilesError;
+  }
+
+  const avatarPaths = profiles.flatMap((profile) =>
+    profile.avatar_path ? [profile.avatar_path] : []
+  );
+  const avatarUrlByPath = await getAvatarUrls(avatarPaths);
+  const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
+
+  return blocks.flatMap((block) => {
+    const profile = profileById.get(block.blocked_id);
+
+    if (!profile) {
+      return [];
+    }
+
+    return [
+      {
+        avatarUrl: profile.avatar_path
+          ? (avatarUrlByPath.get(profile.avatar_path) ?? null)
+          : null,
+        blockedAt: block.created_at,
+        fullName: profile.full_name,
+        id: profile.id,
+        username: profile.username,
+      },
+    ];
+  });
 }
 
 export function getModerationErrorMessage(error: unknown) {

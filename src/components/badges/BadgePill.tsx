@@ -1,6 +1,7 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import type { ProfileBadge } from '../../types/badge';
 
 type BadgePillProps = {
@@ -9,6 +10,7 @@ type BadgePillProps = {
 };
 
 export function BadgePill({ badge, compact = false }: BadgePillProps) {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <View
       accessibilityLabel={`${badge.name}${
@@ -30,7 +32,7 @@ export function BadgePill({ badge, compact = false }: BadgePillProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   pill: {
     minHeight: 30,
     maxWidth: 190,

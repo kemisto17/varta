@@ -1,21 +1,12 @@
+import { useThemedStyles } from '../hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+  ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
 
 import { ScreenHeader } from '../components/ScreenHeader';
-import { colors, radius, spacing } from '../constants/theme';
+import { radius, spacing, type ThemeColors } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
 import {
   FEEDBACK_CATEGORIES,
@@ -26,6 +17,7 @@ import {
 } from '../lib/feedback';
 
 export default function FeedbackScreen() {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const { session } = useAuth();
   const [category, setCategory] = useState<FeedbackCategory>('bug');
@@ -176,7 +168,7 @@ export default function FeedbackScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },

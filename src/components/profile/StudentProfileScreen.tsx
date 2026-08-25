@@ -1,20 +1,12 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+  ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, SafeAreaView, StyleSheet, Text, View, } from 'react-native';
 
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
-import { getAuthErrorMessage } from '../../lib/auth';
 import {
   getIsUserBlocked,
   type ModerationUser,
@@ -30,8 +22,6 @@ import {
   setPostLike,
 } from '../../lib/postInteractions';
 import { getUserProfile } from '../../lib/profile';
-import { deleteCurrentPushToken } from '../../lib/pushNotifications';
-import { supabase } from '../../lib/supabase';
 import type { FeedCursor, FeedPost } from '../../types/post';
 import type { UserProfile } from '../../types/profile';
 import { Avatar } from '../Avatar';
@@ -52,6 +42,7 @@ export function StudentProfileScreen({
   profileId,
   showBackButton = false,
 }: StudentProfileScreenProps) {
+  const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const { session } = useAuth();
   const viewerUserId = session?.user.id ?? null;
@@ -70,7 +61,6 @@ export function StudentProfileScreen({
   const [isBlocked, setIsBlocked] = useState(false);
   const [isProfileOptionsVisible, setIsProfileOptionsVisible] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
   const [likePendingIds, setLikePendingIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -296,34 +286,13 @@ export function StudentProfileScreen({
     router.replace('/');
   }, [router]);
 
-  const handleSignOut = useCallback(async () => {
-    if (isSigningOut) {
-      return;
-    }
-
-    setIsSigningOut(true);
-    setErrorMessage(null);
-
-    if (viewerUserId) {
-      try {
-        await deleteCurrentPushToken(viewerUserId);
-      } catch (error) {
-        console.warn('[push] Could not remove the current device token.', error);
-      }
-    }
-
-    const { error } = await supabase.auth.signOut();
-
-    if (error) {
-      setErrorMessage(getAuthErrorMessage(error.message));
-      setIsSigningOut(false);
-    }
-  }, [isSigningOut, viewerUserId]);
-
   if (status === 'loading') {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ProfileTopBar onBack={showBackButton ? goBack : undefined} />
+        <ProfileTopBar
+          onBack={showBackButton ? goBack : undefined}
+          onSettings={isOwnProfile ? () => router.push('/settings') : undefined}
+        />
         <ProfileSkeleton />
       </SafeAreaView>
     );
@@ -332,7 +301,10 @@ export function StudentProfileScreen({
   if (status === 'error') {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ProfileTopBar onBack={showBackButton ? goBack : undefined} />
+        <ProfileTopBar
+          onBack={showBackButton ? goBack : undefined}
+          onSettings={isOwnProfile ? () => router.push('/settings') : undefined}
+        />
         <ProfileState
           actionLabel="Try again"
           message={errorMessage ?? 'We could not load this profile.'}
@@ -346,7 +318,10 @@ export function StudentProfileScreen({
   if (status === 'unavailable' || !profile) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ProfileTopBar onBack={showBackButton ? goBack : undefined} />
+        <ProfileTopBar
+          onBack={showBackButton ? goBack : undefined}
+          onSettings={isOwnProfile ? () => router.push('/settings') : undefined}
+        />
         <ProfileState
           actionLabel={showBackButton ? 'Go back' : 'Try again'}
           message="This student profile may be unavailable or outside your university."
@@ -362,6 +337,7 @@ export function StudentProfileScreen({
       <ProfileTopBar
         onBack={showBackButton ? goBack : undefined}
         onMore={isOwnProfile ? undefined : () => setIsProfileOptionsVisible(true)}
+        onSettings={isOwnProfile ? () => router.push('/settings') : undefined}
       />
       <FlatList
         contentContainerStyle={styles.listContent}
@@ -389,17 +365,21 @@ export function StudentProfileScreen({
           <ProfileHeader
             errorMessage={errorMessage}
             isOwnProfile={isOwnProfile}
-            isSigningOut={isSigningOut}
             onEdit={() => router.push('/edit-profile')}
-            onFeedback={() => router.push('/feedback')}
-            onSignOut={() => void handleSignOut()}
             profile={profile}
           />
         }
         onEndReached={() => void loadMore()}
         onEndReachedThreshold={0.35}
-        onRefresh={() => void loadProfile(true)}
-        refreshing={isRefreshing}
+        refreshControl={
+          <RefreshControl
+            colors={[colors.textPrimary]}
+            onRefresh={() => void loadProfile(true)}
+            progressBackgroundColor={colors.surfaceElevated}
+            refreshing={isRefreshing}
+            tintColor={colors.textPrimary}
+          />
+        }
         renderItem={({ item }) => (
           <PostCard
             currentUserId={viewerUserId}
@@ -482,10 +462,13 @@ export function StudentProfileScreen({
 function ProfileTopBar({
   onBack,
   onMore,
+  onSettings,
 }: {
   onBack?: () => void;
   onMore?: () => void;
+  onSettings?: () => void;
 }) {
+  const { colors, styles } = useThemedStyles(createStyles);
   return (
     <View style={styles.topBar}>
       {onBack ? (
@@ -527,6 +510,23 @@ function ProfileTopBar({
             tintColor={colors.textPrimary}
           />
         </Pressable>
+      ) : onSettings ? (
+        <Pressable
+          accessibilityLabel="Settings"
+          accessibilityRole="button"
+          hitSlop={12}
+          onPress={onSettings}
+          style={({ pressed }) => [
+            styles.topBarButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <SymbolView
+            name={{ android: 'settings', ios: 'gearshape', web: 'settings' }}
+            size={21}
+            tintColor={colors.textPrimary}
+          />
+        </Pressable>
       ) : (
         <View style={styles.topBarButton} />
       )}
@@ -537,20 +537,15 @@ function ProfileTopBar({
 function ProfileHeader({
   errorMessage,
   isOwnProfile,
-  isSigningOut,
   onEdit,
-  onFeedback,
-  onSignOut,
   profile,
 }: {
   errorMessage: string | null;
   isOwnProfile: boolean;
-  isSigningOut: boolean;
   onEdit: () => void;
-  onFeedback: () => void;
-  onSignOut: () => void;
   profile: UserProfile;
 }) {
+  const { colors, styles } = useThemedStyles(createStyles);
   return (
     <View>
       <View style={styles.profileHeader}>
@@ -591,56 +586,16 @@ function ProfileHeader({
         </View>
 
         {isOwnProfile ? (
-          <>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onEdit}
-              style={({ pressed }) => [
-                styles.editButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.editButtonText}>Edit profile</Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={onFeedback}
-              style={({ pressed }) => [
-                styles.feedbackButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <SymbolView
-                name={{
-                  android: 'chat_bubble_outline',
-                  ios: 'bubble.left',
-                  web: 'chat_bubble_outline',
-                }}
-                size={15}
-                tintColor={colors.textSecondary}
-              />
-              <Text style={styles.feedbackButtonText}>
-                Send alpha feedback
-              </Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              disabled={isSigningOut}
-              onPress={onSignOut}
-              style={({ pressed }) => [
-                styles.signOutButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              {isSigningOut ? (
-                <ActivityIndicator color={colors.textSecondary} size="small" />
-              ) : (
-                <Text style={styles.signOutText}>Sign out</Text>
-              )}
-            </Pressable>
-          </>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onEdit}
+            style={({ pressed }) => [
+              styles.editButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.editButtonText}>Edit profile</Text>
+          </Pressable>
         ) : null}
 
         {errorMessage ? (
@@ -659,6 +614,7 @@ function ProfileHeader({
 }
 
 function ProfileSkeleton() {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <View accessibilityLabel="Loading student profile" style={styles.skeleton}>
       <View style={[styles.skeletonBlock, styles.skeletonAvatar]} />
@@ -691,6 +647,7 @@ function ProfileState({
   onAction: () => void;
   title: string;
 }) {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <View style={styles.state}>
       <Text style={styles.stateTitle}>{title}</Text>
@@ -720,7 +677,7 @@ function isUuid(value: string) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -848,36 +805,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: colors.textPrimary,
-  },
-
-  feedbackButton: {
-    minHeight: 40,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-
-  feedbackButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-
-  signOutButton: {
-    minHeight: 36,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  signOutText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
   },
 
   inlineError: {

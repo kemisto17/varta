@@ -1,6 +1,7 @@
+import { useThemedStyles } from '../../hooks/useTheme';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radius, spacing } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 
 type YearSelectorProps = {
   onChange: (year: number) => void;
@@ -10,6 +11,7 @@ type YearSelectorProps = {
 const YEARS = [1, 2, 3, 4, 5, 6] as const;
 
 export function YearSelector({ onChange, value }: YearSelectorProps) {
+  const { styles } = useThemedStyles(createStyles);
   return (
     <View style={styles.container}>
       <Text style={styles.label}>Current year</Text>
@@ -45,7 +47,7 @@ export function YearSelector({ onChange, value }: YearSelectorProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     gap: spacing.sm,
   },

@@ -1,6 +1,6 @@
 # Varta
 
-Varta is a university-only community app built with Expo, React Native, TypeScript, and Supabase. The current internal alpha includes authenticated student onboarding and verification, a campus feed, profiles, reporting and blocking, notifications, badges, organizations, official events, and university-scoped Search/Explore.
+Varta is a university-only community app built with Expo, React Native, TypeScript, and Supabase. The current internal alpha includes authenticated student onboarding and verification, a campus feed, profiles, reporting and blocking, notifications, badges, organizations, official events, university-scoped Search/Explore, and persisted light/dark appearance settings.
 
 ## Current alpha scope
 
@@ -13,6 +13,8 @@ Varta is a university-only community app built with Expo, React Native, TypeScri
 - Official organizations, follows, events, and event interest
 - Search for students, organizations, and upcoming events
 - Device-local recent searches and server-backed private feedback
+- System, Light, and Dark appearance modes with device-local persistence
+- Settings with real notification controls and blocked-user management
 
 Post full-text search, public organization management, direct messaging, and production analytics are intentionally outside this milestone.
 
@@ -52,7 +54,7 @@ Post full-text search, public organization management, direct messaging, and pro
    npx expo start --clear
    ~~~
 
-The display name and artwork are Varta-branded. The Expo slug and URL scheme remain campus so existing development deep links and auth configuration continue to work.
+The display/product name is `Varta`; the in-app wordmark is `VĀRTĀ`. The Expo slug and URL scheme remain `campus` so existing development deep links and auth configuration continue to work. See [docs/branding-and-settings.md](docs/branding-and-settings.md) for the splash assets and final icon handoff.
 
 ## Development checks
 
@@ -74,7 +76,7 @@ npx expo export --platform web
 
 All application tables use Row Level Security. Verified content is scoped to the signed-in student's university, with institute scoping where events require it. Media buckets are private; the app stores object paths and renders short-lived signed URLs. Verification documents are visible only to their owner, and the mobile role cannot approve a student.
 
-Search runs in PostgreSQL through explicitly granted SECURITY INVOKER functions. It returns only public profile fields, respects the existing block visibility rule, and uses trigram indexes for contains matching. Feedback is insert-only for verified students: clients cannot read the queue.
+Search runs in PostgreSQL through explicitly granted SECURITY INVOKER functions. It returns only public profile fields, respects the existing block visibility rule, and uses trigram indexes for contains matching. Feedback is insert-only for verified students: clients cannot read the queue. Notification preferences are self-owned RLS rows; trusted notification triggers check them before creating optional activity.
 
 The generated database contract lives at src/types/database.ts. Regenerate it after public schema changes.
 
@@ -89,13 +91,14 @@ Trusted admin workflows are documented separately:
 - [Moderation](docs/moderation-workflow.md)
 - [Badges](docs/profile-badges-admin.md)
 - [Notifications and push](docs/notifications-and-push.md)
+- [Branding and settings](docs/branding-and-settings.md)
 
 ## Project layout
 
 - src/app — Expo Router screens and protected navigation
 - src/components — shared UI
 - src/lib — typed Supabase and device-service modules
-- src/providers — auth, profile, verification, feed, and notification state
+- src/providers — theme, auth, profile, verification, feed, and notification state
 - src/types — application and generated database types
 - supabase/migrations — reviewed schema, RLS, grants, indexes, and storage policies
 - supabase/functions — trusted server-side functions
