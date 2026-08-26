@@ -30,10 +30,9 @@ export function ProfileBadges({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.eyebrow}>BADGES</Text>
       <View style={styles.badges}>
         {visibleBadges.map((badge) => (
-          <BadgePill badge={badge} key={badge.id} />
+          <BadgePill badge={badge} compact key={badge.id} />
         ))}
 
         {hasOverflow ? (
@@ -58,23 +57,15 @@ export function ProfileBadges({
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     width: '100%',
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
     alignItems: 'flex-start',
-  },
-
-  eyebrow: {
-    marginBottom: spacing.sm,
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    color: colors.textMuted,
   },
 
   badges: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
-    gap: spacing.sm,
+    gap: 6,
   },
 
   moreButton: {

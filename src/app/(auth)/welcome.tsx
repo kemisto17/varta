@@ -1,5 +1,5 @@
 import { useThemedStyles } from '../../hooks/useTheme';
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import {
   Pressable, ScrollView, StyleSheet, Text, View, } from 'react-native';
 
@@ -8,6 +8,7 @@ import { radius, spacing, type ThemeColors } from '../../constants/theme';
 
 export default function WelcomeScreen() {
   const { styles } = useThemedStyles(createStyles);
+  const router = useRouter();
   return (
     <SafeAreaScreen style={styles.safeArea}>
       <ScrollView
@@ -28,29 +29,27 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.actions}>
-          <Link href="/(auth)/register" asChild>
-            <Pressable
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.primaryButton,
-                pressed && styles.primaryPressed,
-              ]}
-            >
-              <Text style={styles.primaryLabel}>Create an account</Text>
-            </Pressable>
-          </Link>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/(auth)/register')}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              pressed && styles.primaryPressed,
+            ]}
+          >
+            <Text style={styles.primaryLabel}>Create an account</Text>
+          </Pressable>
 
-          <Link href="/(auth)/login" asChild>
-            <Pressable
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.secondaryButton,
-                pressed && styles.secondaryPressed,
-              ]}
-            >
-              <Text style={styles.secondaryLabel}>I already have an account</Text>
-            </Pressable>
-          </Link>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/(auth)/login')}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              pressed && styles.secondaryPressed,
+            ]}
+          >
+            <Text style={styles.secondaryLabel}>I already have an account</Text>
+          </Pressable>
 
           <Text style={styles.footerNote}>
             One campus. Every conversation.
@@ -121,13 +120,13 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.primaryActionBackground,
   },
 
   primaryLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.white,
+    color: colors.primaryActionForeground,
   },
 
   secondaryButton: {

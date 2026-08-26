@@ -17,10 +17,8 @@ export type UserProfile = {
     name: InstituteRow['name'];
     shortName: InstituteRow['short_name'];
   };
-  followerCount: number;
-  followingCount: number;
-  isFollowedByCurrentUser: boolean;
   isVerified: boolean;
+  organizationFollowingCount: number;
   postCount: number;
   username: ProfileRow['username'];
   year: ProfileRow['year'];

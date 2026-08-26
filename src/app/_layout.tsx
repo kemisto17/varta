@@ -161,7 +161,7 @@ function AppNavigator() {
           <Stack.Screen name="blocked-users" />
           <Stack.Screen name="feedback" />
           <Stack.Screen name="notifications" />
-          <Stack.Screen name="connections" />
+          <Stack.Screen name="following" />
           <Stack.Screen name="post/[id]" />
           <Stack.Screen name="user/[id]" />
           <Stack.Screen name="events" />

@@ -207,14 +207,6 @@ export default function SettingsScreen() {
               />
               <SettingsToggleRow
                 disabled={notificationsSaving}
-                label="New followers"
-                onValueChange={(enabled) =>
-                  void updateNotificationPreference('follows_enabled', enabled)
-                }
-                value={notificationPreferences.follows_enabled}
-              />
-              <SettingsToggleRow
-                disabled={notificationsSaving}
                 label="Badges"
                 onValueChange={(enabled) =>
                   void updateNotificationPreference('badges_enabled', enabled)

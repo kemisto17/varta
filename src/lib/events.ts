@@ -159,6 +159,24 @@ export async function getOrganizationUpcomingEvents(
   return mapEventRows(data, userId);
 }
 
+export async function getOrganizationProfileEvents(
+  organizationId: string,
+  userId: string
+) {
+  const { data, error } = await selectEvents()
+    .eq('organization_id', organizationId)
+    .in('status', ['published', 'cancelled'])
+    .order('starts_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(EVENTS_PAGE_SIZE);
+
+  if (error) {
+    throw error;
+  }
+
+  return mapEventRows(data, userId);
+}
+
 export async function getManagedOrganizationEvents(
   organizationId: string,
   userId: string,

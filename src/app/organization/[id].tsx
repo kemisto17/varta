@@ -3,15 +3,22 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, } from 'react-native';
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { SafeAreaScreen } from '../../components/SafeAreaScreen';
-import { ScreenHeader } from '../../components/ScreenHeader';
 import { EventCard } from '../../components/events/EventCard';
+import { ActionSheet } from '../../components/moderation/ActionSheet';
 import { OrganizationAvatar } from '../../components/organizations/OrganizationAvatar';
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
-import { getOrganizationUpcomingEvents, setEventInterest } from '../../lib/events';
+import { getOrganizationProfileEvents, setEventInterest } from '../../lib/events';
 import {
   getOrganizationById,
   getOrganizationErrorMessage,
@@ -22,6 +29,7 @@ import type { CampusEvent } from '../../types/event';
 import type { CampusOrganization } from '../../types/organization';
 
 type PageStatus = 'loading' | 'ready' | 'unavailable' | 'error';
+type ProfileTab = 'posts' | 'events';
 
 export default function OrganizationScreen() {
   const { colors, styles } = useThemedStyles(createStyles);
@@ -29,14 +37,19 @@ export default function OrganizationScreen() {
   const params = useLocalSearchParams<{ id: string | string[] }>();
   const organizationId = Array.isArray(params.id) ? params.id[0] : params.id;
   const { session } = useAuth();
+  const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [events, setEvents] = useState<CampusEvent[]>([]);
-  const [interestPendingIds, setInterestPendingIds] = useState<Set<string>>(() => new Set());
+  const [interestPendingIds, setInterestPendingIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const [isFollowPending, setIsFollowPending] = useState(false);
+  const [isOptionsVisible, setIsOptionsVisible] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [organization, setOrganization] = useState<CampusOrganization | null>(null);
   const [status, setStatus] = useState<PageStatus>('loading');
 
-  const loadPage = useCallback(async () => {
+  const loadPage = useCallback(async (refreshing = false) => {
     const userId = session?.user.id;
 
     if (!organizationId || !userId) {
@@ -44,18 +57,27 @@ export default function OrganizationScreen() {
       return;
     }
 
+    if (refreshing) {
+      setIsRefreshing(true);
+    } else {
+      setStatus('loading');
+    }
+
     setErrorMessage(null);
 
     try {
-      const nextOrganization = await getOrganizationById(organizationId, userId);
+      const [nextOrganization, nextEvents] = await Promise.all([
+        getOrganizationById(organizationId, userId),
+        getOrganizationProfileEvents(organizationId, userId),
+      ]);
 
       if (!nextOrganization) {
         setOrganization(null);
+        setEvents([]);
         setStatus('unavailable');
         return;
       }
 
-      const nextEvents = await getOrganizationUpcomingEvents(organizationId, userId);
       setOrganization(nextOrganization);
       setEvents(nextEvents);
       setStatus('ready');
@@ -63,157 +85,463 @@ export default function OrganizationScreen() {
       console.warn('[organization] Could not load page.', error);
       setErrorMessage(getOrganizationErrorMessage());
       setStatus('error');
+    } finally {
+      setIsRefreshing(false);
     }
   }, [organizationId, session?.user.id]);
 
-  useFocusEffect(useCallback(() => { void loadPage(); }, [loadPage]));
+  useFocusEffect(
+    useCallback(() => {
+      void loadPage();
+    }, [loadPage])
+  );
 
-  const toggleFollow = async () => {
+  const toggleFollow = useCallback(async () => {
     const userId = session?.user.id;
 
     if (!organization || !userId || isFollowPending) {
       return;
     }
 
-    const previous = organization.isFollowed;
+    const previous = organization;
+    const nextIsFollowed = !organization.isFollowed;
     setIsFollowPending(true);
-    setOrganization({ ...organization, isFollowed: !previous });
+    setErrorMessage(null);
+    setOrganization({
+      ...organization,
+      followerCount: Math.max(
+        0,
+        organization.followerCount + (nextIsFollowed ? 1 : -1)
+      ),
+      isFollowed: nextIsFollowed,
+    });
 
     try {
       await setOrganizationFollow({
-        isFollowed: !previous,
+        isFollowed: nextIsFollowed,
         organizationId: organization.id,
         userId,
       });
     } catch (error) {
       console.warn('[organization] Could not update follow.', error);
-      setOrganization((current) => current ? { ...current, isFollowed: previous } : current);
+      setOrganization(previous);
       setErrorMessage('We could not update this follow. Please try again.');
     } finally {
       setIsFollowPending(false);
     }
-  };
+  }, [isFollowPending, organization, session?.user.id]);
 
-  const toggleInterest = async (event: CampusEvent) => {
+  const toggleInterest = useCallback(async (event: CampusEvent) => {
     const userId = session?.user.id;
 
     if (!userId || interestPendingIds.has(event.id)) {
       return;
     }
 
-    const next = !event.isInterested;
+    const nextIsInterested = !event.isInterested;
     setInterestPendingIds((current) => new Set(current).add(event.id));
-    setEvents((current) => current.map((item) => item.id === event.id ? { ...item, isInterested: next } : item));
+    setEvents((current) =>
+      current.map((item) =>
+        item.id === event.id ? { ...item, isInterested: nextIsInterested } : item
+      )
+    );
 
     try {
-      await setEventInterest({ eventId: event.id, isInterested: next, userId });
+      await setEventInterest({
+        eventId: event.id,
+        isInterested: nextIsInterested,
+        userId,
+      });
     } catch (error) {
       console.warn('[organization] Could not update event interest.', error);
-      setEvents((current) => current.map((item) => item.id === event.id ? { ...item, isInterested: event.isInterested } : item));
+      setEvents((current) =>
+        current.map((item) => (item.id === event.id ? event : item))
+      );
       setErrorMessage('We could not save this event. Please try again.');
     } finally {
       setInterestPendingIds((current) => {
-        const nextIds = new Set(current);
-        nextIds.delete(event.id);
-        return nextIds;
+        const next = new Set(current);
+        next.delete(event.id);
+        return next;
       });
     }
-  };
+  }, [interestPendingIds, session?.user.id]);
+
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  }, [router]);
+
+  const openManage = useCallback(() => {
+    if (!organization) {
+      return;
+    }
+
+    router.push({
+      pathname: '/organization/[id]/manage',
+      params: { id: organization.id },
+    });
+  }, [organization, router]);
 
   return (
     <SafeAreaScreen style={styles.safeArea}>
-      <ScreenHeader
-        action={
-          organization && isOrganizationManagerRole(organization.role) ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.push({ pathname: '/organization/[id]/manage', params: { id: organization.id } })}
-              style={({ pressed }) => pressed && styles.pressed}
-            >
-              <Text style={styles.manageLabel}>Manage</Text>
-            </Pressable>
-          ) : null
-        }
-        title="Organization"
+      <OrganizationTopBar
+        onBack={goBack}
+        onMore={organization ? () => setIsOptionsVisible(true) : undefined}
+        title={organization ? `@${organization.slug}` : 'Organization'}
       />
       {status === 'loading' ? (
-        <View style={styles.center}><ActivityIndicator color={colors.textSecondary} /></View>
+        <OrganizationSkeleton />
       ) : status === 'unavailable' ? (
-        <State message="This organization is not available." title="Organization unavailable" />
+        <ProfileState
+          message="This organization is not available."
+          onAction={goBack}
+          title="Organization unavailable"
+        />
       ) : status === 'error' || !organization ? (
-        <State actionLabel="Try again" message={errorMessage ?? getOrganizationErrorMessage()} onAction={() => void loadPage()} title="Could not load organization" />
+        <ProfileState
+          actionLabel="Try again"
+          message={errorMessage ?? getOrganizationErrorMessage()}
+          onAction={() => void loadPage()}
+          title="Could not load organization"
+        />
       ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.hero}>
-            <OrganizationAvatar
-              name={organization.name}
-              size={82}
-              uri={organization.avatarUrl}
+        <ScrollView
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              colors={[colors.textPrimary]}
+              onRefresh={() => void loadPage(true)}
+              progressBackgroundColor={colors.surfaceElevated}
+              refreshing={isRefreshing}
+              tintColor={colors.textPrimary}
             />
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.profileHeader}>
+            <View style={styles.metricsRow}>
+              <OrganizationAvatar
+                name={organization.name}
+                size={88}
+                uri={organization.avatarUrl}
+              />
+              <View style={styles.statsRow}>
+                <ProfileStat label="Posts" value={organization.postCount} />
+                <ProfileStat label="Followers" value={organization.followerCount} />
+                <ProfileStat label="Events" value={organization.eventCount} />
+              </View>
+            </View>
+
             <View style={styles.nameRow}>
               <Text style={styles.name}>{organization.name}</Text>
               {organization.isVerified ? (
-                <SymbolView name={{ android: 'verified', ios: 'checkmark.seal.fill', web: 'verified' }} size={20} tintColor={colors.textPrimary} />
+                <SymbolView
+                  name={{ android: 'verified', ios: 'checkmark.seal.fill', web: 'verified' }}
+                  size={16}
+                  tintColor={colors.success}
+                />
               ) : null}
             </View>
-            {organization.description ? <Text style={styles.description}>{organization.description}</Text> : null}
-            <Pressable
-              accessibilityRole="button"
-              disabled={isFollowPending}
-              onPress={() => void toggleFollow()}
-              style={({ pressed }) => [styles.followButton, organization.isFollowed && styles.followButtonActive, pressed && styles.pressed]}
-            >
-              <Text style={[styles.followText, organization.isFollowed && styles.followTextActive]}>
-                {organization.isFollowed ? 'Following' : 'Follow'}
-              </Text>
-            </Pressable>
+            <Text style={styles.identityLabel}>Official organization</Text>
+            <Text style={styles.meta}>Club · {organization.campusShortName}</Text>
+            {organization.description ? (
+              <Text style={styles.description}>{organization.description}</Text>
+            ) : null}
+
+            {isOrganizationManagerRole(organization.role) ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={openManage}
+                style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.actionLabel}>Manage</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                disabled={isFollowPending}
+                onPress={() => void toggleFollow()}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  !organization.isFollowed && styles.actionButtonPrimary,
+                  pressed && styles.pressed,
+                ]}
+              >
+                {isFollowPending ? (
+                  <ActivityIndicator
+                    color={organization.isFollowed ? colors.textPrimary : colors.primaryActionForeground}
+                    size="small"
+                  />
+                ) : (
+                  <Text
+                    style={[
+                      styles.actionLabel,
+                      !organization.isFollowed && styles.actionLabelPrimary,
+                    ]}
+                  >
+                    {organization.isFollowed ? 'Following' : 'Follow'}
+                  </Text>
+                )}
+              </Pressable>
+            )}
+
+            {errorMessage ? (
+              <Text accessibilityRole="alert" style={styles.error}>{errorMessage}</Text>
+            ) : null}
           </View>
 
-          {errorMessage ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage}</Text> : null}
-          <Text style={styles.sectionTitle}>Upcoming events</Text>
-          {events.length === 0 ? (
-            <View style={styles.empty}><Text style={styles.emptyTitle}>Nothing scheduled yet.</Text><Text style={styles.emptyMessage}>New events from this organization will appear here.</Text></View>
-          ) : events.map((event) => (
-            <EventCard
-              event={event}
-              interestPending={interestPendingIds.has(event.id)}
-              key={event.id}
-              onInterestToggle={toggleInterest}
-              onPress={(item) => router.push({ pathname: '/event/[id]', params: { id: item.id } })}
+          <View accessibilityRole="tablist" style={styles.tabs}>
+            <ProfileTabButton
+              active={activeTab === 'posts'}
+              label="POSTS"
+              onPress={() => setActiveTab('posts')}
             />
-          ))}
+            <ProfileTabButton
+              active={activeTab === 'events'}
+              label="EVENTS"
+              onPress={() => setActiveTab('events')}
+            />
+          </View>
+
+          {activeTab === 'posts' ? (
+            <View style={styles.emptyTab}>
+              <Text style={styles.emptyTitle}>No organization posts yet.</Text>
+              <Text style={styles.emptyMessage}>
+                Official posts from this organization will appear here.
+              </Text>
+            </View>
+          ) : events.length === 0 ? (
+            <View style={styles.emptyTab}>
+              <Text style={styles.emptyTitle}>No events yet.</Text>
+              <Text style={styles.emptyMessage}>
+                Published events from this organization will appear here.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.eventList}>
+              {events.map((event) => (
+                <EventCard
+                  event={event}
+                  interestPending={interestPendingIds.has(event.id)}
+                  key={event.id}
+                  onInterestToggle={toggleInterest}
+                  onPress={(item) =>
+                    router.push({ pathname: '/event/[id]', params: { id: item.id } })
+                  }
+                />
+              ))}
+            </View>
+          )}
         </ScrollView>
       )}
+
+      {organization ? (
+        <ActionSheet
+          actions={
+            isOrganizationManagerRole(organization.role)
+              ? [{ label: 'Manage organization', onPress: openManage }]
+              : [
+                  {
+                    disabled: isFollowPending,
+                    label: organization.isFollowed ? 'Unfollow organization' : 'Follow organization',
+                    onPress: () => void toggleFollow(),
+                    tone: organization.isFollowed ? 'danger' : 'default',
+                  },
+                ]
+          }
+          message={`Club · ${organization.campusShortName}`}
+          onClose={() => setIsOptionsVisible(false)}
+          title="Organization options"
+          visible={isOptionsVisible}
+        />
+      ) : null}
     </SafeAreaScreen>
   );
 }
 
-function State({ actionLabel, message, onAction, title }: { actionLabel?: string; message: string; onAction?: () => void; title: string }) {
+function OrganizationTopBar({
+  onBack,
+  onMore,
+  title,
+}: {
+  onBack: () => void;
+  onMore?: () => void;
+  title: string;
+}) {
+  const { colors, styles } = useThemedStyles(createStyles);
+  return (
+    <View style={styles.topBar}>
+      <Pressable
+        accessibilityLabel="Back"
+        accessibilityRole="button"
+        hitSlop={12}
+        onPress={onBack}
+        style={({ pressed }) => [styles.topBarButton, pressed && styles.pressed]}
+      >
+        <SymbolView
+          name={{ android: 'arrow_back', ios: 'chevron.left', web: 'arrow_back' }}
+          size={22}
+          tintColor={colors.textPrimary}
+        />
+      </Pressable>
+      <Text numberOfLines={1} style={styles.topBarTitle}>{title}</Text>
+      {onMore ? (
+        <Pressable
+          accessibilityLabel="Organization options"
+          accessibilityRole="button"
+          hitSlop={12}
+          onPress={onMore}
+          style={({ pressed }) => [styles.topBarButton, pressed && styles.pressed]}
+        >
+          <SymbolView
+            name={{ android: 'more_horiz', ios: 'ellipsis', web: 'more_horiz' }}
+            size={21}
+            tintColor={colors.textPrimary}
+          />
+        </Pressable>
+      ) : <View style={styles.topBarButton} />}
+    </View>
+  );
+}
+
+function ProfileStat({ label, value }: { label: string; value: number }) {
   const { styles } = useThemedStyles(createStyles);
-  return <View style={styles.center}><Text style={styles.stateTitle}>{title}</Text><Text style={styles.stateMessage}>{message}</Text>{actionLabel && onAction ? <Pressable accessibilityRole="button" onPress={onAction} style={styles.stateButton}><Text style={styles.stateButtonText}>{actionLabel}</Text></Pressable> : null}</View>;
+  return (
+    <View style={styles.stat}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function ProfileTabButton({
+  active,
+  label,
+  onPress,
+}: {
+  active: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  const { styles } = useThemedStyles(createStyles);
+  return (
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.tab,
+        active && styles.tabActive,
+        pressed && styles.pressed,
+      ]}
+    >
+      <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function OrganizationSkeleton() {
+  const { styles } = useThemedStyles(createStyles);
+  return (
+    <View accessibilityLabel="Loading organization profile" style={styles.skeleton}>
+      <View style={styles.metricsRow}>
+        <View style={[styles.skeletonBlock, styles.skeletonAvatar]} />
+        <View style={styles.statsRow}>
+          {[0, 1, 2].map((item) => (
+            <View key={item} style={styles.stat}>
+              <View style={[styles.skeletonBlock, styles.skeletonStatValue]} />
+              <View style={[styles.skeletonBlock, styles.skeletonStatLabel]} />
+            </View>
+          ))}
+        </View>
+      </View>
+      <View style={[styles.skeletonBlock, styles.skeletonName]} />
+      <View style={[styles.skeletonBlock, styles.skeletonMeta]} />
+      <View style={[styles.skeletonBlock, styles.skeletonDescription]} />
+      <View style={[styles.skeletonBlock, styles.skeletonButton]} />
+      <View style={[styles.skeletonBlock, styles.skeletonTabs]} />
+      <View style={[styles.skeletonBlock, styles.skeletonCard]} />
+    </View>
+  );
+}
+
+function ProfileState({
+  actionLabel = 'Go back',
+  message,
+  onAction,
+  title,
+}: {
+  actionLabel?: string;
+  message: string;
+  onAction: () => void;
+  title: string;
+}) {
+  const { styles } = useThemedStyles(createStyles);
+  return (
+    <View style={styles.state}>
+      <Text style={styles.stateTitle}>{title}</Text>
+      <Text style={styles.stateMessage}>{message}</Text>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onAction}
+        style={({ pressed }) => [styles.stateButton, pressed && styles.pressed]}
+      >
+        <Text style={styles.stateButtonLabel}>{actionLabel}</Text>
+      </Pressable>
+    </View>
+  );
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  manageLabel: { padding: spacing.sm, fontSize: 13, fontWeight: '700', color: colors.textPrimary },
-  hero: { alignItems: 'center', paddingVertical: spacing.lg },
-  nameRow: { marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  name: { maxWidth: 280, fontSize: 25, fontWeight: '700', textAlign: 'center', color: colors.textPrimary },
-  description: { maxWidth: 330, marginTop: spacing.sm, fontSize: 14, lineHeight: 21, textAlign: 'center', color: colors.textSecondary },
-  followButton: { minWidth: 120, minHeight: 44, marginTop: spacing.lg, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.textPrimary, borderRadius: radius.full },
-  followButtonActive: { backgroundColor: colors.textPrimary },
-  followText: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
-  followTextActive: { color: colors.white },
-  sectionTitle: { marginTop: spacing.xl, marginBottom: spacing.md, fontSize: 20, fontWeight: '700', color: colors.textPrimary },
-  empty: { minHeight: 150, padding: spacing.lg, justifyContent: 'center', borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: radius.lg, backgroundColor: colors.surface },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
-  emptyMessage: { marginTop: spacing.xs, fontSize: 13, lineHeight: 19, color: colors.textSecondary },
-  error: { marginTop: spacing.md, fontSize: 13, color: colors.danger },
-  stateTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center', color: colors.textPrimary },
-  stateMessage: { maxWidth: 290, marginTop: spacing.sm, fontSize: 14, lineHeight: 21, textAlign: 'center', color: colors.textSecondary },
-  stateButton: { minHeight: 44, marginTop: spacing.lg, paddingHorizontal: spacing.lg, alignItems: 'center', justifyContent: 'center', borderRadius: radius.full, backgroundColor: colors.textPrimary },
-  stateButtonText: { fontSize: 13, fontWeight: '700', color: colors.white },
-  pressed: { opacity: 0.55 },
+  topBar: { minHeight: 56, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSubtle },
+  topBarButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  topBarTitle: { flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
+  profileHeader: { paddingTop: spacing.lg },
+  metricsRow: { flexDirection: 'row', alignItems: 'center' },
+  statsRow: { flex: 1, minHeight: 88, marginLeft: spacing.md, flexDirection: 'row', alignItems: 'center' },
+  stat: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
+  statValue: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
+  statLabel: { marginTop: 3, fontSize: 10, fontWeight: '600', color: colors.textMuted },
+  nameRow: { marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  name: { flexShrink: 1, fontSize: 17, lineHeight: 23, fontWeight: '700', color: colors.textPrimary },
+  identityLabel: { marginTop: 3, fontSize: 12, fontWeight: '600', color: colors.textPrimary },
+  meta: { marginTop: 3, fontSize: 12, color: colors.textSecondary },
+  description: { maxWidth: 360, marginTop: spacing.sm, fontSize: 14, lineHeight: 20, color: colors.textPrimary },
+  actionButton: { minHeight: 38, marginTop: spacing.md, paddingHorizontal: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  actionButtonPrimary: { borderColor: colors.primaryActionBackground, backgroundColor: colors.primaryActionBackground },
+  actionLabel: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
+  actionLabelPrimary: { color: colors.primaryActionForeground },
+  error: { marginTop: spacing.md, padding: spacing.sm, borderRadius: radius.sm, textAlign: 'center', fontSize: 12, lineHeight: 18, color: colors.danger, backgroundColor: colors.dangerSoft },
+  tabs: { minHeight: 48, marginTop: spacing.lg, flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSubtle },
+  tab: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  tabActive: { borderBottomWidth: 1, borderBottomColor: colors.textPrimary },
+  tabLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.1, color: colors.textMuted },
+  tabLabelActive: { color: colors.textPrimary },
+  eventList: { paddingTop: spacing.md },
+  emptyTab: { minHeight: 190, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
+  emptyTitle: { textAlign: 'center', fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  emptyMessage: { maxWidth: 290, marginTop: spacing.xs, textAlign: 'center', fontSize: 13, lineHeight: 19, color: colors.textSecondary },
+  state: { flex: 1, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
+  stateTitle: { textAlign: 'center', fontSize: 21, fontWeight: '700', color: colors.textPrimary },
+  stateMessage: { maxWidth: 310, marginTop: spacing.sm, textAlign: 'center', fontSize: 14, lineHeight: 21, color: colors.textSecondary },
+  stateButton: { minHeight: 44, marginTop: spacing.lg, paddingHorizontal: spacing.lg, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primaryActionBackground },
+  stateButtonLabel: { fontSize: 13, fontWeight: '700', color: colors.primaryActionForeground },
+  skeleton: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  skeletonBlock: { borderRadius: radius.sm, backgroundColor: colors.border },
+  skeletonAvatar: { width: 88, height: 88, borderRadius: radius.lg },
+  skeletonStatValue: { width: 28, height: 14 },
+  skeletonStatLabel: { width: 44, height: 8, marginTop: spacing.sm },
+  skeletonName: { width: '70%', height: 14, marginTop: spacing.md },
+  skeletonMeta: { width: '42%', height: 9, marginTop: spacing.sm },
+  skeletonDescription: { width: '88%', height: 12, marginTop: spacing.md },
+  skeletonButton: { width: '100%', height: 38, marginTop: spacing.md },
+  skeletonTabs: { width: '100%', height: 48, marginTop: spacing.lg },
+  skeletonCard: { width: '100%', height: 180, marginTop: spacing.md, borderRadius: radius.lg },
+  pressed: { opacity: 0.58 },
 });

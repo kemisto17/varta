@@ -21,10 +21,6 @@ import {
   getInteractionErrorMessage,
   setPostLike,
 } from '../../lib/postInteractions';
-import {
-  getProfileFollowErrorMessage,
-  setProfileFollow,
-} from '../../lib/profileFollows';
 import { getUserProfile } from '../../lib/profile';
 import type { FeedCursor, FeedPost } from '../../types/post';
 import type { UserProfile } from '../../types/profile';
@@ -64,7 +60,6 @@ export function StudentProfileScreen({
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
-  const [isFollowPending, setIsFollowPending] = useState(false);
   const [isProfileOptionsVisible, setIsProfileOptionsVisible] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [likePendingIds, setLikePendingIds] = useState<Set<string>>(
@@ -276,37 +271,6 @@ export function StudentProfileScreen({
     [deletingPostIds, viewerUserId]
   );
 
-  const handleToggleFollow = useCallback(async () => {
-    if (!viewerUserId || !profile || isOwnProfile || isFollowPending) {
-      return;
-    }
-
-    const previousProfile = profile;
-    const nextIsFollowed = !profile.isFollowedByCurrentUser;
-    setIsFollowPending(true);
-    setProfile({
-      ...profile,
-      followerCount: Math.max(
-        0,
-        profile.followerCount + (nextIsFollowed ? 1 : -1)
-      ),
-      isFollowedByCurrentUser: nextIsFollowed,
-    });
-
-    try {
-      await setProfileFollow({
-        followerId: viewerUserId,
-        followingId: profile.id,
-        isFollowed: nextIsFollowed,
-      });
-    } catch (error) {
-      setProfile(previousProfile);
-      Alert.alert('Could not update follow', getProfileFollowErrorMessage(error));
-    } finally {
-      setIsFollowPending(false);
-    }
-  }, [isFollowPending, isOwnProfile, profile, viewerUserId]);
-
   const openPost = useCallback(
     (post: FeedPost) => {
       router.push({ pathname: '/post/[id]', params: { id: post.id } });
@@ -417,16 +381,11 @@ export function StudentProfileScreen({
         ListHeaderComponent={
           <ProfileHeader
             errorMessage={errorMessage}
-            isFollowPending={isFollowPending}
             isOwnProfile={isOwnProfile}
-            onConnections={(initialTab) =>
-              router.push({
-                pathname: '/connections',
-                params: { initialTab, profileId: profile.id },
-              })
-            }
             onEdit={() => router.push('/edit-profile')}
-            onToggleFollow={() => void handleToggleFollow()}
+            onFollowing={
+              isOwnProfile ? () => router.push('/following') : undefined
+            }
             profile={profile}
           />
         }
@@ -551,9 +510,7 @@ function ProfileTopBar({
             tintColor={colors.textPrimary}
           />
         </Pressable>
-      ) : (
-        <Text style={styles.brand}>VĀRTĀ</Text>
-      )}
+      ) : <View style={styles.topBarButton} />}
 
       <Text numberOfLines={1} style={styles.topBarTitle}>{title}</Text>
       {onMore ? (
@@ -599,117 +556,65 @@ function ProfileTopBar({
 
 function ProfileHeader({
   errorMessage,
-  isFollowPending,
   isOwnProfile,
-  onConnections,
   onEdit,
-  onToggleFollow,
+  onFollowing,
   profile,
 }: {
   errorMessage: string | null;
-  isFollowPending: boolean;
   isOwnProfile: boolean;
-  onConnections: (initialTab: 'followers' | 'following') => void;
   onEdit: () => void;
-  onToggleFollow: () => void;
+  onFollowing?: () => void;
   profile: UserProfile;
 }) {
   const { colors, styles } = useThemedStyles(createStyles);
   return (
     <View>
       <View style={styles.profileHeader}>
-        <View style={styles.identityRow}>
+        <View style={styles.metricsRow}>
           <Avatar
             fullName={profile.fullName}
-            size={84}
+            size={88}
             uri={profile.avatarUrl}
             verified={profile.isVerified}
           />
-
-          <View style={styles.identityCopy}>
-            <View style={styles.nameRow}>
-              <Text numberOfLines={2} style={styles.name}>
-                {profile.fullName}
-              </Text>
-              {profile.isVerified ? (
-                <SymbolView
-                  name={{
-                    android: 'verified',
-                    ios: 'checkmark.seal.fill',
-                    web: 'verified',
-                  }}
-                  size={17}
-                  tintColor={colors.success}
-                />
-              ) : null}
-            </View>
-            <Text style={styles.username}>@{profile.username}</Text>
-            <Text style={styles.academicMeta}>
-              {profile.institute.shortName} · {profile.branch}
-            </Text>
-            <Text style={styles.academicYear}>{formatYear(profile.year)}</Text>
+          <View style={styles.statsRow}>
+            <ProfileStat label="Posts" value={profile.postCount} />
+            <ProfileStat
+              label="Following"
+              onPress={onFollowing}
+              value={profile.organizationFollowingCount}
+            />
           </View>
         </View>
 
-        <View style={styles.statsRow}>
-          <ProfileStat label="Posts" value={profile.postCount} />
-          <View style={styles.statDivider} />
-          <ProfileStat
-            label="Followers"
-            onPress={() => onConnections('followers')}
-            value={profile.followerCount}
-          />
-          <View style={styles.statDivider} />
-          <ProfileStat
-            label="Following"
-            onPress={() => onConnections('following')}
-            value={profile.followingCount}
-          />
+        <View style={styles.nameRow}>
+          <Text numberOfLines={2} style={styles.name}>{profile.fullName}</Text>
+          {profile.isVerified ? (
+            <SymbolView
+              name={{ android: 'verified', ios: 'checkmark.seal.fill', web: 'verified' }}
+              size={16}
+              tintColor={colors.success}
+            />
+          ) : null}
         </View>
+        <Text style={styles.academicMeta}>
+          {profile.institute.shortName} · {profile.branch} · {formatYear(profile.year)}
+        </Text>
 
         {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
 
         <ProfileBadges badges={profile.badges} maxVisible={3} />
 
-        <Pressable
-          accessibilityRole="button"
-          disabled={isFollowPending}
-          onPress={isOwnProfile ? onEdit : onToggleFollow}
-          style={({ pressed }) => [
-            styles.profileAction,
-            !isOwnProfile &&
-              !profile.isFollowedByCurrentUser &&
-              styles.profileActionPrimary,
-            pressed && styles.pressed,
-            isFollowPending && styles.actionDisabled,
-          ]}
-        >
-          {isFollowPending ? (
-            <ActivityIndicator
-              color={
-                profile.isFollowedByCurrentUser
-                  ? colors.textPrimary
-                  : colors.white
-              }
-              size="small"
-            />
-          ) : (
-            <Text
-              style={[
-                styles.profileActionLabel,
-                !isOwnProfile &&
-                  !profile.isFollowedByCurrentUser &&
-                  styles.profileActionPrimaryLabel,
-              ]}
-            >
-              {isOwnProfile
-                ? 'Edit profile'
-                : profile.isFollowedByCurrentUser
-                  ? 'Following'
-                  : 'Follow'}
-            </Text>
-          )}
-        </Pressable>
+        {isOwnProfile ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onEdit}
+            style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}
+          >
+            <Text style={styles.profileActionLabel}>Edit profile</Text>
+          </Pressable>
+        ) : null}
 
         {errorMessage ? (
           <Text accessibilityRole="alert" style={styles.inlineError}>
@@ -718,8 +623,13 @@ function ProfileHeader({
         ) : null}
       </View>
 
-      <View style={styles.postsHeading}>
-        <Text style={styles.postsTitle}>Posts</Text>
+      <View style={styles.contentTab}>
+        <SymbolView
+          name={{ android: 'view_agenda', ios: 'rectangle.stack', web: 'view_agenda' }}
+          size={16}
+          tintColor={colors.textPrimary}
+        />
+        <Text style={styles.contentTabLabel}>POSTS</Text>
       </View>
     </View>
   );
@@ -760,22 +670,19 @@ function ProfileSkeleton() {
   const { styles } = useThemedStyles(createStyles);
   return (
     <View accessibilityLabel="Loading student profile" style={styles.skeleton}>
-      <View style={styles.skeletonIdentity}>
+      <View style={styles.skeletonMetrics}>
         <View style={[styles.skeletonBlock, styles.skeletonAvatar]} />
-        <View style={styles.skeletonIdentityCopy}>
-          <View style={[styles.skeletonBlock, styles.skeletonName]} />
-          <View style={[styles.skeletonBlock, styles.skeletonUsername]} />
-          <View style={[styles.skeletonBlock, styles.skeletonMeta]} />
+        <View style={styles.skeletonStats}>
+          {[0, 1].map((item) => (
+            <View key={item} style={styles.skeletonStat}>
+              <View style={[styles.skeletonBlock, styles.skeletonStatValue]} />
+              <View style={[styles.skeletonBlock, styles.skeletonStatLabel]} />
+            </View>
+          ))}
         </View>
       </View>
-      <View style={styles.skeletonStats}>
-        {[0, 1, 2].map((item) => (
-          <View key={item} style={styles.skeletonStat}>
-            <View style={[styles.skeletonBlock, styles.skeletonStatValue]} />
-            <View style={[styles.skeletonBlock, styles.skeletonStatLabel]} />
-          </View>
-        ))}
-      </View>
+      <View style={[styles.skeletonBlock, styles.skeletonName]} />
+      <View style={[styles.skeletonBlock, styles.skeletonMeta]} />
       <View style={[styles.skeletonBlock, styles.skeletonBio]} />
       <View style={[styles.skeletonBlock, styles.skeletonButton]} />
       <View style={styles.skeletonDivider} />
@@ -864,14 +771,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.textPrimary,
   },
 
-  brand: {
-    width: 44,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    color: colors.textPrimary,
-  },
-
   listContent: {
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
@@ -879,77 +778,50 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
 
   profileHeader: {
-    paddingTop: spacing.xl,
+    paddingTop: spacing.lg,
     alignItems: 'stretch',
   },
 
-  identityRow: {
+  metricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-
-  identityCopy: {
-    flex: 1,
-    minWidth: 0,
-    marginLeft: spacing.md,
   },
 
   nameRow: {
+    marginTop: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 6,
   },
 
   name: {
     flexShrink: 1,
-    fontSize: 23,
-    lineHeight: 28,
+    fontSize: 16,
+    lineHeight: 22,
     fontWeight: '700',
-    letterSpacing: -0.4,
     color: colors.textPrimary,
   },
 
-  username: {
-    marginTop: 3,
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-
   academicMeta: {
-    marginTop: spacing.sm,
+    marginTop: 3,
     fontSize: 12,
-    lineHeight: 17,
+    lineHeight: 18,
     color: colors.textSecondary,
-  },
-
-  academicYear: {
-    marginTop: 2,
-    fontSize: 11,
-    color: colors.textMuted,
   },
 
   statsRow: {
-    minHeight: 72,
-    marginTop: spacing.lg,
-    paddingVertical: spacing.sm,
+    flex: 1,
+    minHeight: 88,
+    marginLeft: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: colors.borderSubtle,
   },
 
   stat: {
     flex: 1,
-    minHeight: 52,
+    minHeight: 56,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  statDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: colors.borderSubtle,
   },
 
   statValue: {
@@ -966,7 +838,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
 
   bio: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     fontSize: 14,
     lineHeight: 21,
     color: colors.textPrimary,
@@ -974,34 +846,21 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
 
   profileAction: {
     width: '100%',
-    minHeight: 44,
-    marginTop: spacing.lg,
+    minHeight: 38,
+    marginTop: spacing.md,
     paddingHorizontal: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.full,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
-  },
-
-  profileActionPrimary: {
-    borderColor: colors.textPrimary,
-    backgroundColor: colors.textPrimary,
   },
 
   profileActionLabel: {
     fontSize: 13,
     fontWeight: '700',
     color: colors.textPrimary,
-  },
-
-  profileActionPrimaryLabel: {
-    color: colors.white,
-  },
-
-  actionDisabled: {
-    opacity: 0.62,
   },
 
   inlineError: {
@@ -1016,26 +875,27 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.dangerSoft,
   },
 
-  postsHeading: {
-    marginTop: spacing.xl,
-    paddingVertical: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
+  contentTab: {
+    minHeight: 46,
+    marginTop: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
+    borderBottomColor: colors.textPrimary,
   },
 
-  postsTitle: {
-    fontSize: 15,
+  contentTabLabel: {
+    fontSize: 10,
     fontWeight: '700',
+    letterSpacing: 1.1,
     color: colors.textPrimary,
   },
 
   emptyPosts: {
     minHeight: 180,
     paddingVertical: spacing.xl,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
     justifyContent: 'center',
   },
 
@@ -1104,31 +964,21 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.border,
   },
 
-  skeletonIdentity: {
+  skeletonMetrics: {
     flexDirection: 'row',
     alignItems: 'center',
   },
 
-  skeletonIdentityCopy: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-
   skeletonAvatar: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
   },
 
   skeletonName: {
     width: '68%',
-    height: 18,
-  },
-
-  skeletonUsername: {
-    width: '44%',
-    height: 10,
-    marginTop: spacing.sm,
+    height: 14,
+    marginTop: spacing.md,
   },
 
   skeletonMeta: {
@@ -1138,13 +988,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
 
   skeletonStats: {
-    minHeight: 72,
-    marginTop: spacing.lg,
+    flex: 1,
+    minHeight: 88,
+    marginLeft: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: colors.borderSubtle,
   },
 
   skeletonStat: {
@@ -1171,9 +1019,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
 
   skeletonButton: {
     width: '100%',
-    height: 44,
-    marginTop: spacing.lg,
-    borderRadius: radius.full,
+    height: 38,
+    marginTop: spacing.md,
+    borderRadius: radius.sm,
   },
 
   skeletonDivider: {

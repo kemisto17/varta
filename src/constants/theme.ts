@@ -12,6 +12,9 @@ export const lightColors = {
   borderSubtle: '#EAE9E5',
   icon: '#171716',
 
+  primaryActionBackground: '#171716',
+  primaryActionForeground: '#FFFFFF',
+
   danger: '#B42318',
   dangerSoft: '#F7EAE7',
   success: '#277047',
@@ -46,6 +49,9 @@ export const darkColors: ThemeColors = {
   border: '#3A3936',
   borderSubtle: '#292826',
   icon: '#F3F2EE',
+
+  primaryActionBackground: '#F3F2EE',
+  primaryActionForeground: '#171716',
 
   danger: '#FF9A91',
   dangerSoft: '#351E1C',

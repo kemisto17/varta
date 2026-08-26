@@ -337,7 +337,6 @@ export type Database = {
           badges_enabled: boolean
           comments_enabled: boolean
           events_enabled: boolean
-          follows_enabled: boolean
           likes_enabled: boolean
           updated_at: string
           user_id: string
@@ -346,7 +345,6 @@ export type Database = {
           badges_enabled?: boolean
           comments_enabled?: boolean
           events_enabled?: boolean
-          follows_enabled?: boolean
           likes_enabled?: boolean
           updated_at?: string
           user_id: string
@@ -355,7 +353,6 @@ export type Database = {
           badges_enabled?: boolean
           comments_enabled?: boolean
           events_enabled?: boolean
-          follows_enabled?: boolean
           likes_enabled?: boolean
           updated_at?: string
           user_id?: string
@@ -697,39 +694,6 @@ export type Database = {
           },
         ]
       }
-      profile_follows: {
-        Row: {
-          created_at: string
-          follower_id: string
-          following_id: string
-        }
-        Insert: {
-          created_at?: string
-          follower_id: string
-          following_id: string
-        }
-        Update: {
-          created_at?: string
-          follower_id?: string
-          following_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profile_follows_follower_id_fkey"
-            columns: ["follower_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "profile_follows_following_id_fkey"
-            columns: ["following_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           avatar_path: string | null
@@ -1039,34 +1003,16 @@ export type Database = {
           organization_id: string
         }[]
       }
-      get_profile_connections: {
-        Args: {
-          connection_kind: string
-          cursor_created_at?: string
-          cursor_profile_id?: string
-          result_limit?: number
-          target_profile_id: string
-        }
+      get_organization_profile_summary: {
+        Args: { target_organization_id: string }
         Returns: {
-          avatar_path: string
-          branch: string
-          created_at: string
-          full_name: string
-          institute_short_name: string
-          is_followed_by_current_user: boolean
-          is_verified: boolean
-          profile_id: string
-          username: string
-          year: number
+          event_count: number
+          follower_count: number
         }[]
       }
-      get_profile_social_summary: {
+      get_profile_organization_following_count: {
         Args: { target_profile_id: string }
-        Returns: {
-          follower_count: number
-          following_count: number
-          is_followed_by_current_user: boolean
-        }[]
+        Returns: number
       }
       search_events: {
         Args: { result_limit?: number; search_query: string }
@@ -1121,7 +1067,6 @@ export type Database = {
         | "verification_rejected"
         | "badge_assigned"
         | "event_cancelled"
-        | "profile_follow"
       report_reason:
         | "spam"
         | "harassment"
@@ -1267,7 +1212,6 @@ export const Constants = {
         "verification_rejected",
         "badge_assigned",
         "event_cancelled",
-        "profile_follow",
       ],
       report_reason: [
         "spam",
