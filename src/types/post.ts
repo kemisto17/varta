@@ -1,5 +1,5 @@
-import type { Tables } from './database';
 import type { ProfileBadge } from './badge';
+import type { Tables } from './database';
 
 type InstituteRow = Tables<'institutes'>;
 type CommentRow = Tables<'comments'>;

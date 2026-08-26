@@ -1,11 +1,16 @@
-import { useThemedStyles } from '../hooks/useTheme';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Pressable, StyleSheet, Text, View, } from 'react-native';
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { radius, spacing, type ThemeColors } from '../constants/theme';
+import { useThemedStyles } from '../hooks/useTheme';
 import { formatRelativeTimestamp } from '../lib/time';
 import type { FeedPost } from '../types/post';
 import { Avatar } from './Avatar';
@@ -42,19 +47,32 @@ export function PostCard({
   post,
 }: PostCardProps) {
   const { colors, styles } = useThemedStyles(createStyles);
-  const canDelete = post.canDeleteByCurrentUser && onDelete !== undefined;
+
+  const canDelete =
+    post.canDeleteByCurrentUser &&
+    onDelete !== undefined;
+
   const canReport =
-    currentUserId !== null && !post.canDeleteByCurrentUser && onReport !== undefined;
+    currentUserId !== null &&
+    !post.canDeleteByCurrentUser &&
+    onReport !== undefined;
+
   const canBlock =
     post.author.kind === 'student' &&
     currentUserId !== null &&
     post.authorId !== currentUserId &&
     onBlockUser !== undefined;
+
   const hasOptions =
-    canDelete || canReport || canBlock;
+    canDelete ||
+    canReport ||
+    canBlock;
+
   const [imageFailed, setImageFailed] = useState(false);
-  const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
-  const [isOptionsVisible, setIsOptionsVisible] = useState(false);
+  const [isImageViewerVisible, setIsImageViewerVisible] =
+    useState(false);
+  const [isOptionsVisible, setIsOptionsVisible] =
+    useState(false);
 
   useEffect(() => {
     setImageFailed(false);
@@ -83,29 +101,54 @@ export function PostCard({
 
           <View style={styles.author}>
             <View style={styles.nameRow}>
-              <Text numberOfLines={1} style={styles.name}>
+              <Text
+                numberOfLines={1}
+                style={styles.name}
+              >
                 {post.author.fullName}
               </Text>
+
               {post.author.primaryBadge ? (
-                <BadgePill badge={post.author.primaryBadge} compact />
+                <BadgePill
+                  badge={post.author.primaryBadge}
+                  compact
+                />
               ) : null}
             </View>
+
             {post.author.kind === 'student' ? (
               <>
-                <Text numberOfLines={1} style={styles.identityMeta}>
-                  @{post.author.username} · {post.author.institute.shortName}
+                <Text
+                  numberOfLines={1}
+                  style={styles.identityMeta}
+                >
+                  @{post.author.username} ·{' '}
+                  {post.author.institute.shortName}
                 </Text>
-                <Text numberOfLines={1} style={styles.meta}>
-                  {post.author.branch} · {formatYear(post.author.year)} ·{' '}
+
+                <Text
+                  numberOfLines={1}
+                  style={styles.meta}
+                >
+                  {post.author.branch} ·{' '}
+                  {formatYear(post.author.year)} ·{' '}
                   {formatRelativeTimestamp(post.createdAt)}
                 </Text>
               </>
             ) : (
               <>
-                <Text numberOfLines={1} style={styles.identityMeta}>
-                  Official organization · {post.author.campusShortName}
+                <Text
+                  numberOfLines={1}
+                  style={styles.identityMeta}
+                >
+                  Official organization ·{' '}
+                  {post.author.campusShortName}
                 </Text>
-                <Text numberOfLines={1} style={styles.meta}>
+
+                <Text
+                  numberOfLines={1}
+                  style={styles.meta}
+                >
                   {formatRelativeTimestamp(post.createdAt)}
                 </Text>
               </>
@@ -126,7 +169,10 @@ export function PostCard({
             ]}
           >
             {isDeleting ? (
-              <ActivityIndicator color={colors.textSecondary} size="small" />
+              <ActivityIndicator
+                color={colors.textSecondary}
+                size="small"
+              />
             ) : (
               <SymbolView
                 name={{
@@ -147,9 +193,15 @@ export function PostCard({
           accessibilityRole={onOpenPost ? 'button' : undefined}
           disabled={!onOpenPost}
           onPress={() => onOpenPost?.(post)}
-          style={({ pressed }) => pressed && onOpenPost && styles.bodyPressed}
+          style={({ pressed }) =>
+            pressed &&
+            onOpenPost &&
+            styles.bodyPressed
+          }
         >
-          <LinkifiedText style={styles.content}>{post.content}</LinkifiedText>
+          <LinkifiedText style={styles.content}>
+            {post.content}
+          </LinkifiedText>
         </Pressable>
       ) : null}
 
@@ -158,23 +210,30 @@ export function PostCard({
           accessibilityLabel={`View photo posted by ${post.author.fullName} fullscreen`}
           accessibilityRole="button"
           onPress={() => setIsImageViewerVisible(true)}
-          style={({ pressed }) => pressed && styles.imagePressed}
+          style={({ pressed }) =>
+            pressed && styles.imagePressed
+          }
         >
           <View style={styles.imageFrame}>
             <Image
               accessibilityLabel={`Photo posted by ${post.author.fullName}`}
               cachePolicy="memory-disk"
               contentFit="cover"
-              onError={() => setImageFailed(true)}
-              source={{ uri: post.imageUrl }}
+              recyclingKey={post.imageUrl}
+              source={post.imageUrl}
               style={styles.image}
               transition={180}
+              onError={() => {
+                setImageFailed(true);
+              }}
             />
           </View>
         </Pressable>
       ) : post.imageUrl && imageFailed ? (
         <View style={styles.imageUnavailable}>
-          <Text style={styles.imageUnavailableText}>Photo unavailable</Text>
+          <Text style={styles.imageUnavailableText}>
+            Photo unavailable
+          </Text>
         </View>
       ) : null}
 
@@ -211,13 +270,17 @@ export function PostCard({
             }
             size={20}
             tintColor={
-              post.isLikedByCurrentUser ? colors.danger : colors.textSecondary
+              post.isLikedByCurrentUser
+                ? colors.danger
+                : colors.textSecondary
             }
           />
+
           <Text
             style={[
               styles.actionText,
-              post.isLikedByCurrentUser && styles.likedActionText,
+              post.isLikedByCurrentUser &&
+                styles.likedActionText,
             ]}
           >
             {post.likeCount}
@@ -244,7 +307,10 @@ export function PostCard({
             size={19}
             tintColor={colors.textSecondary}
           />
-          <Text style={styles.actionText}>{post.commentCount}</Text>
+
+          <Text style={styles.actionText}>
+            {post.commentCount}
+          </Text>
         </Pressable>
       </View>
 
@@ -253,7 +319,8 @@ export function PostCard({
           post.imageUrl
             ? [
                 {
-                  accessibilityLabel: `Photo posted by ${post.author.fullName}`,
+                  accessibilityLabel:
+                    `Photo posted by ${post.author.fullName}`,
                   uri: post.imageUrl,
                 },
               ]
@@ -269,7 +336,7 @@ export function PostCard({
             ? [
                 {
                   label: 'Delete post',
-                  onPress: () => onDelete(post),
+                  onPress: () => onDelete?.(post),
                   tone: 'danger' as const,
                 },
               ]
@@ -282,6 +349,7 @@ export function PostCard({
                       },
                     ]
                   : []),
+
                 ...(canBlock
                   ? [
                       {
@@ -299,7 +367,11 @@ export function PostCard({
             : null
         }
         onClose={() => setIsOptionsVisible(false)}
-        title={canDelete ? 'Delete this post?' : 'Post options'}
+        title={
+          canDelete
+            ? 'Delete this post?'
+            : 'Post options'
+        }
         visible={isOptionsVisible}
       />
     </View>
@@ -307,141 +379,149 @@ export function PostCard({
 }
 
 function formatYear(year: number) {
-  const suffix = year === 1 ? 'st' : year === 2 ? 'nd' : year === 3 ? 'rd' : 'th';
+  const suffix =
+    year === 1
+      ? 'st'
+      : year === 2
+        ? 'nd'
+        : year === 3
+          ? 'rd'
+          : 'th';
 
   return `${year}${suffix} year`;
 }
 
-const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: {
-    paddingVertical: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
-  },
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      paddingVertical: spacing.lg,
+      borderTopWidth: 1,
+      borderTopColor: colors.borderSubtle,
+    },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+    },
 
-  userInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    userInfo: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
 
-  author: {
-    marginLeft: spacing.md,
-    flex: 1,
-  },
+    author: {
+      marginLeft: spacing.md,
+      flex: 1,
+    },
 
-  name: {
-    flexShrink: 1,
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
+    name: {
+      flexShrink: 1,
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
 
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
 
-  identityMeta: {
-    marginTop: 2,
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
+    identityMeta: {
+      marginTop: 2,
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
 
-  meta: {
-    marginTop: 2,
-    fontSize: 11,
-    color: colors.textMuted,
-  },
+    meta: {
+      marginTop: 2,
+      fontSize: 11,
+      color: colors.textMuted,
+    },
 
-  moreButton: {
-    width: 36,
-    height: 36,
-    marginLeft: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    moreButton: {
+      width: 36,
+      height: 36,
+      marginLeft: spacing.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  content: {
-    marginTop: spacing.md,
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.textPrimary,
-  },
+    content: {
+      marginTop: spacing.md,
+      fontSize: 16,
+      lineHeight: 24,
+      color: colors.textPrimary,
+    },
 
-  imageFrame: {
-    width: '100%',
-    marginTop: spacing.md,
-    aspectRatio: 4 / 3,
-    overflow: 'hidden',
-    borderRadius: radius.lg,
-    backgroundColor: colors.borderSubtle,
-  },
+    imageFrame: {
+      width: '100%',
+      marginTop: spacing.md,
+      aspectRatio: 4 / 3,
+      overflow: 'hidden',
+      borderRadius: radius.lg,
+      backgroundColor: colors.borderSubtle,
+    },
 
-  image: {
-    width: '100%',
-    height: '100%',
-  },
+    image: {
+      width: '100%',
+      height: '100%',
+    },
 
-  imageUnavailable: {
-    minHeight: 52,
-    marginTop: spacing.md,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.borderSubtle,
-  },
+    imageUnavailable: {
+      minHeight: 52,
+      marginTop: spacing.md,
+      borderRadius: radius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.borderSubtle,
+    },
 
-  imageUnavailableText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textMuted,
-  },
+    imageUnavailableText: {
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.textMuted,
+    },
 
-  actions: {
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.lg,
-  },
+    actions: {
+      marginTop: spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.lg,
+    },
 
-  action: {
-    minHeight: 34,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
+    action: {
+      minHeight: 34,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
 
-  actionText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
+    actionText: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
 
-  likedActionText: {
-    color: colors.danger,
-  },
+    likedActionText: {
+      color: colors.danger,
+    },
 
-  actionPending: {
-    opacity: 0.58,
-  },
+    actionPending: {
+      opacity: 0.58,
+    },
 
-  bodyPressed: {
-    opacity: 0.72,
-  },
+    bodyPressed: {
+      opacity: 0.72,
+    },
 
-  imagePressed: {
-    opacity: 0.86,
-  },
+    imagePressed: {
+      opacity: 0.86,
+    },
 
-  pressed: {
-    opacity: 0.55,
-  },
-});
+    pressed: {
+      opacity: 0.55,
+    },
+  });

@@ -1,13 +1,14 @@
-import { useThemedStyles } from '../../hooks/useTheme';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View, } from 'react-native';
+  KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View,
+} from 'react-native';
+import { useThemedStyles } from '../../hooks/useTheme';
 
 import { AuthField } from '../../components/auth/AuthField';
-import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
 import { InstituteSelectField } from '../../components/profile/InstituteSelectField';
 import { YearSelector } from '../../components/profile/YearSelector';
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
@@ -124,11 +125,13 @@ export default function SetupProfileScreen() {
   return (
     <SafeAreaScreen style={styles.safeArea}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
         style={styles.keyboardView}
       >
         <ScrollView
           contentContainerStyle={styles.content}
+          keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -247,8 +250,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
 
   content: {
+    flexGrow: 1,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingBottom: 140,
   },
 
   header: {

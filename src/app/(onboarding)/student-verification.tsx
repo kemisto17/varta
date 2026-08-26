@@ -1,12 +1,13 @@
 import type { ImagePickerAsset } from 'expo-image-picker';
-import { useThemedStyles } from '../../hooks/useTheme';
 import { useState } from 'react';
 import {
-  KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, } from 'react-native';
+  KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View,
+} from 'react-native';
+import { useThemedStyles } from '../../hooks/useTheme';
 
 import { AuthField } from '../../components/auth/AuthField';
-import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { StudentIdPicker } from '../../components/verification/StudentIdPicker';
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
@@ -70,11 +71,13 @@ export default function StudentVerificationScreen() {
   return (
     <SafeAreaScreen style={styles.safeArea}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
         style={styles.keyboardView}
       >
         <ScrollView
           contentContainerStyle={styles.content}
+          keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -160,8 +163,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
 
   content: {
+    flexGrow: 1,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingBottom: 140,
   },
 
   header: {

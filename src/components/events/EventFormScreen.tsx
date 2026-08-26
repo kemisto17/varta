@@ -1,17 +1,18 @@
-import { useThemedStyles } from '../../hooks/useTheme';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import {
-  ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View, } from 'react-native';
+  ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
+} from 'react-native';
+import { useThemedStyles } from '../../hooks/useTheme';
 
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
-import { SafeAreaScreen } from '../SafeAreaScreen';
 import { getEventErrorMessage, MAX_EVENT_COVER_SIZE } from '../../lib/events';
 import { requestImageLibraryAccess } from '../../lib/imagePicker';
 import type { CampusEvent, EventFormValues } from '../../types/event';
+import { SafeAreaScreen } from '../SafeAreaScreen';
 import { ScreenHeader } from '../ScreenHeader';
 import { EventDateTimeField } from './EventDateTimeField';
 
@@ -139,8 +140,17 @@ export function EventFormScreen({
   return (
     <SafeAreaScreen style={styles.safeArea}>
       <ScreenHeader title={title} />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+        style={styles.keyboard}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.organization}>{organizationName}</Text>
           <Text style={styles.heading}>{initialEvent ? 'Update the details.' : 'Plan something worth showing up for.'}</Text>
 
@@ -295,7 +305,7 @@ function combineDateAndTime(datePart: Date, timePart: Date) {
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   keyboard: { flex: 1 },
-  content: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  content: { flexGrow: 1,padding: spacing.lg, paddingBottom: 160 },
   organization: { fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.textMuted },
   heading: { maxWidth: 330, marginTop: spacing.sm, marginBottom: spacing.xl, fontSize: 25, lineHeight: 32, fontWeight: '700', color: colors.textPrimary },
   field: { marginTop: spacing.lg },
