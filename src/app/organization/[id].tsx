@@ -1,9 +1,10 @@
 import { useThemedStyles } from '../../hooks/useTheme';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,20 +14,36 @@ import {
 } from 'react-native';
 
 import { SafeAreaScreen } from '../../components/SafeAreaScreen';
+import { PostCard } from '../../components/PostCard';
 import { EventCard } from '../../components/events/EventCard';
+import { LinkifiedText } from '../../components/links/LinkifiedText';
+import { StructuredLinks } from '../../components/links/StructuredLinks';
 import { ActionSheet } from '../../components/moderation/ActionSheet';
+import { ReportSheet } from '../../components/moderation/ReportSheet';
 import { OrganizationAvatar } from '../../components/organizations/OrganizationAvatar';
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { getOrganizationProfileEvents, setEventInterest } from '../../lib/events';
+import { getOrganizationLinks, type StructuredLink } from '../../lib/links';
+import type { ReportTarget } from '../../lib/moderation';
 import {
   getOrganizationById,
   getOrganizationErrorMessage,
   isOrganizationManagerRole,
   setOrganizationFollow,
 } from '../../lib/organizations';
+import {
+  deletePost,
+  getOrganizationPostsPage,
+  getPostErrorMessage,
+} from '../../lib/posts';
+import {
+  getInteractionErrorMessage,
+  setPostLike,
+} from '../../lib/postInteractions';
 import type { CampusEvent } from '../../types/event';
 import type { CampusOrganization } from '../../types/organization';
+import type { FeedPost } from '../../types/post';
 
 type PageStatus = 'loading' | 'ready' | 'unavailable' | 'error';
 type ProfileTab = 'posts' | 'events';
@@ -37,9 +54,13 @@ export default function OrganizationScreen() {
   const params = useLocalSearchParams<{ id: string | string[] }>();
   const organizationId = Array.isArray(params.id) ? params.id[0] : params.id;
   const { session } = useAuth();
+  const likeRequests = useRef(new Set<string>());
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [events, setEvents] = useState<CampusEvent[]>([]);
+  const [deletingPostIds, setDeletingPostIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const [interestPendingIds, setInterestPendingIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -47,6 +68,12 @@ export default function OrganizationScreen() {
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [organization, setOrganization] = useState<CampusOrganization | null>(null);
+  const [likePendingIds, setLikePendingIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [links, setLinks] = useState<StructuredLink[]>([]);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [status, setStatus] = useState<PageStatus>('loading');
 
   const loadPage = useCallback(async (refreshing = false) => {
@@ -66,20 +93,26 @@ export default function OrganizationScreen() {
     setErrorMessage(null);
 
     try {
-      const [nextOrganization, nextEvents] = await Promise.all([
+      const [nextOrganization, nextEvents, postPage, nextLinks] = await Promise.all([
         getOrganizationById(organizationId, userId),
         getOrganizationProfileEvents(organizationId, userId),
+        getOrganizationPostsPage(organizationId, userId),
+        getOrganizationLinks(organizationId),
       ]);
 
       if (!nextOrganization) {
         setOrganization(null);
         setEvents([]);
+        setPosts([]);
+        setLinks([]);
         setStatus('unavailable');
         return;
       }
 
       setOrganization(nextOrganization);
       setEvents(nextEvents);
+      setPosts(postPage.posts);
+      setLinks(nextLinks);
       setStatus('ready');
     } catch (error) {
       console.warn('[organization] Could not load page.', error);
@@ -167,6 +200,85 @@ export default function OrganizationScreen() {
     }
   }, [interestPendingIds, session?.user.id]);
 
+  const openPost = useCallback((post: FeedPost) => {
+    router.push({ pathname: '/post/[id]', params: { id: post.id } });
+  }, [router]);
+
+  const togglePostLike = useCallback(async (post: FeedPost) => {
+    const userId = session?.user.id;
+
+    if (!userId || likeRequests.current.has(post.id)) {
+      return;
+    }
+
+    const nextLiked = !post.isLikedByCurrentUser;
+    likeRequests.current.add(post.id);
+    setLikePendingIds((current) => new Set(current).add(post.id));
+    setPosts((current) =>
+      current.map((item) =>
+        item.id === post.id
+          ? {
+              ...item,
+              isLikedByCurrentUser: nextLiked,
+              likeCount: Math.max(0, item.likeCount + (nextLiked ? 1 : -1)),
+            }
+          : item
+      )
+    );
+
+    try {
+      await setPostLike({ isLiked: nextLiked, postId: post.id, userId });
+    } catch (error) {
+      console.warn('[organization] Could not update post like.', error);
+      setPosts((current) =>
+        current.map((item) => (item.id === post.id ? post : item))
+      );
+      setErrorMessage(getInteractionErrorMessage(error));
+    } finally {
+      likeRequests.current.delete(post.id);
+      setLikePendingIds((current) => {
+        const next = new Set(current);
+        next.delete(post.id);
+        return next;
+      });
+    }
+  }, [session?.user.id]);
+
+  const handleDeletePost = useCallback(async (post: FeedPost) => {
+    const userId = session?.user.id;
+
+    if (!userId || deletingPostIds.has(post.id)) {
+      return;
+    }
+
+    setDeletingPostIds((current) => new Set(current).add(post.id));
+
+    try {
+      const result = await deletePost(post, userId);
+      setPosts((current) => current.filter((item) => item.id !== post.id));
+      setOrganization((current) =>
+        current
+          ? { ...current, postCount: Math.max(0, current.postCount - 1) }
+          : current
+      );
+
+      if (result.mediaCleanupFailed) {
+        Alert.alert(
+          'Post deleted',
+          'The post is gone, but its photo could not be cleaned up automatically.'
+        );
+      }
+    } catch (error) {
+      Alert.alert('Could not delete post', getPostErrorMessage(error));
+    } finally {
+      setDeletingPostIds((current) => {
+        const next = new Set(current);
+        next.delete(post.id);
+        return next;
+      });
+    }
+  }, [deletingPostIds, session?.user.id]);
+
   const goBack = useCallback(() => {
     if (router.canGoBack()) {
       router.back();
@@ -249,8 +361,12 @@ export default function OrganizationScreen() {
             <Text style={styles.identityLabel}>Official organization</Text>
             <Text style={styles.meta}>Club · {organization.campusShortName}</Text>
             {organization.description ? (
-              <Text style={styles.description}>{organization.description}</Text>
+              <LinkifiedText style={styles.description}>
+                {organization.description}
+              </LinkifiedText>
             ) : null}
+
+            <StructuredLinks links={links} ownerName={organization.name} />
 
             {isOrganizationManagerRole(organization.role) ? (
               <Pressable
@@ -308,12 +424,37 @@ export default function OrganizationScreen() {
           </View>
 
           {activeTab === 'posts' ? (
-            <View style={styles.emptyTab}>
-              <Text style={styles.emptyTitle}>No organization posts yet.</Text>
-              <Text style={styles.emptyMessage}>
-                Official posts from this organization will appear here.
-              </Text>
-            </View>
+            posts.length === 0 ? (
+              <View style={styles.emptyTab}>
+                <Text style={styles.emptyTitle}>No organization posts yet.</Text>
+                <Text style={styles.emptyMessage}>
+                  Official posts from this organization will appear here.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.postList}>
+                {posts.map((post) => (
+                  <PostCard
+                    currentUserId={session?.user.id ?? null}
+                    isDeleting={deletingPostIds.has(post.id)}
+                    isLikePending={likePendingIds.has(post.id)}
+                    key={post.id}
+                    onCommentPress={openPost}
+                    onDelete={handleDeletePost}
+                    onOpenPost={openPost}
+                    onReport={(item) =>
+                      setReportTarget({
+                        id: item.id,
+                        label: 'Report this post',
+                        type: 'post',
+                      })
+                    }
+                    onToggleLike={togglePostLike}
+                    post={post}
+                  />
+                ))}
+              </View>
+            )
           ) : events.length === 0 ? (
             <View style={styles.emptyTab}>
               <Text style={styles.emptyTitle}>No events yet.</Text>
@@ -359,6 +500,12 @@ export default function OrganizationScreen() {
           visible={isOptionsVisible}
         />
       ) : null}
+
+      <ReportSheet
+        onClose={() => setReportTarget(null)}
+        reporterId={session?.user.id ?? null}
+        target={reportTarget}
+      />
     </SafeAreaScreen>
   );
 }
@@ -524,6 +671,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   tabLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.1, color: colors.textMuted },
   tabLabelActive: { color: colors.textPrimary },
   eventList: { paddingTop: spacing.md },
+  postList: { paddingTop: spacing.md },
   emptyTab: { minHeight: 190, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
   emptyTitle: { textAlign: 'center', fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   emptyMessage: { maxWidth: 290, marginTop: spacing.xs, textAlign: 'center', fontSize: 13, lineHeight: 19, color: colors.textSecondary },

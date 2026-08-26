@@ -62,10 +62,25 @@ export default function NotificationsScreen() {
         return;
       }
 
-      if (notification.type === 'event_cancelled' && notification.event_id) {
+      if (
+        (notification.type === 'event_cancelled' ||
+          notification.type === 'event_updated') &&
+        notification.event_id
+      ) {
         router.push({
           pathname: '/event/[id]',
           params: { id: notification.event_id },
+        });
+        return;
+      }
+
+      if (
+        notification.type === 'organization_role_assigned' &&
+        notification.organization_id
+      ) {
+        router.push({
+          pathname: '/organization/[id]',
+          params: { id: notification.organization_id },
         });
         return;
       }

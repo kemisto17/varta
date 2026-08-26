@@ -32,6 +32,10 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
   const userId = session?.user.id ?? null;
   const canLoadNotifications =
     userId !== null && verificationStatus === 'verified';
+  const canUsePush =
+    userId !== null &&
+    verificationStatus !== 'idle' &&
+    verificationStatus !== 'loading';
   const requestId = useRef(0);
   const cursorRef = useRef<NotificationCursor | null>(null);
   const loadingMoreRef = useRef(false);
@@ -148,7 +152,7 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
   }, [canLoadNotifications, loadInitial, userId]);
 
   useEffect(() => {
-    if (!canLoadNotifications || !userId) {
+    if (!canUsePush || !userId) {
       return;
     }
 
@@ -174,10 +178,10 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
       isActive = false;
       removeTokenListener?.();
     };
-  }, [canLoadNotifications, userId]);
+  }, [canUsePush, userId]);
 
   useEffect(() => {
-    if (!canLoadNotifications) {
+    if (!canUsePush) {
       return;
     }
 
@@ -205,7 +209,7 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
       isActive = false;
       removeResponseListener?.();
     };
-  }, [canLoadNotifications, router]);
+  }, [canUsePush, router]);
 
   const refreshNotifications = useCallback(
     () => loadInitial(status === 'ready'),

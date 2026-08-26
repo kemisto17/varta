@@ -253,6 +253,18 @@ export default function HomeScreen() {
 
   const openAuthor = useCallback(
     (post: FeedPost) => {
+      if (post.author.kind === 'organization') {
+        router.push({
+          pathname: '/organization/[id]',
+          params: { id: post.author.id },
+        });
+        return;
+      }
+
+      if (!post.authorId) {
+        return;
+      }
+
       if (post.authorId === session?.user.id) {
         router.navigate('/(tabs)/profile');
         return;
@@ -423,10 +435,12 @@ export default function HomeScreen() {
             isLikePending={likePendingIds.has(item.id)}
             onAuthorPress={openAuthor}
             onBlockUser={(post) =>
-              setBlockTarget({
-                fullName: post.author.fullName,
-                id: post.authorId,
-              })
+              post.author.kind === 'student' && post.authorId
+                ? setBlockTarget({
+                    fullName: post.author.fullName,
+                    id: post.authorId,
+                  })
+                : undefined
             }
             onCommentPress={openPost}
             onDelete={handleDeletePost}

@@ -11,6 +11,7 @@ import type { FeedPost } from '../types/post';
 import { Avatar } from './Avatar';
 import { FullscreenImageViewer } from './FullscreenImageViewer';
 import { BadgePill } from './badges/BadgePill';
+import { LinkifiedText } from './links/LinkifiedText';
 import { ActionSheet } from './moderation/ActionSheet';
 
 type PostCardProps = {
@@ -41,11 +42,16 @@ export function PostCard({
   post,
 }: PostCardProps) {
   const { colors, styles } = useThemedStyles(createStyles);
-  const canDelete = post.authorId === currentUserId && onDelete !== undefined;
-  const canModerate =
-    currentUserId !== null && post.authorId !== currentUserId;
+  const canDelete = post.canDeleteByCurrentUser && onDelete !== undefined;
+  const canReport =
+    currentUserId !== null && !post.canDeleteByCurrentUser && onReport !== undefined;
+  const canBlock =
+    post.author.kind === 'student' &&
+    currentUserId !== null &&
+    post.authorId !== currentUserId &&
+    onBlockUser !== undefined;
   const hasOptions =
-    canDelete || (canModerate && (onReport !== undefined || onBlockUser !== undefined));
+    canDelete || canReport || canBlock;
   const [imageFailed, setImageFailed] = useState(false);
   const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
@@ -60,7 +66,7 @@ export function PostCard({
     <View style={styles.container}>
       <View style={styles.header}>
         <Pressable
-          accessibilityLabel={`Open ${post.author.fullName}'s profile`}
+          accessibilityLabel={`Open ${post.author.fullName}`}
           accessibilityRole={onAuthorPress ? 'button' : undefined}
           disabled={!onAuthorPress}
           onPress={() => onAuthorPress?.(post)}
@@ -84,13 +90,26 @@ export function PostCard({
                 <BadgePill badge={post.author.primaryBadge} compact />
               ) : null}
             </View>
-            <Text numberOfLines={1} style={styles.identityMeta}>
-              @{post.author.username} · {post.author.institute.shortName}
-            </Text>
-            <Text numberOfLines={1} style={styles.meta}>
-              {post.author.branch} · {formatYear(post.author.year)} ·{' '}
-              {formatRelativeTimestamp(post.createdAt)}
-            </Text>
+            {post.author.kind === 'student' ? (
+              <>
+                <Text numberOfLines={1} style={styles.identityMeta}>
+                  @{post.author.username} · {post.author.institute.shortName}
+                </Text>
+                <Text numberOfLines={1} style={styles.meta}>
+                  {post.author.branch} · {formatYear(post.author.year)} ·{' '}
+                  {formatRelativeTimestamp(post.createdAt)}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text numberOfLines={1} style={styles.identityMeta}>
+                  Official organization · {post.author.campusShortName}
+                </Text>
+                <Text numberOfLines={1} style={styles.meta}>
+                  {formatRelativeTimestamp(post.createdAt)}
+                </Text>
+              </>
+            )}
           </View>
         </Pressable>
 
@@ -130,7 +149,7 @@ export function PostCard({
           onPress={() => onOpenPost?.(post)}
           style={({ pressed }) => pressed && onOpenPost && styles.bodyPressed}
         >
-          <Text style={styles.content}>{post.content}</Text>
+          <LinkifiedText style={styles.content}>{post.content}</LinkifiedText>
         </Pressable>
       ) : null}
 
@@ -255,19 +274,19 @@ export function PostCard({
                 },
               ]
             : [
-                ...(onReport
+                ...(canReport
                   ? [
                       {
                         label: 'Report post',
-                        onPress: () => onReport(post),
+                        onPress: () => onReport?.(post),
                       },
                     ]
                   : []),
-                ...(onBlockUser
+                ...(canBlock
                   ? [
                       {
                         label: `Block ${post.author.fullName}`,
-                        onPress: () => onBlockUser(post),
+                        onPress: () => onBlockUser?.(post),
                         tone: 'danger' as const,
                       },
                     ]

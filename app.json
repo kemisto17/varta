@@ -57,7 +57,13 @@
           "microphonePermission": false
         }
       ],
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "color": "#111110",
+          "defaultChannel": "default"
+        }
+      ],
       "expo-sqlite",
       "expo-system-ui",
       "@react-native-community/datetimepicker"

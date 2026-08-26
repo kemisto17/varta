@@ -22,10 +22,13 @@ import {
   setPostLike,
 } from '../../lib/postInteractions';
 import { getUserProfile } from '../../lib/profile';
+import { getProfileLinks, type StructuredLink } from '../../lib/links';
 import type { FeedCursor, FeedPost } from '../../types/post';
 import type { UserProfile } from '../../types/profile';
 import { Avatar } from '../Avatar';
 import { PostCard } from '../PostCard';
+import { LinkifiedText } from '../links/LinkifiedText';
+import { StructuredLinks } from '../links/StructuredLinks';
 import { SafeAreaScreen } from '../SafeAreaScreen';
 import { ProfileBadges } from '../badges/ProfileBadges';
 import { ActionSheet } from '../moderation/ActionSheet';
@@ -65,6 +68,7 @@ export function StudentProfileScreen({
   const [likePendingIds, setLikePendingIds] = useState<Set<string>>(
     () => new Set()
   );
+  const [links, setLinks] = useState<StructuredLink[]>([]);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
@@ -89,12 +93,13 @@ export function StudentProfileScreen({
       setErrorMessage(null);
 
       try {
-        const [nextProfile, page, nextIsBlocked] = await Promise.all([
+        const [nextProfile, page, nextIsBlocked, nextLinks] = await Promise.all([
           getUserProfile(profileId),
           getUserPostsPage(profileId, viewerUserId),
           isOwnProfile
             ? Promise.resolve(false)
             : getIsUserBlocked(viewerUserId, profileId),
+          getProfileLinks(profileId),
         ]);
 
         if (requestId.current !== activeRequestId) {
@@ -104,6 +109,7 @@ export function StudentProfileScreen({
         if (!nextProfile) {
           setProfile(null);
           setPosts([]);
+          setLinks([]);
           setIsBlocked(false);
           setStatus('unavailable');
           return;
@@ -111,6 +117,7 @@ export function StudentProfileScreen({
 
         setProfile(nextProfile);
         setPosts(page.posts);
+        setLinks(nextLinks);
         setCursor(page.cursor);
         setHasMore(page.hasMore);
         setIsBlocked(nextIsBlocked);
@@ -386,6 +393,7 @@ export function StudentProfileScreen({
             onFollowing={
               isOwnProfile ? () => router.push('/following') : undefined
             }
+            links={links}
             profile={profile}
           />
         }
@@ -409,10 +417,12 @@ export function StudentProfileScreen({
               isOwnProfile
                 ? undefined
                 : (post) =>
-                    setBlockTarget({
-                      fullName: post.author.fullName,
-                      id: post.authorId,
-                    })
+                    post.authorId
+                      ? setBlockTarget({
+                          fullName: post.author.fullName,
+                          id: post.authorId,
+                        })
+                      : undefined
             }
             onCommentPress={openPost}
             onDelete={isOwnProfile ? handleDeletePost : undefined}
@@ -559,12 +569,14 @@ function ProfileHeader({
   isOwnProfile,
   onEdit,
   onFollowing,
+  links,
   profile,
 }: {
   errorMessage: string | null;
   isOwnProfile: boolean;
   onEdit: () => void;
   onFollowing?: () => void;
+  links: StructuredLink[];
   profile: UserProfile;
 }) {
   const { colors, styles } = useThemedStyles(createStyles);
@@ -602,7 +614,11 @@ function ProfileHeader({
           {profile.institute.shortName} · {profile.branch} · {formatYear(profile.year)}
         </Text>
 
-        {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
+        {profile.bio ? (
+          <LinkifiedText style={styles.bio}>{profile.bio}</LinkifiedText>
+        ) : null}
+
+        <StructuredLinks links={links} ownerName={profile.fullName} />
 
         <ProfileBadges badges={profile.badges} maxVisible={3} />
 

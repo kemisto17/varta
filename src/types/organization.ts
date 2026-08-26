@@ -44,3 +44,13 @@ export type FollowedOrganizationPage = {
   hasMore: boolean;
   organizations: FollowedOrganization[];
 };
+
+export type ManageableOrganization = {
+  avatarPath: string | null;
+  avatarUrl: string | null;
+  campusShortName: string;
+  id: string;
+  isVerified: boolean;
+  name: string;
+  role: OrganizationRole;
+};

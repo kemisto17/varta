@@ -22,6 +22,7 @@ export type PushRegistrationResult =
   | { status: 'error' };
 
 let currentExpoPushToken: string | null = null;
+let foregroundHandlerConfigured = false;
 
 export async function registerForPushNotifications(
   userId: string
@@ -35,6 +36,8 @@ export async function registerForPushNotifications(
   try {
     const Notifications = await import('expo-notifications');
 
+    configureForegroundHandler(Notifications);
+
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         importance: Notifications.AndroidImportance.DEFAULT,
@@ -43,14 +46,20 @@ export async function registerForPushNotifications(
     }
 
     const existingPermissions = await Notifications.getPermissionsAsync();
-    let permissionStatus = existingPermissions.status;
+    let hasPermission = notificationPermissionGranted(
+      existingPermissions,
+      Notifications
+    );
 
-    if (permissionStatus !== 'granted') {
+    if (!hasPermission) {
       const requestedPermissions = await Notifications.requestPermissionsAsync();
-      permissionStatus = requestedPermissions.status;
+      hasPermission = notificationPermissionGranted(
+        requestedPermissions,
+        Notifications
+      );
     }
 
-    if (permissionStatus !== 'granted') {
+    if (!hasPermission) {
       return { status: 'denied' };
     }
 
@@ -157,46 +166,56 @@ export function isRunningInExpoGo() {
   );
 }
 
-async function savePushToken(userId: string, token: string) {
+async function savePushToken(_userId: string, token: string) {
   const platform = Platform.OS;
 
   if (platform !== 'android' && platform !== 'ios') {
     return;
   }
 
-  const { data: existingToken, error: lookupError } = await supabase
-    .from('push_tokens')
-    .select('id, user_id')
-    .eq('token', token)
-    .maybeSingle();
-
-  if (lookupError) {
-    throw lookupError;
-  }
-
-  if (existingToken) {
-    const { error } = await supabase
-      .from('push_tokens')
-      .update({ platform, updated_at: new Date().toISOString() })
-      .eq('id', existingToken.id)
-      .eq('user_id', userId);
-
-    if (error) {
-      throw error;
-    }
-
-    return;
-  }
-
-  const { error } = await supabase.from('push_tokens').insert({
-    platform,
-    token,
-    user_id: userId,
+  const { error } = await supabase.rpc('register_push_token', {
+    device_platform: platform,
+    expo_token: token,
   });
 
   if (error) {
     throw error;
   }
+}
+
+function configureForegroundHandler(
+  Notifications: typeof import('expo-notifications')
+) {
+  if (foregroundHandlerConfigured) {
+    return;
+  }
+
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+  foregroundHandlerConfigured = true;
+}
+
+function notificationPermissionGranted(
+  permissions: import('expo-notifications').NotificationPermissionsStatus,
+  Notifications: typeof import('expo-notifications')
+) {
+  if (Platform.OS !== 'ios') {
+    return permissions.granted || permissions.status === 'granted';
+  }
+
+  const iosStatus = permissions.ios?.status;
+
+  return (
+    iosStatus === Notifications.IosAuthorizationStatus.AUTHORIZED ||
+    iosStatus === Notifications.IosAuthorizationStatus.PROVISIONAL ||
+    iosStatus === Notifications.IosAuthorizationStatus.EPHEMERAL
+  );
 }
 
 type PushCapability =

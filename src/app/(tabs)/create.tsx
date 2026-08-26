@@ -1,17 +1,21 @@
-import * as ImagePicker from 'expo-image-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
-import { useThemedStyles } from '../../hooks/useTheme';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
+  ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+} from 'react-native';
+import { useThemedStyles } from '../../hooks/useTheme';
 
 import { SafeAreaScreen } from '../../components/SafeAreaScreen';
+import { ActionSheet } from '../../components/moderation/ActionSheet';
+import { OrganizationAvatar } from '../../components/organizations/OrganizationAvatar';
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
 import { requestImageLibraryAccess } from '../../lib/imagePicker';
+import { getManageableOrganizationsForPosting } from '../../lib/organizations';
 import {
   getPostErrorMessage,
   MAX_POST_CHARACTERS,
@@ -19,6 +23,7 @@ import {
   publishPost,
 } from '../../lib/posts';
 import { getInitials } from '../../lib/text';
+import type { ManageableOrganization } from '../../types/organization';
 
 export default function CreateScreen() {
   const { colors, styles } = useThemedStyles(createStyles);
@@ -30,6 +35,42 @@ export default function CreateScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPicking, setIsPicking] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isIdentityPickerVisible, setIsIdentityPickerVisible] = useState(false);
+  const [manageableOrganizations, setManageableOrganizations] = useState<
+    ManageableOrganization[]
+  >([]);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<
+    string | null
+  >(null);
+
+  const selectedOrganization = manageableOrganizations.find(
+    (organization) => organization.id === selectedOrganizationId
+  ) ?? null;
+
+  useEffect(() => {
+    const userId = session?.user.id;
+    let isActive = true;
+
+    if (!userId) {
+      return () => {
+        isActive = false;
+      };
+    }
+
+    void getManageableOrganizationsForPosting(userId)
+      .then((organizations) => {
+        if (isActive) {
+          setManageableOrganizations(organizations);
+        }
+      })
+      .catch((error: unknown) => {
+        console.warn('[create-post] Could not load organization identities.', error);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [session?.user.id]);
 
   const remainingCharacters = MAX_POST_CHARACTERS - content.length;
   const hasPostContent = content.trim().length > 0 || imageAsset !== null;
@@ -89,6 +130,7 @@ export default function CreateScreen() {
       await publishPost({
         asset: imageAsset,
         content,
+        organizationId: selectedOrganizationId,
         userId,
       });
       setContent('');
@@ -105,12 +147,15 @@ export default function CreateScreen() {
   return (
     <SafeAreaScreen style={styles.screen} withinTabNavigator>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
         style={styles.keyboardView}
       >
         <ScrollView
           contentContainerStyle={styles.content}
+          keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
             <Text style={styles.title}>New post</Text>
@@ -140,22 +185,47 @@ export default function CreateScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.authorRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {getInitials(profile?.full_name ?? 'Student')}
-              </Text>
-            </View>
+          <Pressable
+            accessibilityRole={manageableOrganizations.length > 0 ? 'button' : undefined}
+            disabled={manageableOrganizations.length === 0 || isPublishing}
+            onPress={() => setIsIdentityPickerVisible(true)}
+            style={({ pressed }) => [styles.authorRow, pressed && styles.pressed]}
+          >
+            {selectedOrganization ? (
+              <OrganizationAvatar
+                name={selectedOrganization.name}
+                size={42}
+                uri={selectedOrganization.avatarUrl}
+              />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {getInitials(profile?.full_name ?? 'Student')}
+                </Text>
+              </View>
+            )}
 
             <View style={styles.authorCopy}>
               <Text numberOfLines={1} style={styles.authorName}>
-                {profile?.full_name ?? 'Student'}
+                {selectedOrganization?.name ?? profile?.full_name ?? 'Student'}
               </Text>
               <Text numberOfLines={1} style={styles.authorMeta}>
-                {profile ? `${profile.branch} · ${formatYear(profile.year)}` : 'Campus member'}
+                {selectedOrganization
+                  ? `Official organization · ${selectedOrganization.campusShortName}`
+                  : profile
+                    ? `${profile.branch} · ${formatYear(profile.year)}`
+                    : 'Campus member'}
               </Text>
             </View>
-          </View>
+
+            {manageableOrganizations.length > 0 ? (
+              <SymbolView
+                name={{ android: 'expand_more', ios: 'chevron.down', web: 'expand_more' }}
+                size={17}
+                tintColor={colors.textSecondary}
+              />
+            ) : null}
+          </Pressable>
 
           <TextInput
             editable={!isPublishing}
@@ -168,6 +238,16 @@ export default function CreateScreen() {
             textAlignVertical="top"
             value={content}
           />
+          <View style={styles.characterRow}>
+            <Text
+              style={[
+                styles.characterCount,
+                remainingCharacters < 50 && styles.characterCountWarning,
+              ]}
+            >
+              {content.length}/{MAX_POST_CHARACTERS}
+            </Text>
+          </View>
 
           {imageAsset ? (
             <View style={styles.imageContainer}>
@@ -227,14 +307,6 @@ export default function CreateScreen() {
               </Text>
             </Pressable>
 
-            <Text
-              style={[
-                styles.characterCount,
-                remainingCharacters < 50 && styles.characterCountWarning,
-              ]}
-            >
-              {remainingCharacters}
-            </Text>
           </View>
 
           <Text style={styles.mediaHint}>
@@ -242,6 +314,23 @@ export default function CreateScreen() {
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <ActionSheet
+        actions={[
+          {
+            label: profile?.full_name ?? 'My student profile',
+            onPress: () => setSelectedOrganizationId(null),
+          },
+          ...manageableOrganizations.map((organization) => ({
+            label: organization.name,
+            onPress: () => setSelectedOrganizationId(organization.id),
+          })),
+        ]}
+        message="Choose who this post is published as."
+        onClose={() => setIsIdentityPickerVisible(false)}
+        title="Post as"
+        visible={isIdentityPickerVisible}
+      />
     </SafeAreaScreen>
   );
 }
@@ -266,7 +355,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingBottom: 160,
   },
 
   header: {
@@ -315,7 +404,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    marginRight: spacing.md,
     backgroundColor: colors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -329,6 +417,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
 
   authorCopy: {
     flex: 1,
+    marginLeft: spacing.md,
   },
 
   authorName: {
@@ -345,13 +434,17 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
 
   input: {
     minHeight: 180,
-    marginTop: spacing.xl,
+    maxHeight: 260,
+    marginTop: spacing.lg,
     padding: 0,
-    fontSize: 20,
-    lineHeight: 29,
+    fontSize: 18,
+    lineHeight: 27,
     color: colors.textPrimary,
   },
-
+  characterRow: {
+    marginTop: spacing.sm,
+    alignItems: 'flex-end',
+  },
   imageContainer: {
     position: 'relative',
     width: '100%',
@@ -386,12 +479,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
 
   footer: {
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
 

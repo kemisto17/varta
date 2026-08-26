@@ -6,6 +6,7 @@ import type { TablesInsert } from '../types/database';
 import type { FeedCursor, FeedPost } from '../types/post';
 import { getAvatarUrls } from './avatars';
 import { getPublicPrimaryBadges } from './badges';
+import { getOrganizationAvatarUrls } from './organizations';
 import { getLikedPostIds } from './postInteractions';
 import {
   createPrivateImageUrl,
@@ -24,6 +25,7 @@ export const POSTS_PAGE_SIZE = 20;
 const FEED_SELECT = `
   id,
   author_id,
+  organization_author_id,
   content,
   image_path,
   created_at,
@@ -41,6 +43,18 @@ const FEED_SELECT = `
       short_name
     )
   ),
+  organization_author:organizations!posts_organization_author_id_fkey (
+    id,
+    name,
+    avatar_path,
+    is_verified,
+    institute:institutes!organizations_institute_id_fkey (
+      short_name
+    ),
+    university:universities!organizations_university_id_fkey (
+      short_name
+    )
+  ),
   post_likes(count),
   comments(count)
 ` as const;
@@ -54,6 +68,7 @@ type PostQueryRow = QueryData<ReturnType<typeof selectPosts>>[number];
 type PublishPostInput = {
   asset: ImagePickerAsset | null;
   content: string;
+  organizationId?: string | null;
   userId: string;
 };
 
@@ -78,10 +93,19 @@ export async function getUserPostsPage(
   return getPostsPage(viewerUserId, cursor, profileUserId);
 }
 
+export async function getOrganizationPostsPage(
+  organizationId: string,
+  viewerUserId: string,
+  cursor: FeedCursor | null = null
+): Promise<FeedPage> {
+  return getPostsPage(viewerUserId, cursor, null, organizationId);
+}
+
 async function getPostsPage(
   viewerUserId: string,
   cursor: FeedCursor | null,
-  authorId: string | null = null
+  authorId: string | null = null,
+  organizationAuthorId: string | null = null
 ): Promise<FeedPage> {
   let query = selectPosts()
     .order('created_at', { ascending: false })
@@ -90,6 +114,10 @@ async function getPostsPage(
 
   if (authorId) {
     query = query.eq('author_id', authorId);
+  }
+
+  if (organizationAuthorId) {
+    query = query.eq('organization_author_id', organizationAuthorId);
   }
 
   if (cursor) {
@@ -119,10 +147,28 @@ async function getPostsPage(
         .filter((path): path is string => path !== null)
     ),
   ];
-  const [signedUrls, avatarUrls, likedPostIds, primaryBadges] =
+  const organizationAvatarPaths = [
+    ...new Set(
+      pageRows
+        .map((row) => row.organization_author?.avatar_path ?? null)
+        .filter((path): path is string => path !== null)
+    ),
+  ];
+  const organizationIds = pageRows.flatMap((row) =>
+    row.organization_author ? [row.organization_author.id] : []
+  );
+  const [
+    signedUrls,
+    avatarUrls,
+    organizationAvatarUrls,
+    likedPostIds,
+    primaryBadges,
+    manageableOrganizationIds,
+  ] =
     await Promise.all([
       getSignedPostMediaUrls(imagePaths),
       getSignedAvatarUrls(avatarPaths),
+      getSignedOrganizationAvatarUrls(organizationAvatarPaths),
       getLikedPostIds(
         pageRows.map((row) => row.id),
         viewerUserId
@@ -130,14 +176,18 @@ async function getPostsPage(
       getPublicPrimaryBadges(
         pageRows.flatMap((row) => (row.author ? [row.author.id] : []))
       ),
+      getManageableOrganizationIds(organizationIds, viewerUserId),
     ]);
   const posts = pageRows.flatMap((row) => {
     const post = mapPostRow(
       row,
       signedUrls,
       avatarUrls,
+      organizationAvatarUrls,
       likedPostIds,
-      primaryBadges
+      primaryBadges,
+      manageableOrganizationIds,
+      viewerUserId
     );
 
     return post ? [post] : [];
@@ -165,29 +215,46 @@ export async function getPostById(postId: string, userId: string) {
   }
 
   const imagePaths = data.image_path ? [data.image_path] : [];
-  const avatarPaths = data.author?.avatar_path
-    ? [data.author.avatar_path]
+  const avatarPaths = data.author?.avatar_path ? [data.author.avatar_path] : [];
+  const organizationAvatarPaths = data.organization_author?.avatar_path
+    ? [data.organization_author.avatar_path]
     : [];
-  const [signedUrls, avatarUrls, likedPostIds, primaryBadges] =
+  const organizationIds = data.organization_author
+    ? [data.organization_author.id]
+    : [];
+  const [
+    signedUrls,
+    avatarUrls,
+    organizationAvatarUrls,
+    likedPostIds,
+    primaryBadges,
+    manageableOrganizationIds,
+  ] =
     await Promise.all([
       getSignedPostMediaUrls(imagePaths),
       getSignedAvatarUrls(avatarPaths),
+      getSignedOrganizationAvatarUrls(organizationAvatarPaths),
       getLikedPostIds([data.id], userId),
       getPublicPrimaryBadges(data.author ? [data.author.id] : []),
+      getManageableOrganizationIds(organizationIds, userId),
     ]);
 
   return mapPostRow(
     data,
     signedUrls,
     avatarUrls,
+    organizationAvatarUrls,
     likedPostIds,
-    primaryBadges
+    primaryBadges,
+    manageableOrganizationIds,
+    userId
   );
 }
 
 export async function publishPost({
   asset,
   content,
+  organizationId = null,
   userId,
 }: PublishPostInput) {
   const normalizedContent = content.trim();
@@ -206,7 +273,9 @@ export async function publishPost({
     const upload = await uploadImage({
       bucket: POST_MEDIA_BUCKET,
       maxBytes: MAX_POST_IMAGE_SIZE,
-      pathBase: `${userId}/${createStorageObjectId()}`,
+      pathBase: organizationId
+        ? `${organizationId}/${userId}/${createStorageObjectId()}`
+        : `${userId}/${createStorageObjectId()}`,
       source: asset,
     });
 
@@ -214,9 +283,10 @@ export async function publishPost({
   }
 
   const post: TablesInsert<'posts'> = {
-    author_id: userId,
+    author_id: organizationId ? null : userId,
     content: normalizedContent,
     image_path: imagePath,
+    organization_author_id: organizationId,
   };
   const { data, error } = await supabase
     .from('posts')
@@ -236,18 +306,17 @@ export async function publishPost({
 }
 
 export async function deletePost(
-  post: Pick<FeedPost, 'authorId' | 'id' | 'imagePath'>,
-  userId: string
+  post: Pick<FeedPost, 'canDeleteByCurrentUser' | 'id' | 'imagePath'>,
+  _userId: string
 ) {
-  if (post.authorId !== userId) {
-    throw new Error('You can only delete your own posts.');
+  if (!post.canDeleteByCurrentUser) {
+    throw new Error('You are not allowed to delete this post.');
   }
 
   const { data, error } = await supabase
     .from('posts')
     .delete()
     .eq('id', post.id)
-    .eq('author_id', userId)
     .select('id')
     .maybeSingle();
 
@@ -280,7 +349,7 @@ export function getPostErrorMessage(error: unknown) {
       error.message.startsWith('Choose an image') ||
       error.message.startsWith('Posts can be') ||
       error.message.startsWith('Write something') ||
-      error.message.startsWith('You can only') ||
+      error.message.startsWith('You are not allowed') ||
       error.message.startsWith('This post could') ||
       error.message.includes('could not be read')
     ) {
@@ -309,6 +378,37 @@ async function getSignedAvatarUrls(paths: string[]) {
   }
 }
 
+async function getSignedOrganizationAvatarUrls(paths: string[]) {
+  try {
+    return await getOrganizationAvatarUrls(paths);
+  } catch (error) {
+    console.warn('[feed] Could not sign organization avatar URLs.', error);
+    return new Map<string, string>();
+  }
+}
+
+async function getManageableOrganizationIds(
+  organizationIds: string[],
+  userId: string
+) {
+  if (organizationIds.length === 0) {
+    return new Set<string>();
+  }
+
+  const { data, error } = await supabase
+    .from('organization_members')
+    .select('organization_id')
+    .eq('user_id', userId)
+    .in('organization_id', [...new Set(organizationIds)])
+    .in('role', ['owner', 'admin', 'editor']);
+
+  if (error) {
+    throw error;
+  }
+
+  return new Set(data.map((membership) => membership.organization_id));
+}
+
 export function getPostImageUrl(imagePath: string) {
   return createPrivateImageUrl(POST_MEDIA_BUCKET, imagePath, 60 * 60);
 }
@@ -317,33 +417,66 @@ function mapPostRow(
   row: PostQueryRow,
   signedUrls: Map<string, string>,
   avatarUrls: Map<string, string>,
+  organizationAvatarUrls: Map<string, string>,
   likedPostIds: Set<string>,
-  primaryBadges: Map<string, ProfileBadge>
+  primaryBadges: Map<string, ProfileBadge>,
+  manageableOrganizationIds: Set<string>,
+  viewerUserId: string
 ): FeedPost | null {
-  if (!row.author || !row.author.institute) {
+  if (!row.author && !row.organization_author) {
+    return null;
+  }
+
+  const author = row.author?.institute
+    ? {
+        avatarPath: row.author.avatar_path,
+        avatarUrl: row.author.avatar_path
+          ? (avatarUrls.get(row.author.avatar_path) ?? null)
+          : null,
+        branch: row.author.branch,
+        fullName: row.author.full_name,
+        id: row.author.id,
+        institute: {
+          id: row.author.institute.id,
+          name: row.author.institute.name,
+          shortName: row.author.institute.short_name,
+        },
+        isVerified: row.author.is_verified,
+        kind: 'student' as const,
+        primaryBadge: primaryBadges.get(row.author.id) ?? null,
+        username: row.author.username,
+        year: row.author.year,
+      }
+    : row.organization_author
+      ? {
+          avatarPath: row.organization_author.avatar_path,
+          avatarUrl: row.organization_author.avatar_path
+            ? (organizationAvatarUrls.get(row.organization_author.avatar_path) ??
+              null)
+            : null,
+          campusShortName:
+            row.organization_author.institute?.short_name ??
+            row.organization_author.university?.short_name ??
+            'Campus',
+          fullName: row.organization_author.name,
+          id: row.organization_author.id,
+          isVerified: row.organization_author.is_verified,
+          kind: 'organization' as const,
+          primaryBadge: null,
+        }
+      : null;
+
+  if (!author) {
     return null;
   }
 
   return {
-    author: {
-      avatarPath: row.author.avatar_path,
-      avatarUrl: row.author.avatar_path
-        ? (avatarUrls.get(row.author.avatar_path) ?? null)
-        : null,
-      branch: row.author.branch,
-      fullName: row.author.full_name,
-      id: row.author.id,
-      institute: {
-        id: row.author.institute.id,
-        name: row.author.institute.name,
-        shortName: row.author.institute.short_name,
-      },
-      isVerified: row.author.is_verified,
-      primaryBadge: primaryBadges.get(row.author.id) ?? null,
-      username: row.author.username,
-      year: row.author.year,
-    },
+    author,
     authorId: row.author_id,
+    canDeleteByCurrentUser:
+      row.author_id === viewerUserId ||
+      (row.organization_author_id !== null &&
+        manageableOrganizationIds.has(row.organization_author_id)),
     commentCount: row.comments[0]?.count ?? 0,
     content: row.content,
     createdAt: row.created_at,
@@ -352,5 +485,6 @@ function mapPostRow(
     imageUrl: row.image_path ? (signedUrls.get(row.image_path) ?? null) : null,
     isLikedByCurrentUser: likedPostIds.has(row.id),
     likeCount: row.post_likes[0]?.count ?? 0,
+    organizationAuthorId: row.organization_author_id,
   };
 }

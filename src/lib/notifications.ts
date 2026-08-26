@@ -3,7 +3,10 @@ import { supabase } from './supabase';
 
 export const NOTIFICATION_PAGE_SIZE = 25;
 
-export type AppNotification = Tables<'notifications'>;
+export type AppNotification = Omit<
+  Tables<'notifications'>,
+  'push_claimed_at' | 'push_sent_at'
+>;
 
 export type NotificationCursor = Pick<AppNotification, 'created_at' | 'id'>;
 
@@ -20,7 +23,7 @@ export async function getNotificationsPage(
   let query = supabase
     .from('notifications')
     .select(
-      'id, recipient_id, actor_id, type, post_id, comment_id, badge_id, event_id, title, body, read_at, created_at'
+      'id, recipient_id, actor_id, type, post_id, comment_id, badge_id, event_id, organization_id, title, body, read_at, created_at'
     )
     .eq('recipient_id', userId)
     .order('created_at', { ascending: false })

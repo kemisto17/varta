@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -376,7 +376,10 @@ export type Database = {
           created_at: string
           event_id: string | null
           id: string
+          organization_id: string | null
           post_id: string | null
+          push_claimed_at: string | null
+          push_sent_at: string | null
           read_at: string | null
           recipient_id: string
           title: string
@@ -390,7 +393,10 @@ export type Database = {
           created_at?: string
           event_id?: string | null
           id?: string
+          organization_id?: string | null
           post_id?: string | null
+          push_claimed_at?: string | null
+          push_sent_at?: string | null
           read_at?: string | null
           recipient_id: string
           title: string
@@ -404,7 +410,10 @@ export type Database = {
           created_at?: string
           event_id?: string | null
           id?: string
+          organization_id?: string | null
           post_id?: string | null
+          push_claimed_at?: string | null
+          push_sent_at?: string | null
           read_at?: string | null
           recipient_id?: string
           title?: string
@@ -437,6 +446,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -484,6 +500,44 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_links: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          organization_id: string
+          position: number
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          organization_id: string
+          position: number
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          organization_id?: string
+          position?: number
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_links_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -625,27 +679,30 @@ export type Database = {
       }
       posts: {
         Row: {
-          author_id: string
+          author_id: string | null
           content: string
           created_at: string
           id: string
           image_path: string | null
+          organization_author_id: string | null
           updated_at: string
         }
         Insert: {
-          author_id: string
+          author_id?: string | null
           content?: string
           created_at?: string
           id?: string
           image_path?: string | null
+          organization_author_id?: string | null
           updated_at?: string
         }
         Update: {
-          author_id?: string
+          author_id?: string | null
           content?: string
           created_at?: string
           id?: string
           image_path?: string | null
+          organization_author_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -654,6 +711,13 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_organization_author_id_fkey"
+            columns: ["organization_author_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -687,6 +751,44 @@ export type Database = {
           },
           {
             foreignKeyName: "profile_badges_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_links: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          position: number
+          profile_id: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          position: number
+          profile_id: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          position?: number
+          profile_id?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_links_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -740,6 +842,48 @@ export type Database = {
             columns: ["institute_id"]
             isOneToOne: false
             referencedRelation: "institutes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_delivery_receipts: {
+        Row: {
+          created_at: string
+          id: string
+          next_check_at: string
+          notification_id: string
+          push_token_id: string
+          receipt_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          next_check_at?: string
+          notification_id: string
+          push_token_id: string
+          receipt_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          next_check_at?: string
+          notification_id?: string
+          push_token_id?: string
+          receipt_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_delivery_receipts_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_delivery_receipts_push_token_id_fkey"
+            columns: ["push_token_id"]
+            isOneToOne: false
+            referencedRelation: "push_tokens"
             referencedColumns: ["id"]
           },
         ]
@@ -1008,11 +1152,16 @@ export type Database = {
         Returns: {
           event_count: number
           follower_count: number
+          post_count: number
         }[]
       }
       get_profile_organization_following_count: {
         Args: { target_profile_id: string }
         Returns: number
+      }
+      register_push_token: {
+        Args: { device_platform: string; expo_token: string }
+        Returns: undefined
       }
       search_events: {
         Args: { result_limit?: number; search_query: string }
@@ -1067,6 +1216,8 @@ export type Database = {
         | "verification_rejected"
         | "badge_assigned"
         | "event_cancelled"
+        | "event_updated"
+        | "organization_role_assigned"
       report_reason:
         | "spam"
         | "harassment"
@@ -1212,6 +1363,8 @@ export const Constants = {
         "verification_rejected",
         "badge_assigned",
         "event_cancelled",
+        "event_updated",
+        "organization_role_assigned",
       ],
       report_reason: [
         "spam",

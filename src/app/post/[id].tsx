@@ -1,13 +1,14 @@
-import { useThemedStyles } from '../../hooks/useTheme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View, } from 'react-native';
+  ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View,
+} from 'react-native';
+import { useThemedStyles } from '../../hooks/useTheme';
 
 import { Avatar } from '../../components/Avatar';
-import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { PostCard } from '../../components/PostCard';
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { ActionSheet } from '../../components/moderation/ActionSheet';
 import { BlockUserSheet } from '../../components/moderation/BlockUserSheet';
 import { ReportSheet } from '../../components/moderation/ReportSheet';
@@ -15,19 +16,19 @@ import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import type { ModerationUser, ReportTarget } from '../../lib/moderation';
 import {
-  deletePost,
-  getPostById,
-  getPostErrorMessage,
-} from '../../lib/posts';
-import {
   createPostComment,
   deletePostComment,
-  type CommentCursor,
   getInteractionErrorMessage,
   getPostCommentsPage,
   MAX_COMMENT_CHARACTERS,
   setPostLike,
+  type CommentCursor,
 } from '../../lib/postInteractions';
+import {
+  deletePost,
+  getPostById,
+  getPostErrorMessage,
+} from '../../lib/posts';
 import { formatRelativeTimestamp } from '../../lib/time';
 import type { FeedPost, PostComment } from '../../types/post';
 
@@ -372,12 +373,14 @@ export default function PostDetailScreen() {
         />
       ) : (
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
           style={styles.keyboardView}
         >
           <FlatList
             contentContainerStyle={styles.listContent}
             data={comments}
+            keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
             keyExtractor={(comment) => comment.id}
             ListEmptyComponent={
@@ -392,12 +395,23 @@ export default function PostDetailScreen() {
                   currentUserId={userId}
                   isDeleting={isDeletingPost}
                   isLikePending={isLiking}
-                  onAuthorPress={(currentPost) => openAuthor(currentPost.authorId)}
+                  onAuthorPress={(currentPost) => {
+                    if (currentPost.author.kind === 'organization') {
+                      router.push({
+                        pathname: '/organization/[id]',
+                        params: { id: currentPost.author.id },
+                      });
+                    } else if (currentPost.authorId) {
+                      openAuthor(currentPost.authorId);
+                    }
+                  }}
                   onBlockUser={(currentPost) =>
-                    setBlockTarget({
-                      fullName: currentPost.author.fullName,
-                      id: currentPost.authorId,
-                    })
+                    currentPost.author.kind === 'student' && currentPost.authorId
+                      ? setBlockTarget({
+                          fullName: currentPost.author.fullName,
+                          id: currentPost.authorId,
+                        })
+                      : undefined
                   }
                   onCommentPress={() => commentInputRef.current?.focus()}
                   onDelete={handleDeletePost}

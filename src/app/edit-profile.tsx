@@ -1,22 +1,30 @@
-import * as ImagePicker from 'expo-image-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
-import { useThemedStyles } from '../hooks/useTheme';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import {
-  Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
+  Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+} from 'react-native';
+import { useThemedStyles } from '../hooks/useTheme';
 
-import { SafeAreaScreen } from '../components/SafeAreaScreen';
 import { Avatar } from '../components/Avatar';
+import { SafeAreaScreen } from '../components/SafeAreaScreen';
 import { AuthField } from '../components/auth/AuthField';
 import { PrimaryButton } from '../components/auth/PrimaryButton';
+import { LinksEditor } from '../components/links/LinksEditor';
 import { YearSelector } from '../components/profile/YearSelector';
 import { radius, spacing, type ThemeColors } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { MAX_AVATAR_SIZE } from '../lib/avatars';
 import { requestImageLibraryAccess } from '../lib/imagePicker';
+import {
+  getLinksErrorMessage,
+  getProfileLinks,
+  replaceProfileLinks,
+  type StructuredLinkDraft,
+} from '../lib/links';
 import {
   getProfileUpdateErrorMessage,
   getUserProfile,
@@ -38,6 +46,7 @@ export default function EditProfileScreen() {
   const [instituteName, setInstituteName] = useState('Your verified institute');
   const [isPicking, setIsPicking] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [links, setLinks] = useState<StructuredLinkDraft[]>([]);
   const [removeAvatar, setRemoveAvatar] = useState(false);
   const [selectedAsset, setSelectedAsset] =
     useState<ImagePickerAsset | null>(null);
@@ -54,14 +63,15 @@ export default function EditProfileScreen() {
       };
     }
 
-    void getUserProfile(userId)
-      .then((userProfile) => {
+    void Promise.all([getUserProfile(userId), getProfileLinks(userId)])
+      .then(([userProfile, nextLinks]) => {
         if (!isActive || !userProfile) {
           return;
         }
 
         setAvatarUrl(userProfile.avatarUrl);
         setInstituteName(userProfile.institute.name);
+        setLinks(nextLinks.map(({ label, url }) => ({ label, url })));
       })
       .catch(() => {
         if (isActive) {
@@ -129,6 +139,7 @@ export default function EditProfileScreen() {
 
     setIsSaving(true);
     setErrorMessage(null);
+    let savingLinks = false;
 
     try {
       const result = await updateStudentProfile({
@@ -143,6 +154,9 @@ export default function EditProfileScreen() {
         year,
       });
 
+      savingLinks = true;
+      await replaceProfileLinks(userId, links);
+
       markProfileCreated(result.profile);
 
       if (result.avatarCleanupFailed) {
@@ -155,7 +169,11 @@ export default function EditProfileScreen() {
       router.back();
     } catch (error) {
       console.warn('[edit-profile] Could not update profile.', error);
-      setErrorMessage(getProfileUpdateErrorMessage(error));
+      setErrorMessage(
+        savingLinks
+          ? getLinksErrorMessage(error)
+          : getProfileUpdateErrorMessage(error)
+      );
       setIsSaving(false);
     }
   };
@@ -165,7 +183,8 @@ export default function EditProfileScreen() {
   return (
     <SafeAreaScreen style={styles.safeArea}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
         style={styles.keyboardView}
       >
         <View style={styles.header}>
@@ -192,6 +211,7 @@ export default function EditProfileScreen() {
 
         <ScrollView
           contentContainerStyle={styles.content}
+          keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -305,6 +325,12 @@ export default function EditProfileScreen() {
                 value={bio}
               />
             </View>
+
+            <LinksEditor
+              disabled={isSaving}
+              onChange={setLinks}
+              value={links}
+            />
           </View>
 
           {errorMessage ? (
@@ -363,6 +389,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
 
   content: {
+    flexGrow: 1,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxl,
   },
