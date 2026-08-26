@@ -1,4 +1,3 @@
-
 import {
     DeleteObjectCommand,
     S3Client,
@@ -6,12 +5,19 @@ import {
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 type DeleteMediaRequest = {
-  kind?: "post";
+  kind?:
+    | "avatar"
+    | "event-image"
+    | "organization-avatar"
+    | "post";
   objectKey?: string;
+  organizationId?: string;
+  eventId?: string;
 };
 
 function getRequiredEnv(name: string) {
-  const value = Deno.env.get(name)?.trim();
+  const value =
+    Deno.env.get(name)?.trim();
 
   if (!value) {
     throw new Error(
@@ -31,7 +37,8 @@ function json(
     {
       status,
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type":
+          "application/json",
       },
     }
   );
@@ -50,10 +57,11 @@ function normalizeR2Endpoint(
       `/${bucket}`
     )
   ) {
-    normalized = normalized.slice(
-      0,
-      -(bucket.length + 1)
-    );
+    normalized =
+      normalized.slice(
+        0,
+        -(bucket.length + 1)
+      );
   }
 
   return normalized;
@@ -62,61 +70,239 @@ function normalizeR2Endpoint(
 function parsePostObjectKey(
   objectKey: string
 ) {
-  const parts = objectKey.split("/");
+  const parts =
+    objectKey.split("/");
 
-  /*
-   * Student:
-   *
-   * posts/users/<userId>/<file>
-   */
   if (
     parts.length === 4 &&
     parts[0] === "posts" &&
-    parts[1] === "users"
+    parts[1] === "users" &&
+    parts[2] &&
+    parts[3]
   ) {
     return {
-      type: "student" as const,
-      userId: parts[2],
+      type:
+        "student" as const,
+      userId:
+        parts[2],
     };
   }
 
-  /*
-   * Organization:
-   *
-   * posts/organizations/<organizationId>/<uploaderId>/<file>
-   */
   if (
     parts.length === 5 &&
     parts[0] === "posts" &&
-    parts[1] === "organizations"
+    parts[1] ===
+      "organizations" &&
+    parts[2] &&
+    parts[3] &&
+    parts[4]
   ) {
     return {
-      type: "organization" as const,
-      organizationId: parts[2],
-      uploaderId: parts[3],
+      type:
+        "organization" as const,
+      organizationId:
+        parts[2],
+      uploaderId:
+        parts[3],
     };
   }
 
   return null;
 }
 
+function parseAvatarObjectKey(
+  objectKey: string
+) {
+  const parts =
+    objectKey.split("/");
+
+  if (
+    parts.length === 4 &&
+    parts[0] === "avatars" &&
+    parts[1] === "users" &&
+    parts[2] &&
+    parts[3]
+  ) {
+    return {
+      userId:
+        parts[2],
+    };
+  }
+
+  return null;
+}
+
+function parseOrganizationAvatarObjectKey(
+  objectKey: string
+) {
+  const parts =
+    objectKey.split("/");
+
+  if (
+    parts.length === 4 &&
+    parts[0] === "avatars" &&
+    parts[1] ===
+      "organizations" &&
+    parts[2] &&
+    parts[3]
+  ) {
+    return {
+      organizationId:
+        parts[2],
+    };
+  }
+
+  return null;
+}
+
+function parseEventImageObjectKey(
+  objectKey: string
+) {
+  const parts =
+    objectKey.split("/");
+
+  if (
+    parts.length === 5 &&
+    parts[0] === "events" &&
+    parts[1] ===
+      "organizations" &&
+    parts[2] &&
+    parts[3] &&
+    parts[4]
+  ) {
+    return {
+      organizationId:
+        parts[2],
+      eventId:
+        parts[3],
+    };
+  }
+
+  return null;
+}
+
+async function getOrganizationRole(
+  supabase: ReturnType<
+    typeof createClient
+  >,
+  organizationId: string,
+  userId: string
+) {
+  const {
+    data,
+    error,
+  } =
+    await supabase
+      .from(
+        "organization_members"
+      )
+      .select("role")
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .eq(
+        "user_id",
+        userId
+      )
+      .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.role ?? null;
+}
+
+async function canManageEvent(
+  supabase: ReturnType<
+    typeof createClient
+  >,
+  {
+    eventId,
+    organizationId,
+    userId,
+  }: {
+    eventId: string;
+    organizationId: string;
+    userId: string;
+  }
+) {
+  const [
+    role,
+    eventResult,
+  ] = await Promise.all([
+    getOrganizationRole(
+      supabase,
+      organizationId,
+      userId
+    ),
+
+    supabase
+      .from("events")
+      .select(
+        "id, organization_id, created_by"
+      )
+      .eq(
+        "id",
+        eventId
+      )
+      .maybeSingle(),
+  ]);
+
+  if (
+    eventResult.error
+  ) {
+    throw eventResult.error;
+  }
+
+  const event =
+    eventResult.data;
+
+  if (
+    !event ||
+    event.organization_id !==
+      organizationId
+  ) {
+    return false;
+  }
+
+  if (
+    role === "owner" ||
+    role === "admin"
+  ) {
+    return true;
+  }
+
+  if (
+    role === "editor" &&
+    event.created_by ===
+      userId
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 Deno.serve(async (req) => {
-  if (req.method !== "POST") {
+  if (
+    req.method !== "POST"
+  ) {
     return json(
       {
-        error: "Method not allowed.",
+        error:
+          "Method not allowed.",
       },
       405
     );
   }
 
   try {
-    /*
-     * 1. Authenticate
-     */
-
     const authorization =
-      req.headers.get("Authorization");
+      req.headers.get(
+        "Authorization"
+      );
 
     if (
       !authorization?.startsWith(
@@ -139,7 +325,9 @@ Deno.serve(async (req) => {
 
     const supabase =
       createClient(
-        getRequiredEnv("SUPABASE_URL"),
+        getRequiredEnv(
+          "SUPABASE_URL"
+        ),
         getRequiredEnv(
           "SUPABASE_ANON_KEY"
         ),
@@ -151,8 +339,10 @@ Deno.serve(async (req) => {
             },
           },
           auth: {
-            persistSession: false,
-            autoRefreshToken: false,
+            persistSession:
+              false,
+            autoRefreshToken:
+              false,
           },
         }
       );
@@ -181,14 +371,17 @@ Deno.serve(async (req) => {
     const currentUserId =
       userData.user.id;
 
-    /*
-     * 2. Validate request
-     */
-
     const body =
       (await req.json()) as DeleteMediaRequest;
 
-    if (body.kind !== "post") {
+    if (
+      body.kind !== "post" &&
+      body.kind !== "avatar" &&
+      body.kind !==
+        "organization-avatar" &&
+      body.kind !==
+        "event-image"
+    ) {
       return json(
         {
           error:
@@ -212,83 +405,100 @@ Deno.serve(async (req) => {
     }
 
     /*
-     * Never allow arbitrary R2 keys.
+     * Student avatar
      */
-
-    const parsed =
-      parsePostObjectKey(
-        objectKey
-      );
-
-    if (!parsed) {
-      return json(
-        {
-          error:
-            "Invalid post media path.",
-        },
-        400
-      );
-    }
-
-    /*
-     * 3. Authorize deletion
-     */
-
     if (
-      parsed.type === "student"
+      body.kind === "avatar"
     ) {
+      const avatar =
+        parseAvatarObjectKey(
+          objectKey
+        );
+
+      if (!avatar) {
+        return json(
+          {
+            error:
+              "Invalid avatar media path.",
+          },
+          400
+        );
+      }
+
       if (
-        parsed.userId !==
+        avatar.userId !==
         currentUserId
       ) {
         return json(
           {
             error:
-              "You cannot delete this media.",
+              "You cannot delete this avatar.",
           },
           403
         );
       }
-    } else {
-      /*
-       * Organization post:
-       * current user must currently hold
-       * owner/admin/editor role.
-       */
+    }
 
-      const {
-        data: membership,
-        error: membershipError,
-      } =
-        await supabase
-          .from(
-            "organization_members"
-          )
-          .select(
-            "organization_id"
-          )
-          .eq(
-            "organization_id",
-            parsed.organizationId
-          )
-          .eq(
-            "user_id",
+    /*
+     * Organization avatar
+     */
+    if (
+      body.kind ===
+        "organization-avatar"
+    ) {
+      const avatar =
+        parseOrganizationAvatarObjectKey(
+          objectKey
+        );
+
+      if (!avatar) {
+        return json(
+          {
+            error:
+              "Invalid organization avatar path.",
+          },
+          400
+        );
+      }
+
+      if (
+        body.organizationId &&
+        body.organizationId !==
+          avatar.organizationId
+      ) {
+        return json(
+          {
+            error:
+              "Organization does not match avatar path.",
+          },
+          400
+        );
+      }
+
+      try {
+        const role =
+          await getOrganizationRole(
+            supabase,
+            avatar.organizationId,
             currentUserId
-          )
-          .in(
-            "role",
-            [
-              "owner",
-              "admin",
-              "editor",
-            ]
-          )
-          .maybeSingle();
+          );
 
-      if (membershipError) {
+        if (
+          role !== "owner" &&
+          role !== "admin"
+        ) {
+          return json(
+            {
+              error:
+                "You cannot delete this organization avatar.",
+            },
+            403
+          );
+        }
+      } catch (error) {
         console.error(
-          "[delete-media-object] Organization permission check failed.",
-          membershipError
+          "[delete-media-object] Organization avatar permission check failed.",
+          error
         );
 
         return json(
@@ -299,21 +509,172 @@ Deno.serve(async (req) => {
           500
         );
       }
+    }
 
-      if (!membership) {
+    /*
+     * Event image
+     */
+    if (
+      body.kind ===
+        "event-image"
+    ) {
+      const parsed =
+        parseEventImageObjectKey(
+          objectKey
+        );
+
+      if (!parsed) {
         return json(
           {
             error:
-              "You cannot delete this organization media.",
+              "Invalid event image path.",
           },
-          403
+          400
+        );
+      }
+
+      if (
+        body.organizationId &&
+        body.organizationId !==
+          parsed.organizationId
+      ) {
+        return json(
+          {
+            error:
+              "Organization does not match event image path.",
+          },
+          400
+        );
+      }
+
+      if (
+        body.eventId &&
+        body.eventId !==
+          parsed.eventId
+      ) {
+        return json(
+          {
+            error:
+              "Event does not match event image path.",
+          },
+          400
+        );
+      }
+
+      try {
+        const allowed =
+          await canManageEvent(
+            supabase,
+            {
+              eventId:
+                parsed.eventId,
+              organizationId:
+                parsed.organizationId,
+              userId:
+                currentUserId,
+            }
+          );
+
+        if (!allowed) {
+          return json(
+            {
+              error:
+                "You cannot delete this event image.",
+            },
+            403
+          );
+        }
+      } catch (error) {
+        console.error(
+          "[delete-media-object] Event permission check failed.",
+          error
+        );
+
+        return json(
+          {
+            error:
+              "Could not verify event permissions.",
+          },
+          500
         );
       }
     }
 
     /*
-     * 4. R2 configuration
+     * Post media
      */
+    if (
+      body.kind === "post"
+    ) {
+      const parsed =
+        parsePostObjectKey(
+          objectKey
+        );
+
+      if (!parsed) {
+        return json(
+          {
+            error:
+              "Invalid post media path.",
+          },
+          400
+        );
+      }
+
+      if (
+        parsed.type ===
+          "student"
+      ) {
+        if (
+          parsed.userId !==
+          currentUserId
+        ) {
+          return json(
+            {
+              error:
+                "You cannot delete this media.",
+            },
+            403
+          );
+        }
+      } else {
+        try {
+          const role =
+            await getOrganizationRole(
+              supabase,
+              parsed.organizationId,
+              currentUserId
+            );
+
+          if (
+            role !== "owner" &&
+            role !== "admin" &&
+            role !== "editor"
+          ) {
+            return json(
+              {
+                error:
+                  "You cannot delete this organization media.",
+              },
+              403
+            );
+          }
+        } catch (error) {
+          console.error(
+            "[delete-media-object] Organization post permission check failed.",
+            error
+          );
+
+          return json(
+            {
+              error:
+                "Could not verify organization permissions.",
+            },
+            500
+          );
+        }
+      }
+    }
 
     const bucket =
       getRequiredEnv(
@@ -344,14 +705,12 @@ Deno.serve(async (req) => {
         },
       });
 
-    /*
-     * 5. Delete the object
-     */
-
     await s3.send(
       new DeleteObjectCommand({
-        Bucket: bucket,
-        Key: objectKey,
+        Bucket:
+          bucket,
+        Key:
+          objectKey,
       })
     );
 

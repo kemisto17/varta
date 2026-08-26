@@ -15,17 +15,27 @@ const ALLOWED_CONTENT_TYPES = new Map([
   ["image/heif", "heif"],
 ]);
 
-const MAX_POST_IMAGE_SIZE = 8 * 1024 * 1024;
+const MAX_POST_IMAGE_SIZE =
+  8 * 1024 * 1024;
+
+const MAX_AVATAR_IMAGE_SIZE =
+  5 * 1024 * 1024;
 
 type UploadRequest = {
   contentType?: string;
+  eventId?: string | null;
   fileSize?: number;
   organizationId?: string | null;
-  kind?: "post";
+  kind?:
+    | "avatar"
+    | "event-image"
+    | "organization-avatar"
+    | "post";
 };
 
 function getRequiredEnv(name: string) {
-  const value = Deno.env.get(name)?.trim();
+  const value =
+    Deno.env.get(name)?.trim();
 
   if (!value) {
     throw new Error(
@@ -45,7 +55,8 @@ function json(
     {
       status,
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type":
+          "application/json",
       },
     }
   );
@@ -64,20 +75,128 @@ function normalizeR2Endpoint(
       `/${bucket}`
     )
   ) {
-    normalized = normalized.slice(
-      0,
-      -(bucket.length + 1)
-    );
+    normalized =
+      normalized.slice(
+        0,
+        -(bucket.length + 1)
+      );
   }
 
   return normalized;
 }
 
+async function getOrganizationRole(
+  supabase: ReturnType<
+    typeof createClient
+  >,
+  organizationId: string,
+  userId: string
+) {
+  const {
+    data,
+    error,
+  } =
+    await supabase
+      .from(
+        "organization_members"
+      )
+      .select("role")
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .eq(
+        "user_id",
+        userId
+      )
+      .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.role ?? null;
+}
+
+async function canManageEvent(
+  supabase: ReturnType<
+    typeof createClient
+  >,
+  {
+    eventId,
+    organizationId,
+    userId,
+  }: {
+    eventId: string;
+    organizationId: string;
+    userId: string;
+  }
+) {
+  const [
+    role,
+    eventResult,
+  ] = await Promise.all([
+    getOrganizationRole(
+      supabase,
+      organizationId,
+      userId
+    ),
+
+    supabase
+      .from("events")
+      .select(
+        "id, organization_id, created_by"
+      )
+      .eq(
+        "id",
+        eventId
+      )
+      .maybeSingle(),
+  ]);
+
+  if (
+    eventResult.error
+  ) {
+    throw eventResult.error;
+  }
+
+  const event =
+    eventResult.data;
+
+  if (
+    !event ||
+    event.organization_id !==
+      organizationId
+  ) {
+    return false;
+  }
+
+  if (
+    role === "owner" ||
+    role === "admin"
+  ) {
+    return true;
+  }
+
+  if (
+    role === "editor" &&
+    event.created_by ===
+      userId
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 Deno.serve(async (req) => {
-  if (req.method !== "POST") {
+  if (
+    req.method !== "POST"
+  ) {
     return json(
       {
-        error: "Method not allowed.",
+        error:
+          "Method not allowed.",
       },
       405
     );
@@ -108,20 +227,14 @@ Deno.serve(async (req) => {
         "Bearer ".length
       );
 
-    const supabaseUrl =
-      getRequiredEnv(
-        "SUPABASE_URL"
-      );
-
-    const supabaseAnonKey =
-      getRequiredEnv(
-        "SUPABASE_ANON_KEY"
-      );
-
     const supabase =
       createClient(
-        supabaseUrl,
-        supabaseAnonKey,
+        getRequiredEnv(
+          "SUPABASE_URL"
+        ),
+        getRequiredEnv(
+          "SUPABASE_ANON_KEY"
+        ),
         {
           global: {
             headers: {
@@ -130,8 +243,10 @@ Deno.serve(async (req) => {
             },
           },
           auth: {
-            persistSession: false,
-            autoRefreshToken: false,
+            persistSession:
+              false,
+            autoRefreshToken:
+              false,
           },
         }
       );
@@ -169,7 +284,12 @@ Deno.serve(async (req) => {
       (await req.json()) as UploadRequest;
 
     if (
-      body.kind !== "post"
+      body.kind !== "post" &&
+      body.kind !== "avatar" &&
+      body.kind !==
+        "organization-avatar" &&
+      body.kind !==
+        "event-image"
     ) {
       return json(
         {
@@ -182,7 +302,8 @@ Deno.serve(async (req) => {
 
     const contentType =
       body.contentType
-        ?.toLowerCase() ?? "";
+        ?.toLowerCase() ??
+      "";
 
     const extension =
       ALLOWED_CONTENT_TYPES.get(
@@ -199,61 +320,65 @@ Deno.serve(async (req) => {
       );
     }
 
+    const maxImageSize =
+      body.kind === "post" ||
+      body.kind ===
+        "event-image"
+        ? MAX_POST_IMAGE_SIZE
+        : MAX_AVATAR_IMAGE_SIZE;
+
     if (
       typeof body.fileSize !==
         "number" ||
       body.fileSize <= 0 ||
       body.fileSize >
-        MAX_POST_IMAGE_SIZE
+        maxImageSize
     ) {
       return json(
         {
           error:
-            "Image must be smaller than 8 MB.",
+            `Image must be smaller than ${
+              maxImageSize /
+              (1024 * 1024)
+            } MB.`,
         },
         400
       );
     }
 
+    /*
+     * Organization post:
+     * owner/admin/editor
+     */
     if (
+      body.kind === "post" &&
       body.organizationId
     ) {
-      const {
-        data: membership,
-        error:
-          membershipError,
-      } =
-        await supabase
-          .from(
-            "organization_members"
-          )
-          .select(
-            "organization_id"
-          )
-          .eq(
-            "organization_id",
-            body.organizationId
-          )
-          .eq(
-            "user_id",
+      try {
+        const role =
+          await getOrganizationRole(
+            supabase,
+            body.organizationId,
             userId
-          )
-          .in(
-            "role",
-            [
-              "owner",
-              "admin",
-              "editor",
-            ]
-          )
-          .maybeSingle();
+          );
 
-      if (
-        membershipError
-      ) {
+        if (
+          role !== "owner" &&
+          role !== "admin" &&
+          role !== "editor"
+        ) {
+          return json(
+            {
+              error:
+                "You cannot publish for this organization.",
+            },
+            403
+          );
+        }
+      } catch (error) {
         console.error(
-          "[create-media-upload] Organization permission check failed.",
-          membershipError
+          "[create-media-upload] Organization post permission check failed.",
+          error
         );
 
         return json(
@@ -264,14 +389,124 @@ Deno.serve(async (req) => {
           500
         );
       }
+    }
 
-      if (!membership) {
+    /*
+     * Organization avatar:
+     * owner/admin only
+     */
+    if (
+      body.kind ===
+        "organization-avatar"
+    ) {
+      if (
+        !body.organizationId
+      ) {
         return json(
           {
             error:
-              "You cannot publish for this organization.",
+              "Organization ID is required.",
           },
-          403
+          400
+        );
+      }
+
+      try {
+        const role =
+          await getOrganizationRole(
+            supabase,
+            body.organizationId,
+            userId
+          );
+
+        if (
+          role !== "owner" &&
+          role !== "admin"
+        ) {
+          return json(
+            {
+              error:
+                "You cannot edit this organization avatar.",
+            },
+            403
+          );
+        }
+      } catch (error) {
+        console.error(
+          "[create-media-upload] Organization avatar permission check failed.",
+          error
+        );
+
+        return json(
+          {
+            error:
+              "Could not verify organization permissions.",
+          },
+          500
+        );
+      }
+    }
+
+    /*
+     * Event image:
+     *
+     * owner/admin:
+     * any event belonging to org
+     *
+     * editor:
+     * only event they created
+     */
+    if (
+      body.kind ===
+        "event-image"
+    ) {
+      if (
+        !body.organizationId ||
+        !body.eventId
+      ) {
+        return json(
+          {
+            error:
+              "Organization ID and event ID are required.",
+          },
+          400
+        );
+      }
+
+      try {
+        const allowed =
+          await canManageEvent(
+            supabase,
+            {
+              eventId:
+                body.eventId,
+              organizationId:
+                body.organizationId,
+              userId,
+            }
+          );
+
+        if (!allowed) {
+          return json(
+            {
+              error:
+                "You cannot manage media for this event.",
+            },
+            403
+          );
+        }
+      } catch (error) {
+        console.error(
+          "[create-media-upload] Event permission check failed.",
+          error
+        );
+
+        return json(
+          {
+            error:
+              "Could not verify event permissions.",
+          },
+          500
         );
       }
     }
@@ -312,15 +547,41 @@ Deno.serve(async (req) => {
     const objectId =
       crypto.randomUUID();
 
-    const objectKey =
+    let objectKey: string;
+
+    if (
+      body.kind === "avatar"
+    ) {
+      objectKey =
+        `avatars/users/${userId}/${objectId}.${extension}`;
+    } else if (
+      body.kind ===
+        "organization-avatar"
+    ) {
+      objectKey =
+        `avatars/organizations/${body.organizationId}/${objectId}.${extension}`;
+    } else if (
+      body.kind ===
+        "event-image"
+    ) {
+      objectKey =
+        `events/organizations/${body.organizationId}/${body.eventId}/${objectId}.${extension}`;
+    } else if (
       body.organizationId
-        ? `posts/organizations/${body.organizationId}/${userId}/${objectId}.${extension}`
-        : `posts/users/${userId}/${objectId}.${extension}`;
+    ) {
+      objectKey =
+        `posts/organizations/${body.organizationId}/${userId}/${objectId}.${extension}`;
+    } else {
+      objectKey =
+        `posts/users/${userId}/${objectId}.${extension}`;
+    }
 
     const command =
       new PutObjectCommand({
-        Bucket: bucket,
-        Key: objectKey,
+        Bucket:
+          bucket,
+        Key:
+          objectKey,
         ContentType:
           contentType,
       });
