@@ -21,6 +21,9 @@ const MAX_POST_IMAGE_SIZE =
 const MAX_AVATAR_IMAGE_SIZE =
   5 * 1024 * 1024;
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 type UploadRequest = {
   contentType?: string;
   eventId?: string | null;
@@ -33,7 +36,14 @@ type UploadRequest = {
     | "post";
 };
 
-function getRequiredEnv(name: string) {
+type OrganizationRole =
+  | "owner"
+  | "admin"
+  | "editor";
+
+function getRequiredEnv(
+  name: string
+) {
   const value =
     Deno.env.get(name)?.trim();
 
@@ -85,11 +95,19 @@ function normalizeR2Endpoint(
   return normalized;
 }
 
-async function getOrganizationRole(
+function isUuid(
+  value: string | null | undefined
+) {
+  return Boolean(
+    value &&
+      UUID_PATTERN.test(value)
+  );
+}
+
+async function getVerifiedUniversityId(
   supabase: ReturnType<
     typeof createClient
   >,
-  organizationId: string,
   userId: string
 ) {
   const {
@@ -97,6 +115,59 @@ async function getOrganizationRole(
     error,
   } =
     await supabase
+      .from("profiles")
+      .select(`
+        is_verified,
+        institute:institutes!profiles_institute_id_fkey (
+          university_id
+        )
+      `)
+      .eq("id", userId)
+      .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (
+    !data ||
+    data.is_verified !== true
+  ) {
+    return null;
+  }
+
+  const institute =
+    Array.isArray(
+      data.institute
+    )
+      ? data.institute[0]
+      : data.institute;
+
+  return (
+    institute?.university_id ??
+    null
+  );
+}
+
+async function getOrganizationAccess(
+  supabase: ReturnType<
+    typeof createClient
+  >,
+  {
+    organizationId,
+    universityId,
+    userId,
+  }: {
+    organizationId: string;
+    universityId: string;
+    userId: string;
+  }
+): Promise<OrganizationRole | null> {
+  const [
+    membershipResult,
+    organizationResult,
+  ] = await Promise.all([
+    supabase
       .from(
         "organization_members"
       )
@@ -109,13 +180,58 @@ async function getOrganizationRole(
         "user_id",
         userId
       )
-      .maybeSingle();
+      .maybeSingle(),
 
-  if (error) {
-    throw error;
+    supabase
+      .from("organizations")
+      .select(
+        "id, university_id, is_active"
+      )
+      .eq(
+        "id",
+        organizationId
+      )
+      .maybeSingle(),
+  ]);
+
+  if (
+    membershipResult.error
+  ) {
+    throw membershipResult.error;
   }
 
-  return data?.role ?? null;
+  if (
+    organizationResult.error
+  ) {
+    throw organizationResult.error;
+  }
+
+  const organization =
+    organizationResult.data;
+
+  const role =
+    membershipResult.data
+      ?.role ?? null;
+
+  if (
+    !organization ||
+    organization.is_active !==
+      true ||
+    organization.university_id !==
+      universityId
+  ) {
+    return null;
+  }
+
+  if (
+    role !== "owner" &&
+    role !== "admin" &&
+    role !== "editor"
+  ) {
+    return null;
+  }
+
+  return role;
 }
 
 async function canManageEvent(
@@ -125,24 +241,20 @@ async function canManageEvent(
   {
     eventId,
     organizationId,
+    role,
     userId,
   }: {
     eventId: string;
     organizationId: string;
+    role: OrganizationRole;
     userId: string;
   }
 ) {
-  const [
-    role,
-    eventResult,
-  ] = await Promise.all([
-    getOrganizationRole(
-      supabase,
-      organizationId,
-      userId
-    ),
-
-    supabase
+  const {
+    data: event,
+    error,
+  } =
+    await supabase
       .from("events")
       .select(
         "id, organization_id, created_by"
@@ -151,17 +263,11 @@ async function canManageEvent(
         "id",
         eventId
       )
-      .maybeSingle(),
-  ]);
+      .maybeSingle();
 
-  if (
-    eventResult.error
-  ) {
-    throw eventResult.error;
+  if (error) {
+    throw error;
   }
-
-  const event =
-    eventResult.data;
 
   if (
     !event ||
@@ -178,15 +284,11 @@ async function canManageEvent(
     return true;
   }
 
-  if (
+  return (
     role === "editor" &&
     event.created_by ===
       userId
-  ) {
-    return true;
-  }
-
-  return false;
+  );
 }
 
 Deno.serve(async (req) => {
@@ -302,7 +404,8 @@ Deno.serve(async (req) => {
 
     const contentType =
       body.contentType
-        ?.toLowerCase() ??
+        ?.trim()
+        .toLowerCase() ??
       "";
 
     const extension =
@@ -330,6 +433,9 @@ Deno.serve(async (req) => {
     if (
       typeof body.fileSize !==
         "number" ||
+      !Number.isSafeInteger(
+        body.fileSize
+      ) ||
       body.fileSize <= 0 ||
       body.fileSize >
         maxImageSize
@@ -347,93 +453,91 @@ Deno.serve(async (req) => {
     }
 
     /*
-     * Organization post:
-     * owner/admin/editor
+     * Every social R2 upload
+     * requires a verified campus
+     * profile.
      */
-    if (
-      body.kind === "post" &&
-      body.organizationId
-    ) {
-      try {
-        const role =
-          await getOrganizationRole(
-            supabase,
-            body.organizationId,
-            userId
-          );
+    let universityId:
+      | string
+      | null;
 
-        if (
-          role !== "owner" &&
-          role !== "admin" &&
-          role !== "editor"
-        ) {
-          return json(
-            {
-              error:
-                "You cannot publish for this organization.",
-            },
-            403
-          );
-        }
-      } catch (error) {
-        console.error(
-          "[create-media-upload] Organization post permission check failed.",
-          error
+    try {
+      universityId =
+        await getVerifiedUniversityId(
+          supabase,
+          userId
         );
+    } catch (error) {
+      console.error(
+        "[create-media-upload] Verification check failed.",
+        error
+      );
 
-        return json(
-          {
-            error:
-              "Could not verify organization permissions.",
-          },
-          500
-        );
-      }
+      return json(
+        {
+          error:
+            "Could not verify your campus account.",
+        },
+        500
+      );
     }
 
+    if (!universityId) {
+      return json(
+        {
+          error:
+            "A verified campus account is required to upload media.",
+        },
+        403
+      );
+    }
+
+    let organizationRole:
+      | OrganizationRole
+      | null = null;
+
     /*
-     * Organization avatar:
-     * owner/admin only
+     * Organization-scoped uploads
+     * must use a valid UUID.
      */
     if (
       body.kind ===
-        "organization-avatar"
+        "organization-avatar" ||
+      body.kind ===
+        "event-image" ||
+      (
+        body.kind === "post" &&
+        body.organizationId
+      )
     ) {
       if (
-        !body.organizationId
+        !isUuid(
+          body.organizationId
+        )
       ) {
         return json(
           {
             error:
-              "Organization ID is required.",
+              "A valid organization ID is required.",
           },
           400
         );
       }
 
       try {
-        const role =
-          await getOrganizationRole(
+        organizationRole =
+          await getOrganizationAccess(
             supabase,
-            body.organizationId,
-            userId
-          );
-
-        if (
-          role !== "owner" &&
-          role !== "admin"
-        ) {
-          return json(
             {
-              error:
-                "You cannot edit this organization avatar.",
-            },
-            403
+              organizationId:
+                body.organizationId!,
+              universityId,
+              userId,
+            }
           );
-        }
       } catch (error) {
         console.error(
-          "[create-media-upload] Organization avatar permission check failed.",
+          "[create-media-upload] Organization permission check failed.",
           error
         );
 
@@ -445,6 +549,37 @@ Deno.serve(async (req) => {
           500
         );
       }
+
+      if (!organizationRole) {
+        return json(
+          {
+            error:
+              "You cannot upload media for this organization.",
+          },
+          403
+        );
+      }
+    }
+
+    /*
+     * Organization avatar:
+     * owner/admin only.
+     */
+    if (
+      body.kind ===
+        "organization-avatar" &&
+      organizationRole !==
+        "owner" &&
+      organizationRole !==
+        "admin"
+    ) {
+      return json(
+        {
+          error:
+            "You cannot edit this organization avatar.",
+        },
+        403
+      );
     }
 
     /*
@@ -461,13 +596,14 @@ Deno.serve(async (req) => {
         "event-image"
     ) {
       if (
-        !body.organizationId ||
-        !body.eventId
+        !isUuid(
+          body.eventId
+        )
       ) {
         return json(
           {
             error:
-              "Organization ID and event ID are required.",
+              "A valid event ID is required.",
           },
           400
         );
@@ -479,9 +615,11 @@ Deno.serve(async (req) => {
             supabase,
             {
               eventId:
-                body.eventId,
+                body.eventId!,
               organizationId:
-                body.organizationId,
+                body.organizationId!,
+              role:
+                organizationRole!,
               userId,
             }
           );
@@ -584,6 +722,14 @@ Deno.serve(async (req) => {
           objectKey,
         ContentType:
           contentType,
+
+        /*
+         * Bind the signed request to
+         * the exact number of bytes
+         * reported by the client.
+         */
+        ContentLength:
+          body.fileSize,
       });
 
     const uploadUrl =
@@ -592,6 +738,20 @@ Deno.serve(async (req) => {
         command,
         {
           expiresIn: 300,
+
+          /*
+           * Force these headers into
+           * the SigV4 signature.
+           *
+           * The actual PUT must then
+           * match both the approved
+           * MIME type and byte length.
+           */
+          signableHeaders:
+            new Set([
+              "content-length",
+              "content-type",
+            ]),
         }
       );
 
