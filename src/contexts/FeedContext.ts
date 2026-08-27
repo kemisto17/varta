@@ -37,6 +37,11 @@ export type FeedContextValue = {
 
   status: FeedStatus;
 
+  updatePostCommentCount: (
+    postId: string,
+    commentCount: number
+  ) => void;
+
   updatePostLike: (
     postId: string,
     state: PostLikeState

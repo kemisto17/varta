@@ -260,11 +260,6 @@ export function FeedProvider({
           true
         );
 
-        /*
-         * Remove a previous
-         * pagination error as soon as
-         * the user retries.
-         */
         setErrorMessage(
           null
         );
@@ -351,10 +346,6 @@ export function FeedProvider({
   /*
    * Insert a newly created post into
    * the already-loaded feed.
-   *
-   * This avoids fetching the entire
-   * first page again just to display
-   * one new post.
    */
   const prependPost =
     useCallback(
@@ -425,6 +416,42 @@ export function FeedProvider({
       []
     );
 
+  /*
+   * Keep comment counts synchronized
+   * between post detail and Home.
+   */
+  const updatePostCommentCount =
+    useCallback(
+      (
+        postId: string,
+        commentCount: number
+      ) => {
+        const nextPosts =
+          postsRef.current.map(
+            (post) =>
+              post.id ===
+              postId
+                ? {
+                    ...post,
+                    commentCount:
+                      Math.max(
+                        0,
+                        commentCount
+                      ),
+                  }
+                : post
+          );
+
+        postsRef.current =
+          nextPosts;
+
+        setPosts(
+          nextPosts
+        );
+      },
+      []
+    );
+
   const updatePostLike =
     useCallback(
       (
@@ -470,6 +497,7 @@ export function FeedProvider({
         refreshFeed,
         removePost,
         status,
+        updatePostCommentCount,
         updatePostLike,
       }),
       [
@@ -483,6 +511,7 @@ export function FeedProvider({
         refreshFeed,
         removePost,
         status,
+        updatePostCommentCount,
         updatePostLike,
       ]
     );
