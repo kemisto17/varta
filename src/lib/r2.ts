@@ -195,7 +195,6 @@ async function uploadImageToR2({
     );
 
   const fileSize =
-    asset.fileSize ??
     fileBody.byteLength;
 
   const accessToken =

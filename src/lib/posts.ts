@@ -6,6 +6,7 @@ import type { TablesInsert } from '../types/database';
 import type { FeedCursor, FeedPost } from '../types/post';
 import { getAvatarUrls } from './avatars';
 import { getPublicPrimaryBadges } from './badges';
+import { optimizePostImageAsset } from './imageOptimization';
 import { getOrganizationAvatarUrls } from './organizations';
 import { getLikedPostIds } from './postInteractions';
 import {
@@ -373,13 +374,18 @@ export async function publishPost({
     );
   }
 
+  if (asset?.fileSize && asset.fileSize > MAX_POST_IMAGE_SIZE) {
+    throw new Error('Choose an image smaller than 8 MB.');
+  }
+
   let imagePath: string | null =
     null;
 
   if (asset) {
+    const optimizedAsset = await optimizePostImageAsset(asset);
     const upload =
       await uploadPostImageToR2({
-        asset,
+        asset: optimizedAsset,
         organizationId,
       });
 

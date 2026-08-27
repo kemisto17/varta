@@ -1,5 +1,6 @@
 import type { ImagePickerAsset } from 'expo-image-picker';
 
+import { optimizeAvatarAsset } from './imageOptimization';
 import {
   deleteAvatarFromR2,
   uploadAvatarToR2,
@@ -24,7 +25,12 @@ export async function uploadUserAvatar(
   asset: ImagePickerAsset,
   userId: string
 ) {
-  const upload = await uploadAvatarToR2(asset);
+  if (asset.fileSize && asset.fileSize > MAX_AVATAR_SIZE) {
+    throw new Error('Avatar must be smaller than 5 MB.');
+  }
+
+  const optimizedAsset = await optimizeAvatarAsset(asset);
+  const upload = await uploadAvatarToR2(optimizedAsset);
   const expectedPrefix =
     `avatars/users/${userId}/`;
 

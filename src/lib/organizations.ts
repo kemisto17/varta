@@ -10,6 +10,7 @@ import type {
   ManageableOrganization,
   OrganizationRole,
 } from '../types/organization';
+import { optimizeAvatarAsset } from './imageOptimization';
 import {
   deleteOrganizationAvatarFromR2,
   uploadOrganizationAvatarToR2,
@@ -532,10 +533,15 @@ export async function updateOrganizationProfile(
     | null = null;
 
   if (input.asset) {
+    const optimizedAsset =
+      await optimizeAvatarAsset(
+        input.asset
+      );
+
     const upload =
       await uploadOrganizationAvatarToR2({
         asset:
-          input.asset,
+          optimizedAsset,
         organizationId:
           input.organizationId,
       });

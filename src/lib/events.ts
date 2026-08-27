@@ -18,6 +18,7 @@ import type {
   CampusOrganization,
   OrganizationRole,
 } from '../types/organization';
+import { optimizeEventCoverAsset } from './imageOptimization';
 import {
   canEditOrganizationEvent,
   getFollowedOrganizationIds,
@@ -1050,8 +1051,13 @@ async function uploadEventCover({
     );
   }
 
+  const optimizedAsset =
+    await optimizeEventCoverAsset(
+      asset
+    );
+
   return uploadEventImageToR2({
-    asset,
+    asset: optimizedAsset,
     eventId,
     organizationId,
   });

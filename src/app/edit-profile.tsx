@@ -37,7 +37,7 @@ export default function EditProfileScreen() {
   const { colors, styles } = useThemedStyles(createStyles);
   const router = useRouter();
   const { session } = useAuth();
-  const { markProfileCreated, profile } = useProfile();
+  const { profile, refreshProfile } = useProfile();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [bio, setBio] = useState(profile?.bio ?? '');
   const [branch, setBranch] = useState(profile?.branch ?? '');
@@ -157,7 +157,7 @@ export default function EditProfileScreen() {
       savingLinks = true;
       await replaceProfileLinks(userId, links);
 
-      markProfileCreated(result.profile);
+      refreshProfile();
 
       if (result.avatarCleanupFailed) {
         Alert.alert(
