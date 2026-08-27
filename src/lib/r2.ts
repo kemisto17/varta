@@ -29,19 +29,27 @@ function getAssetContentType(
   const uri =
     asset.uri.toLowerCase();
 
-  if (uri.endsWith('.png')) {
+  if (
+    uri.endsWith('.png')
+  ) {
     return 'image/png';
   }
 
-  if (uri.endsWith('.webp')) {
+  if (
+    uri.endsWith('.webp')
+  ) {
     return 'image/webp';
   }
 
-  if (uri.endsWith('.heic')) {
+  if (
+    uri.endsWith('.heic')
+  ) {
     return 'image/heic';
   }
 
-  if (uri.endsWith('.heif')) {
+  if (
+    uri.endsWith('.heif')
+  ) {
     return 'image/heif';
   }
 
@@ -61,7 +69,8 @@ function base64ToArrayBuffer(
 
   for (
     let index = 0;
-    index < binary.length;
+    index <
+    binary.length;
     index += 1
   ) {
     bytes[index] =
@@ -76,12 +85,22 @@ function base64ToArrayBuffer(
 async function readAsset(
   asset: ImagePickerAsset
 ) {
+  /*
+   * Keep the legacy Expo file-system
+   * implementation here.
+   *
+   * Direct fetch(file://...) is not
+   * reliable for Expo local image
+   * assets on Android.
+   */
   const base64 =
     await FileSystem.readAsStringAsync(
       asset.uri,
       {
         encoding:
-          FileSystem.EncodingType.Base64,
+          FileSystem
+            .EncodingType
+            .Base64,
       }
     );
 
@@ -98,7 +117,9 @@ async function readAsset(
 
 async function getAccessToken() {
   const {
-    data: { session },
+    data: {
+      session,
+    },
     error,
   } =
     await supabase.auth.getSession();
@@ -123,7 +144,8 @@ export async function uploadPostImageToR2({
   organizationId,
 }: {
   asset: ImagePickerAsset;
-  organizationId?: string | null;
+  organizationId?:
+    string | null;
 }) {
   return uploadImageToR2({
     asset,
@@ -182,13 +204,22 @@ async function uploadImageToR2({
   asset: ImagePickerAsset;
   eventId?: string | null;
   kind: MediaKind;
-  organizationId?: string | null;
+  organizationId?:
+    string | null;
 }) {
   const contentType =
     getAssetContentType(
       asset
     );
 
+  /*
+   * Read the image before asking the
+   * server for an upload URL.
+   *
+   * That prevents us from creating an
+   * upload slot when the local asset
+   * cannot even be read.
+   */
   const fileBody =
     await readAsset(
       asset
@@ -213,14 +244,16 @@ async function uploadImageToR2({
     kind === 'post' ||
     kind ===
       'organization-avatar' ||
-    kind === 'event-image'
+    kind ===
+      'event-image'
   ) {
     body.organizationId =
       organizationId;
   }
 
   if (
-    kind === 'event-image'
+    kind ===
+    'event-image'
   ) {
     body.eventId =
       eventId;
@@ -246,7 +279,8 @@ async function uploadImageToR2({
 
     try {
       if (
-        'context' in error &&
+        'context' in
+          error &&
         error.context instanceof
           Response
       ) {
@@ -254,7 +288,12 @@ async function uploadImageToR2({
           await error.context.text();
       }
     } catch {
-      // Ignore response parsing failure.
+      /*
+       * Ignore response parsing
+       * failure. The original upload
+       * preparation error is more
+       * important.
+       */
     }
 
     console.warn(
@@ -288,24 +327,83 @@ async function uploadImageToR2({
     );
   }
 
-  const uploadResponse =
-    await fetch(
-      data.uploadUrl,
+  let uploadResponse:
+    Response;
+
+  try {
+    /*
+     * The request can fail in an
+     * ambiguous way:
+     *
+     * R2 may receive the complete PUT
+     * while the client loses its
+     * connection before receiving the
+     * response.
+     *
+     * If that happens, an object could
+     * exist even though fetch() throws.
+     */
+    uploadResponse =
+      await fetch(
+        data.uploadUrl,
+        {
+          method:
+            'PUT',
+
+          headers: {
+            'Content-Type':
+              data.contentType,
+          },
+
+          body:
+            fileBody,
+        }
+      );
+  } catch (uploadError) {
+    console.warn(
+      '[r2] Upload request failed.',
       {
-        method: 'PUT',
-        headers: {
-          'Content-Type':
-            data.contentType,
-        },
-        body: fileBody,
-      }
+        objectKey,
+      },
+      uploadError
     );
+
+    /*
+     * The DB has not been mutated yet.
+     *
+     * If R2 happened to receive the
+     * upload before the connection
+     * failed, remove that unreferenced
+     * object.
+     */
+    await cleanupFailedUpload({
+      eventId,
+      kind,
+      objectKey,
+      organizationId,
+    });
+
+    throw new Error(
+      'Image upload failed. Check your connection and try again.'
+    );
+  }
 
   if (
     !uploadResponse.ok
   ) {
-    const responseText =
-      await uploadResponse.text();
+    let responseText =
+      '';
+
+    try {
+      responseText =
+        await uploadResponse.text();
+    } catch {
+      /*
+       * Logging the status and object
+       * key is enough when the response
+       * body itself cannot be read.
+       */
+    }
 
     console.warn(
       '[r2] Upload failed.',
@@ -317,6 +415,21 @@ async function uploadImageToR2({
       }
     );
 
+    /*
+     * A non-success response normally
+     * means no object was committed,
+     * but cleanup is intentionally
+     * idempotent/best-effort because
+     * there must never be a DB-less
+     * media object if we can remove it.
+     */
+    await cleanupFailedUpload({
+      eventId,
+      kind,
+      objectKey,
+      organizationId,
+    });
+
     throw new Error(
       `Image upload failed with status ${uploadResponse.status}.`
     );
@@ -325,6 +438,61 @@ async function uploadImageToR2({
   return {
     objectKey,
   };
+}
+
+/*
+ * Once an object key has been issued,
+ * an upload failure can be ambiguous.
+ *
+ * Try to remove the object before
+ * returning the failure to the caller.
+ *
+ * Cleanup failure does NOT replace the
+ * original upload failure because the
+ * user needs to know that publishing
+ * did not complete.
+ */
+async function cleanupFailedUpload({
+  eventId,
+  kind,
+  objectKey,
+  organizationId,
+}: {
+  eventId:
+    string | null;
+  kind:
+    MediaKind;
+  objectKey:
+    string;
+  organizationId:
+    string | null;
+}) {
+  try {
+    await deleteMediaObjectFromR2(
+      kind,
+      objectKey,
+      {
+        eventId:
+          eventId ??
+          undefined,
+
+        organizationId:
+          organizationId ??
+          undefined,
+      }
+    );
+  } catch (
+    cleanupError
+  ) {
+    console.warn(
+      '[r2] Could not clean up media after failed upload.',
+      {
+        kind,
+        objectKey,
+      },
+      cleanupError
+    );
+  }
 }
 
 export async function deletePostImageFromR2(
@@ -427,14 +595,16 @@ async function deleteMediaObjectFromR2(
   if (
     kind ===
       'organization-avatar' ||
-    kind === 'event-image'
+    kind ===
+      'event-image'
   ) {
     body.organizationId =
       options?.organizationId;
   }
 
   if (
-    kind === 'event-image'
+    kind ===
+    'event-image'
   ) {
     body.eventId =
       options?.eventId;
@@ -451,6 +621,7 @@ async function deleteMediaObjectFromR2(
           Authorization:
             `Bearer ${accessToken}`,
         },
+
         body,
       }
     );
@@ -460,7 +631,8 @@ async function deleteMediaObjectFromR2(
 
     try {
       if (
-        'context' in error &&
+        'context' in
+          error &&
         error.context instanceof
           Response
       ) {
@@ -468,7 +640,10 @@ async function deleteMediaObjectFromR2(
           await error.context.text();
       }
     } catch {
-      // Ignore response parsing failure.
+      /*
+       * Ignore response parsing
+       * failure.
+       */
     }
 
     console.warn(
@@ -483,7 +658,9 @@ async function deleteMediaObjectFromR2(
     );
   }
 
-  if (!data?.deleted) {
+  if (
+    !data?.deleted
+  ) {
     throw new Error(
       'Could not delete image.'
     );

@@ -2,7 +2,11 @@ import type { ImagePickerAsset } from 'expo-image-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useState } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -55,6 +59,17 @@ export default function CreateScreen() {
 
   const { profile } =
     useProfile();
+
+  /*
+   * Synchronous lock for the actual
+   * publish mutation.
+   *
+   * React state alone cannot stop two
+   * taps that happen before the next
+   * render.
+   */
+  const isPublishRequestPending =
+    useRef(false);
 
   const [
     content,
@@ -110,6 +125,14 @@ export default function CreateScreen() {
       string | null
     >(null);
 
+  /*
+   * Resolve the selected ID against the
+   * current authoritative list.
+   *
+   * Never publish using a raw/stale ID
+   * that is no longer represented by an
+   * organization this user can manage.
+   */
   const selectedOrganization =
     manageableOrganizations.find(
       (organization) =>
@@ -117,11 +140,34 @@ export default function CreateScreen() {
         selectedOrganizationId
     ) ?? null;
 
+  const effectiveOrganizationId =
+    selectedOrganization?.id ??
+    null;
+
   useEffect(() => {
     const userId =
       session?.user.id;
 
     let isActive = true;
+
+    /*
+     * Organization identities belong to
+     * the current account.
+     *
+     * Clear them immediately whenever
+     * the authenticated user changes.
+     */
+    setManageableOrganizations(
+      []
+    );
+
+    setSelectedOrganizationId(
+      null
+    );
+
+    setIsIdentityPickerVisible(
+      false
+    );
 
     if (!userId) {
       return () => {
@@ -136,17 +182,23 @@ export default function CreateScreen() {
         (
           organizations
         ) => {
-          if (isActive) {
-            setManageableOrganizations(
-              organizations
-            );
+          if (!isActive) {
+            return;
           }
+
+          setManageableOrganizations(
+            organizations
+          );
         }
       )
       .catch(
         (
           error: unknown
         ) => {
+          if (!isActive) {
+            return;
+          }
+
           console.warn(
             '[create-post] Could not load organization identities.',
             error
@@ -181,8 +233,13 @@ export default function CreateScreen() {
         return;
       }
 
-      setIsPicking(true);
-      setErrorMessage(null);
+      setIsPicking(
+        true
+      );
+
+      setErrorMessage(
+        null
+      );
 
       try {
         if (
@@ -200,11 +257,14 @@ export default function CreateScreen() {
             {
               allowsEditing:
                 false,
+
               allowsMultipleSelection:
                 false,
+
               mediaTypes: [
                 'images',
               ],
+
               quality:
                 0.78,
             }
@@ -212,8 +272,8 @@ export default function CreateScreen() {
 
         if (
           result.canceled ||
-          result.assets
-            .length === 0
+          result.assets.length ===
+            0
         ) {
           return;
         }
@@ -253,11 +313,15 @@ export default function CreateScreen() {
         session?.user.id;
 
       if (
-        !canPublish ||
+        isPublishRequestPending.current ||
+        !hasPostContent ||
         !userId
       ) {
         return;
       }
+
+      isPublishRequestPending.current =
+        true;
 
       setIsPublishing(
         true
@@ -269,32 +333,32 @@ export default function CreateScreen() {
 
       try {
         /*
-         * First perform the actual
-         * mutation.
-         *
-         * Once this succeeds, the
-         * post exists in the DB.
+         * effectiveOrganizationId can
+         * only contain an organization
+         * that still exists in the
+         * current manageable identities
+         * list.
          */
         const published =
           await publishPost({
             asset:
               imageAsset,
+
             content,
+
             organizationId:
-              selectedOrganizationId,
+              effectiveOrganizationId,
+
             userId,
           });
 
         /*
-         * Hydrate only the newly
-         * created post instead of
-         * downloading page 1 of the
-         * feed again.
+         * Hydrate only the new post.
          *
-         * A failure here must NOT be
-         * reported as "Publish
-         * failed", because the DB
-         * mutation already succeeded.
+         * The DB mutation has already
+         * succeeded at this point, so a
+         * feed-sync failure must not be
+         * presented as a publish failure.
          */
         try {
           const newPost =
@@ -320,19 +384,15 @@ export default function CreateScreen() {
             feedSyncError
           );
 
-          /*
-           * Best-effort silent
-           * recovery. Do not block
-           * navigation or tell the
-           * user that publishing
-           * failed.
-           */
           void refreshFeed(
             false
           );
         }
 
-        setContent('');
+        setContent(
+          ''
+        );
+
         setImageAsset(
           null
         );
@@ -352,6 +412,9 @@ export default function CreateScreen() {
           )
         );
       } finally {
+        isPublishRequestPending.current =
+          false;
+
         setIsPublishing(
           false
         );
@@ -414,8 +477,10 @@ export default function CreateScreen() {
                 pressed,
               }) => [
                 styles.publishButton,
+
                 !canPublish &&
                   styles.publishButtonDisabled,
+
                 pressed &&
                   canPublish &&
                   styles.pressed,
@@ -432,6 +497,7 @@ export default function CreateScreen() {
                 <Text
                   style={[
                     styles.publishText,
+
                     !canPublish &&
                       styles.publishTextDisabled,
                   ]}
@@ -463,6 +529,7 @@ export default function CreateScreen() {
               pressed,
             }) => [
               styles.authorRow,
+
               pressed &&
                 styles.pressed,
             ]}
@@ -472,7 +539,9 @@ export default function CreateScreen() {
                 name={
                   selectedOrganization.name
                 }
-                size={42}
+                size={
+                  42
+                }
                 uri={
                   selectedOrganization.avatarUrl
                 }
@@ -538,12 +607,16 @@ export default function CreateScreen() {
                 name={{
                   android:
                     'expand_more',
+
                   ios:
                     'chevron.down',
+
                   web:
                     'expand_more',
                 }}
-                size={17}
+                size={
+                  17
+                }
                 tintColor={
                   colors.textSecondary
                 }
@@ -583,6 +656,7 @@ export default function CreateScreen() {
             <Text
               style={[
                 styles.characterCount,
+
                 remainingCharacters <
                   50 &&
                   styles.characterCountWarning,
@@ -631,6 +705,7 @@ export default function CreateScreen() {
                   pressed,
                 }) => [
                   styles.removeImageButton,
+
                   pressed &&
                     styles.pressed,
                 ]}
@@ -639,12 +714,16 @@ export default function CreateScreen() {
                   name={{
                     android:
                       'close',
+
                     ios:
                       'xmark',
+
                     web:
                       'close',
                   }}
-                  size={18}
+                  size={
+                    18
+                  }
                   tintColor={
                     colors.viewerForeground
                   }
@@ -684,6 +763,7 @@ export default function CreateScreen() {
                 pressed,
               }) => [
                 styles.mediaButton,
+
                 pressed &&
                   styles.pressed,
               ]}
@@ -700,12 +780,16 @@ export default function CreateScreen() {
                   name={{
                     android:
                       'image',
+
                     ios:
                       'photo',
+
                     web:
                       'image',
                   }}
-                  size={21}
+                  size={
+                    21
+                  }
                   tintColor={
                     colors.textPrimary
                   }
@@ -813,7 +897,8 @@ const createStyles = (
         spacing.lg,
       paddingTop:
         spacing.lg,
-      paddingBottom: 160,
+      paddingBottom:
+        160,
     },
 
     header: {
@@ -827,7 +912,8 @@ const createStyles = (
 
     title: {
       fontSize: 26,
-      fontWeight: '700',
+      fontWeight:
+        '700',
       color:
         colors.textPrimary,
     },
@@ -847,24 +933,23 @@ const createStyles = (
         colors.textPrimary,
     },
 
-    publishButtonDisabled:
-      {
-        backgroundColor:
-          colors.border,
-      },
+    publishButtonDisabled: {
+      backgroundColor:
+        colors.border,
+    },
 
     publishText: {
       fontSize: 14,
-      fontWeight: '600',
+      fontWeight:
+        '600',
       color:
         colors.white,
     },
 
-    publishTextDisabled:
-      {
-        color:
-          colors.textMuted,
-      },
+    publishTextDisabled: {
+      color:
+        colors.textMuted,
+    },
 
     authorRow: {
       marginTop:
@@ -891,7 +976,8 @@ const createStyles = (
       color:
         colors.white,
       fontSize: 13,
-      fontWeight: '700',
+      fontWeight:
+        '700',
     },
 
     authorCopy: {
@@ -902,7 +988,8 @@ const createStyles = (
 
     authorName: {
       fontSize: 14,
-      fontWeight: '600',
+      fontWeight:
+        '600',
       color:
         colors.textPrimary,
     },
@@ -939,7 +1026,8 @@ const createStyles = (
       width: '100%',
       marginTop:
         spacing.lg,
-      aspectRatio: 4 / 3,
+      aspectRatio:
+        4 / 3,
     },
 
     imagePreview: {
@@ -1002,7 +1090,8 @@ const createStyles = (
 
     mediaButtonText: {
       fontSize: 14,
-      fontWeight: '500',
+      fontWeight:
+        '500',
       color:
         colors.textPrimary,
     },
@@ -1013,13 +1102,12 @@ const createStyles = (
         colors.textMuted,
     },
 
-    characterCountWarning:
-      {
-        color:
-          colors.textSecondary,
-        fontWeight:
-          '600',
-      },
+    characterCountWarning: {
+      color:
+        colors.textSecondary,
+      fontWeight:
+        '600',
+    },
 
     mediaHint: {
       marginTop:
