@@ -39,6 +39,7 @@ export function NotificationsProvider({
   const { session } = useAuth();
 
   const {
+    refreshVerification,
     status: verificationStatus,
   } = useVerification();
 
@@ -675,11 +676,36 @@ export function NotificationsProvider({
 
     void subscribeToPushNotificationResponses(
       (destination) => {
-        if (isActive) {
-          router.push(
-            destination
-          );
+        if (!isActive) {
+          return;
         }
+
+        /*
+        * A verification result may arrive
+        * while the app still holds the old
+        * pending/rejected state.
+        *
+        * Do not navigate into protected
+        * routes using stale verification
+        * state.
+        *
+        * Refresh first; the root navigator
+        * will automatically move the user
+        * to the correct verified/rejected
+        * flow.
+        */
+        if (
+          verificationStatus !==
+          'verified'
+        ) {
+          refreshVerification();
+
+          return;
+        }
+
+        router.push(
+          destination
+        );
       }
     )
       .then(
@@ -715,7 +741,9 @@ export function NotificationsProvider({
     };
   }, [
     canUsePush,
+    refreshVerification,
     router,
+    verificationStatus,
   ]);
 
   const refreshNotifications =
