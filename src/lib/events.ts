@@ -45,6 +45,19 @@ export const EVENTS_PAGE_SIZE =
 const EVENT_R2_PREFIX =
   'events/organizations/';
 
+/*
+ * The first page of the Following
+ * events filter resolves the user's
+ * followed organizations.
+ *
+ * Subsequent pagination requests reuse
+ * that exact set instead of querying
+ * organization follows again for every
+ * page.
+ */
+const followedOrganizationIdsCache =
+  new Map<string, string[]>();
+
 const MEDIA_BASE_URL =
   process.env.EXPO_PUBLIC_MEDIA_BASE_URL
     ?.trim()
@@ -92,46 +105,65 @@ type EventQueryRow =
 export async function getCampusNowEvents(
   userId: string
 ) {
-  const page =
-    await getEventsPage(
-      {
-        userId,
-      },
-      null,
-      30
-    );
-
   const now =
     Date.now();
 
-  return page.events
-    .sort(
-      (
-        left,
-        right
-      ) => {
-        const priorityDifference =
-          getCampusNowPriority(
-            left,
-            now
-          ) -
-          getCampusNowPriority(
-            right,
-            now
-          );
+  const nowIso =
+    new Date(
+      now
+    ).toISOString();
 
-        return (
-          priorityDifference ||
-          Date.parse(
-            left.startsAt
-          ) -
-            Date.parse(
-              right.startsAt
-            )
-        );
-      }
-    )
-    .slice(0, 3);
+  /*
+   * Events without an explicit end time
+   * are treated elsewhere in the app as
+   * lasting roughly two hours.
+   *
+   * Include those events if they started
+   * within the last two hours.
+   */
+  const twoHoursAgoIso =
+    new Date(
+      now -
+        2 *
+          60 *
+          60 *
+          1000
+    ).toISOString();
+
+  const {
+    data,
+    error,
+  } =
+    await selectEvents()
+      .eq(
+        'status',
+        'published'
+      )
+      .or(
+        `starts_at.gte.${nowIso},ends_at.gte.${nowIso},and(ends_at.is.null,starts_at.gte.${twoHoursAgoIso})`
+      )
+      .order(
+        'starts_at',
+        {
+          ascending: true,
+        }
+      )
+      .order(
+        'id',
+        {
+          ascending: true,
+        }
+      )
+      .limit(3);
+
+  if (error) {
+    throw error;
+  }
+
+  return mapEventRows(
+    data,
+    userId
+  );
 }
 
 export async function getUpcomingDiscoveryEvents(
@@ -247,10 +279,61 @@ export async function getEventsPage(
     filter ===
     'following'
   ) {
-    const followedIds =
-      await getFollowedOrganizationIds(
-        userId
+    /*
+     * A request without a cursor is the
+     * first page or an explicit refresh.
+     *
+     * Always resolve follows fresh for
+     * page 1 so newly followed/unfollowed
+     * organizations appear immediately.
+     */
+    let followedIds:
+      string[];
+
+    if (!cursor) {
+      followedIds =
+        await getFollowedOrganizationIds(
+          userId
+        );
+
+      followedOrganizationIdsCache.set(
+        userId,
+        followedIds
       );
+    } else {
+      /*
+       * Pagination should use the same
+       * organization set as page 1.
+       *
+       * This avoids one extra Supabase
+       * follows query for every page.
+       */
+      const cachedIds =
+        followedOrganizationIdsCache.get(
+          userId
+        );
+
+      if (cachedIds) {
+        followedIds =
+          cachedIds;
+      } else {
+        /*
+         * Defensive fallback for cases
+         * such as app reloads where a
+         * cursor exists but the in-memory
+         * cache no longer does.
+         */
+        followedIds =
+          await getFollowedOrganizationIds(
+            userId
+          );
+
+        followedOrganizationIdsCache.set(
+          userId,
+          followedIds
+        );
+      }
+    }
 
     if (
       followedIds.length ===
@@ -1453,59 +1536,6 @@ async function getInterestedEventIds(
   );
 }
 
-function getCampusNowPriority(
-  event: CampusEvent,
-  now: number
-) {
-  if (
-    event.status ===
-    'cancelled'
-  ) {
-    return 3;
-  }
-
-  const startsAt =
-    Date.parse(
-      event.startsAt
-    );
-
-  const endsAt =
-    event.endsAt
-      ? Date.parse(
-          event.endsAt
-        )
-      : startsAt +
-        2 *
-          60 *
-          60 *
-          1000;
-
-  if (
-    startsAt <= now &&
-    endsAt >= now
-  ) {
-    return 0;
-  }
-
-  const startDate =
-    new Date(startsAt);
-
-  const nowDate =
-    new Date(now);
-
-  if (
-    startDate.getFullYear() ===
-      nowDate.getFullYear() &&
-    startDate.getMonth() ===
-      nowDate.getMonth() &&
-    startDate.getDate() ===
-      nowDate.getDate()
-  ) {
-    return 1;
-  }
-
-  return 2;
-}
 
 function validateEventValues(
   values: EventFormValues

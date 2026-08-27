@@ -1,4 +1,3 @@
-import { useThemedStyles } from '../../hooks/useTheme';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useRef, useState } from 'react';
@@ -12,9 +11,10 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useThemedStyles } from '../../hooks/useTheme';
 
-import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { PostCard } from '../../components/PostCard';
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { EventCard } from '../../components/events/EventCard';
 import { LinkifiedText } from '../../components/links/LinkifiedText';
 import { StructuredLinks } from '../../components/links/StructuredLinks';
@@ -33,14 +33,14 @@ import {
   setOrganizationFollow,
 } from '../../lib/organizations';
 import {
+  getInteractionErrorMessage,
+  setPostLike,
+} from '../../lib/postInteractions';
+import {
   deletePost,
   getOrganizationPostsPage,
   getPostErrorMessage,
 } from '../../lib/posts';
-import {
-  getInteractionErrorMessage,
-  setPostLike,
-} from '../../lib/postInteractions';
 import type { CampusEvent } from '../../types/event';
 import type { CampusOrganization } from '../../types/organization';
 import type { FeedPost } from '../../types/post';
@@ -78,69 +78,162 @@ export default function OrganizationScreen() {
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [status, setStatus] = useState<PageStatus>('loading');
 
-  const loadPage = useCallback(async (refreshing = false) => {
-    const userId = session?.user.id;
+  const loadPage = useCallback(
+    async (refreshing = false) => {
+      const userId = session?.user.id;
 
-    if (!organizationId || !userId) {
-      setStatus('unavailable');
-      return;
-    }
-
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
-    const hasExistingOrganization =
-      organizationRef.current?.id === organizationId;
-
-    if (refreshing) {
-      setIsRefreshing(true);
-    } else if (!hasExistingOrganization) {
-      setStatus('loading');
-    }
-
-    setErrorMessage(null);
-
-    try {
-      const [nextOrganization, nextEvents, postPage, nextLinks] = await Promise.all([
-        getOrganizationById(organizationId, userId),
-        getOrganizationProfileEvents(organizationId, userId),
-        getOrganizationPostsPage(organizationId, userId),
-        getOrganizationLinks(organizationId),
-      ]);
-
-      if (requestIdRef.current !== requestId) {
-        return;
-      }
-
-      if (!nextOrganization) {
-        organizationRef.current = null;
-        setOrganization(null);
-        setEvents([]);
-        setPosts([]);
-        setLinks([]);
+      if (!organizationId || !userId) {
         setStatus('unavailable');
         return;
       }
 
-      organizationRef.current = nextOrganization;
-      setOrganization(nextOrganization);
-      setEvents(nextEvents);
-      setPosts(postPage.posts);
-      setLinks(nextLinks);
-      setStatus('ready');
-    } catch (error) {
-      if (requestIdRef.current !== requestId) {
-        return;
+      const requestId =
+        requestIdRef.current + 1;
+
+      requestIdRef.current =
+        requestId;
+
+      const hasExistingOrganization =
+        organizationRef.current?.id ===
+        organizationId;
+
+      if (refreshing) {
+        setIsRefreshing(true);
+      } else if (!hasExistingOrganization) {
+        setStatus('loading');
       }
 
-      console.warn('[organization] Could not load page.', error);
-      setErrorMessage(getOrganizationErrorMessage());
-      setStatus(hasExistingOrganization ? 'ready' : 'error');
-    } finally {
-      if (requestIdRef.current === requestId) {
-        setIsRefreshing(false);
+      setErrorMessage(null);
+
+      try {
+        const organizationPromise =
+          getOrganizationById(
+            organizationId,
+            userId
+          );
+
+        const linksPromise =
+          getOrganizationLinks(
+            organizationId
+          );
+
+        /*
+        * Only fetch the currently visible tab.
+        *
+        * Previously every screen focus downloaded
+        * both organization posts AND events even
+        * though only one tab was visible.
+        */
+        const tabPromise =
+          activeTab === 'posts'
+          ? getOrganizationPostsPage(
+              organizationId,
+              userId
+            )
+          : getOrganizationProfileEvents(
+              organizationId,
+              userId
+            );
+
+        const [
+          nextOrganization,
+          nextLinks,
+          tabResult,
+        ] = await Promise.all([
+          organizationPromise,
+          linksPromise,
+          tabPromise,
+        ]);
+
+        if (
+          requestIdRef.current !==
+          requestId
+        ) {
+          return;
+        }
+
+        if (!nextOrganization) {
+          organizationRef.current =
+            null;
+
+          setOrganization(null);
+          setEvents([]);
+          setPosts([]);
+          setLinks([]);
+          setStatus('unavailable');
+
+          return;
+        }
+
+        organizationRef.current =
+          nextOrganization;
+
+        setOrganization(
+          nextOrganization
+        );
+
+        setLinks(
+          nextLinks
+        );
+
+        if (activeTab === 'posts') {
+          setPosts(
+            (
+              tabResult as Awaited<
+                ReturnType<
+                  typeof getOrganizationPostsPage
+                >
+              >
+            ).posts
+          );
+        } else {
+          setEvents(
+            tabResult as Awaited<
+              ReturnType<
+                typeof getOrganizationProfileEvents
+              >
+            >
+          );
+        }
+
+        setStatus('ready');
+      } catch (error) {
+        if (
+          requestIdRef.current !==
+          requestId
+        ) {
+          return;
+        }
+
+        console.warn(
+          '[organization] Could not load page.',
+          error
+        );
+
+        setErrorMessage(
+          getOrganizationErrorMessage()
+        );
+
+        setStatus(
+          hasExistingOrganization
+            ? 'ready'
+            : 'error'
+        );
+      } finally {
+        if (
+          requestIdRef.current ===
+          requestId
+        ) {
+          setIsRefreshing(false);
+        }
       }
-    }
-  }, [organizationId, session?.user.id]);
+    },  
+    [
+      activeTab,
+      organizationId,
+      session?.user.id,
+    ]
+  );
 
   useFocusEffect(
     useCallback(() => {

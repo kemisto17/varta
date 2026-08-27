@@ -2,7 +2,11 @@ import { createContext } from 'react';
 
 import type { FeedPost } from '../types/post';
 
-export type FeedStatus = 'idle' | 'loading' | 'ready' | 'error';
+export type FeedStatus =
+  | 'idle'
+  | 'loading'
+  | 'ready'
+  | 'error';
 
 export type PostLikeState = Pick<
   FeedPost,
@@ -14,14 +18,32 @@ export type FeedContextValue = {
   hasMore: boolean;
   isLoadingMore: boolean;
   isRefreshing: boolean;
+
   loadMore: () => Promise<void>;
+
   posts: FeedPost[];
-  refreshFeed: (showRefreshState?: boolean) => Promise<void>;
-  removePost: (postId: string) => void;
+
+  prependPost: (
+    post: FeedPost
+  ) => void;
+
+  refreshFeed: (
+    showRefreshState?: boolean
+  ) => Promise<void>;
+
+  removePost: (
+    postId: string
+  ) => void;
+
   status: FeedStatus;
-  updatePostLike: (postId: string, state: PostLikeState) => void;
+
+  updatePostLike: (
+    postId: string,
+    state: PostLikeState
+  ) => void;
 };
 
-export const FeedContext = createContext<FeedContextValue | undefined>(
-  undefined
-);
+export const FeedContext =
+  createContext<
+    FeedContextValue | undefined
+  >(undefined);
