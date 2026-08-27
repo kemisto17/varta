@@ -1,355 +1,1074 @@
-import { useThemedStyles } from '../../hooks/useTheme';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View, } from 'react-native';
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
+import { useThemedStyles } from '../../hooks/useTheme';
+import {
+  getProfileLinks,
+  type StructuredLink,
+} from '../../lib/links';
 import {
   getIsUserBlocked,
   type ModerationUser,
   type ReportTarget,
 } from '../../lib/moderation';
 import {
+  getInteractionErrorMessage,
+  setPostLike,
+} from '../../lib/postInteractions';
+import {
   deletePost,
   getPostErrorMessage,
   getUserPostsPage,
 } from '../../lib/posts';
-import {
-  getInteractionErrorMessage,
-  setPostLike,
-} from '../../lib/postInteractions';
 import { getUserProfile } from '../../lib/profile';
-import { getProfileLinks, type StructuredLink } from '../../lib/links';
-import type { FeedCursor, FeedPost } from '../../types/post';
+import type {
+  FeedCursor,
+  FeedPost,
+} from '../../types/post';
 import type { UserProfile } from '../../types/profile';
 import { Avatar } from '../Avatar';
-import { PostCard } from '../PostCard';
+import { ProfileBadges } from '../badges/ProfileBadges';
 import { LinkifiedText } from '../links/LinkifiedText';
 import { StructuredLinks } from '../links/StructuredLinks';
-import { SafeAreaScreen } from '../SafeAreaScreen';
-import { ProfileBadges } from '../badges/ProfileBadges';
 import { ActionSheet } from '../moderation/ActionSheet';
 import { BlockUserSheet } from '../moderation/BlockUserSheet';
 import { ReportSheet } from '../moderation/ReportSheet';
+import { PostCard } from '../PostCard';
+import { SafeAreaScreen } from '../SafeAreaScreen';
 
-type ProfileStatus = 'loading' | 'ready' | 'unavailable' | 'error';
+type ProfileStatus =
+  | 'loading'
+  | 'ready'
+  | 'unavailable'
+  | 'error';
 
 type StudentProfileScreenProps = {
   profileId: string;
   showBackButton?: boolean;
 };
 
+const OTHER_PROFILE_CACHE_DURATION_MS =
+  2 * 60 * 1000;
+
 export function StudentProfileScreen({
   profileId,
   showBackButton = false,
 }: StudentProfileScreenProps) {
-  const { colors, styles } = useThemedStyles(createStyles);
+  const { colors, styles } =
+    useThemedStyles(createStyles);
+
   const router = useRouter();
-  const { session } = useAuth();
-  const viewerUserId = session?.user.id ?? null;
-  const isOwnProfile = viewerUserId === profileId;
-  const requestId = useRef(0);
-  const profileRef = useRef<UserProfile | null>(null);
-  const likeRequests = useRef(new Set<string>());
-  const loadMoreRequest = useRef(false);
-  const [blockTarget, setBlockTarget] = useState<ModerationUser | null>(null);
-  const [cursor, setCursor] = useState<FeedCursor | null>(null);
-  const [deletingPostIds, setDeletingPostIds] = useState<Set<string>>(
-    () => new Set()
-  );
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isBlocked, setIsBlocked] = useState(false);
-  const [isProfileOptionsVisible, setIsProfileOptionsVisible] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [likePendingIds, setLikePendingIds] = useState<Set<string>>(
-    () => new Set()
-  );
-  const [links, setLinks] = useState<StructuredLink[]>([]);
-  const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
-  const [status, setStatus] = useState<ProfileStatus>('loading');
 
-  const loadProfile = useCallback(
-    async (refreshing = false) => {
-      if (!viewerUserId || !isUuid(profileId)) {
-        setStatus('unavailable');
-        return;
-      }
+  const { session } =
+    useAuth();
 
-      const activeRequestId = requestId.current + 1;
-      requestId.current = activeRequestId;
-      const hasExistingProfile = profileRef.current?.id === profileId;
+  const viewerUserId =
+    session?.user.id ?? null;
 
-      if (refreshing) {
-        setIsRefreshing(true);
-      } else if (!hasExistingProfile) {
-        setStatus('loading');
-      }
+  const isOwnProfile =
+    viewerUserId === profileId;
 
-      setErrorMessage(null);
+  const requestId =
+    useRef(0);
 
-      try {
-        const [nextProfile, page, nextIsBlocked, nextLinks] = await Promise.all([
-          getUserProfile(profileId),
-          getUserPostsPage(profileId, viewerUserId),
-          isOwnProfile
-            ? Promise.resolve(false)
-            : getIsUserBlocked(viewerUserId, profileId),
-          getProfileLinks(profileId),
-        ]);
+  const profileRef =
+    useRef<UserProfile | null>(
+      null
+    );
 
-        if (requestId.current !== activeRequestId) {
-          return;
-        }
+  const lastLoadedAtRef =
+    useRef(0);
 
-        if (!nextProfile) {
-          profileRef.current = null;
-          setProfile(null);
-          setPosts([]);
-          setLinks([]);
-          setIsBlocked(false);
-          setStatus('unavailable');
-          return;
-        }
+  const likeRequests =
+    useRef(
+      new Set<string>()
+    );
 
-        profileRef.current = nextProfile;
-        setProfile(nextProfile);
-        setPosts(page.posts);
-        setLinks(nextLinks);
-        setCursor(page.cursor);
-        setHasMore(page.hasMore);
-        setIsBlocked(nextIsBlocked);
-        setStatus('ready');
-      } catch (error) {
-        if (requestId.current !== activeRequestId) {
-          return;
-        }
+  const loadMoreRequest =
+    useRef(false);
 
-        console.warn('[student-profile] Could not load profile.', error);
-        setErrorMessage(
-          'We could not load this profile. Check your connection and try again.'
-        );
-        setStatus(hasExistingProfile ? 'ready' : 'error');
-      } finally {
-        if (requestId.current === activeRequestId) {
-          setIsRefreshing(false);
-        }
-      }
-    },
-    [isOwnProfile, profileId, viewerUserId]
-  );
+  const [
+    blockTarget,
+    setBlockTarget,
+  ] =
+    useState<
+      ModerationUser | null
+    >(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      void loadProfile();
+  const [
+    cursor,
+    setCursor,
+  ] =
+    useState<
+      FeedCursor | null
+    >(null);
 
-      return () => {
-        requestId.current += 1;
-      };
-    }, [loadProfile])
-  );
+  const [
+    deletingPostIds,
+    setDeletingPostIds,
+  ] =
+    useState<
+      Set<string>
+    >(
+      () =>
+        new Set()
+    );
 
-  const loadMore = useCallback(async () => {
-    if (
-      !viewerUserId ||
-      !cursor ||
-      !hasMore ||
-      loadMoreRequest.current
-    ) {
-      return;
-    }
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] =
+    useState<
+      string | null
+    >(null);
 
-    loadMoreRequest.current = true;
-    setIsLoadingMore(true);
+  const [
+    hasMore,
+    setHasMore,
+  ] =
+    useState(false);
 
-    try {
-      const page = await getUserPostsPage(profileId, viewerUserId, cursor);
-      setPosts((current) => {
-        const existingIds = new Set(current.map((post) => post.id));
-        return [
-          ...current,
-          ...page.posts.filter((post) => !existingIds.has(post.id)),
-        ];
-      });
-      setCursor(page.cursor);
-      setHasMore(page.hasMore);
-    } catch (error) {
-      console.warn('[student-profile] Could not load more posts.', error);
-      setErrorMessage('More posts could not be loaded. Pull down to retry.');
-    } finally {
-      loadMoreRequest.current = false;
-      setIsLoadingMore(false);
-    }
-  }, [cursor, hasMore, profileId, viewerUserId]);
+  const [
+    isLoadingMore,
+    setIsLoadingMore,
+  ] =
+    useState(false);
 
-  const handleToggleLike = useCallback(
-    async (post: FeedPost) => {
-      if (!viewerUserId || likeRequests.current.has(post.id)) {
-        return;
-      }
+  const [
+    isBlocked,
+    setIsBlocked,
+  ] =
+    useState(false);
 
-      const nextIsLiked = !post.isLikedByCurrentUser;
-      const nextLikeCount = Math.max(
-        0,
-        post.likeCount + (nextIsLiked ? 1 : -1)
-      );
+  const [
+    isProfileOptionsVisible,
+    setIsProfileOptionsVisible,
+  ] =
+    useState(false);
 
-      likeRequests.current.add(post.id);
-      setLikePendingIds((current) => new Set(current).add(post.id));
-      setErrorMessage(null);
-      setPosts((current) =>
-        current.map((item) =>
-          item.id === post.id
-            ? {
-                ...item,
-                isLikedByCurrentUser: nextIsLiked,
-                likeCount: nextLikeCount,
-              }
-            : item
-        )
-      );
+  const [
+    isRefreshing,
+    setIsRefreshing,
+  ] =
+    useState(false);
 
-      try {
-        await setPostLike({
-          isLiked: nextIsLiked,
-          postId: post.id,
-          userId: viewerUserId,
-        });
-      } catch (error) {
-        setPosts((current) =>
-          current.map((item) =>
-            item.id === post.id
-              ? {
-                  ...item,
-                  isLikedByCurrentUser: post.isLikedByCurrentUser,
-                  likeCount: post.likeCount,
-                }
-              : item
+  const [
+    likePendingIds,
+    setLikePendingIds,
+  ] =
+    useState<
+      Set<string>
+    >(
+      () =>
+        new Set()
+    );
+
+  const [
+    links,
+    setLinks,
+  ] =
+    useState<
+      StructuredLink[]
+    >([]);
+
+  const [
+    posts,
+    setPosts,
+  ] =
+    useState<
+      FeedPost[]
+    >([]);
+
+  const [
+    profile,
+    setProfile,
+  ] =
+    useState<
+      UserProfile | null
+    >(null);
+
+  const [
+    reportTarget,
+    setReportTarget,
+  ] =
+    useState<
+      ReportTarget | null
+    >(null);
+
+  const [
+    status,
+    setStatus,
+  ] =
+    useState<ProfileStatus>(
+      'loading'
+    );
+
+  /*
+   * Profile state belongs to both:
+   *
+   * - the profile being viewed
+   * - the authenticated viewer
+   *
+   * Reset everything if either changes.
+   */
+  useEffect(() => {
+    requestId.current += 1;
+
+    profileRef.current =
+      null;
+
+    lastLoadedAtRef.current =
+      0;
+
+    loadMoreRequest.current =
+      false;
+
+    likeRequests.current.clear();
+
+    setProfile(null);
+    setPosts([]);
+    setLinks([]);
+    setCursor(null);
+    setHasMore(false);
+    setIsBlocked(false);
+    setErrorMessage(null);
+    setIsRefreshing(false);
+    setIsLoadingMore(false);
+    setDeletingPostIds(
+      new Set()
+    );
+    setLikePendingIds(
+      new Set()
+    );
+    setBlockTarget(null);
+    setReportTarget(null);
+    setIsProfileOptionsVisible(
+      false
+    );
+    setStatus('loading');
+  }, [
+    profileId,
+    viewerUserId,
+  ]);
+
+  const loadProfile =
+    useCallback(
+      async (
+        refreshing = false
+      ) => {
+        if (
+          !viewerUserId ||
+          !isUuid(
+            profileId
           )
-        );
-        setErrorMessage(getInteractionErrorMessage(error));
-      } finally {
-        likeRequests.current.delete(post.id);
-        setLikePendingIds((current) => {
-          const next = new Set(current);
-          next.delete(post.id);
-          return next;
-        });
-      }
-    },
-    [viewerUserId]
-  );
+        ) {
+          setStatus(
+            'unavailable'
+          );
 
-  const handleDeletePost = useCallback(
-    async (post: FeedPost) => {
-      if (!viewerUserId || deletingPostIds.has(post.id)) {
-        return;
-      }
+          return;
+        }
 
-      setDeletingPostIds((current) => new Set(current).add(post.id));
+        const activeRequestId =
+          requestId.current +
+          1;
 
-      try {
-        const result = await deletePost(post, viewerUserId);
-        setPosts((current) => current.filter((item) => item.id !== post.id));
-        setProfile((current) =>
-          current
-            ? { ...current, postCount: Math.max(0, current.postCount - 1) }
-            : current
+        requestId.current =
+          activeRequestId;
+
+        /*
+         * Any full profile refresh
+         * invalidates pagination that
+         * might currently be running.
+         */
+        loadMoreRequest.current =
+          false;
+
+        setIsLoadingMore(
+          false
         );
 
-        if (result.mediaCleanupFailed) {
-          Alert.alert(
-            'Post deleted',
-            'The post is gone, but its photo could not be cleaned up automatically.'
+        const hasExistingProfile =
+          profileRef.current?.id ===
+          profileId;
+
+        if (refreshing) {
+          setIsRefreshing(
+            true
+          );
+        } else if (
+          !hasExistingProfile
+        ) {
+          setStatus(
+            'loading'
           );
         }
-      } catch (error) {
-        Alert.alert('Could not delete post', getPostErrorMessage(error));
-      } finally {
-        setDeletingPostIds((current) => {
-          const next = new Set(current);
-          next.delete(post.id);
-          return next;
-        });
+
+        setErrorMessage(
+          null
+        );
+
+        try {
+          const [
+            nextProfile,
+            page,
+            nextIsBlocked,
+            nextLinks,
+          ] =
+            await Promise.all([
+              getUserProfile(
+                profileId
+              ),
+
+              getUserPostsPage(
+                profileId,
+                viewerUserId
+              ),
+
+              isOwnProfile
+                ? Promise.resolve(
+                    false
+                  )
+                : getIsUserBlocked(
+                    viewerUserId,
+                    profileId
+                  ),
+
+              getProfileLinks(
+                profileId
+              ),
+            ]);
+
+          if (
+            requestId.current !==
+            activeRequestId
+          ) {
+            return;
+          }
+
+          if (
+            !nextProfile
+          ) {
+            profileRef.current =
+              null;
+
+            lastLoadedAtRef.current =
+              0;
+
+            setProfile(
+              null
+            );
+
+            setPosts(
+              []
+            );
+
+            setLinks(
+              []
+            );
+
+            setCursor(
+              null
+            );
+
+            setHasMore(
+              false
+            );
+
+            setIsBlocked(
+              false
+            );
+
+            setStatus(
+              'unavailable'
+            );
+
+            return;
+          }
+
+          profileRef.current =
+            nextProfile;
+
+          lastLoadedAtRef.current =
+            Date.now();
+
+          setProfile(
+            nextProfile
+          );
+
+          setPosts(
+            page.posts
+          );
+
+          setLinks(
+            nextLinks
+          );
+
+          setCursor(
+            page.cursor
+          );
+
+          setHasMore(
+            page.hasMore
+          );
+
+          setIsBlocked(
+            nextIsBlocked
+          );
+
+          setStatus(
+            'ready'
+          );
+        } catch (error) {
+          if (
+            requestId.current !==
+            activeRequestId
+          ) {
+            return;
+          }
+
+          console.warn(
+            '[student-profile] Could not load profile.',
+            error
+          );
+
+          setErrorMessage(
+            'We could not load this profile. Check your connection and try again.'
+          );
+
+          /*
+           * Keep an already-loaded
+           * profile visible when a
+           * background refresh fails.
+           */
+          setStatus(
+            hasExistingProfile
+              ? 'ready'
+              : 'error'
+          );
+        } finally {
+          if (
+            requestId.current ===
+            activeRequestId
+          ) {
+            setIsRefreshing(
+              false
+            );
+          }
+        }
+      },
+      [
+        isOwnProfile,
+        profileId,
+        viewerUserId,
+      ]
+    );
+
+  /*
+   * Own profile:
+   *
+   * Always refresh on focus because
+   * returning from Create/Edit should
+   * immediately reflect new posts and
+   * profile changes.
+   *
+   * Other student profiles:
+   *
+   * Reuse the existing result for up
+   * to two minutes. Navigating
+   * profile -> post -> back therefore
+   * does not download profile, posts,
+   * links and block state again.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      const hasCurrentProfile =
+        profileRef.current?.id ===
+        profileId;
+
+      const cacheIsFresh =
+        hasCurrentProfile &&
+        Date.now() -
+          lastLoadedAtRef.current <
+          OTHER_PROFILE_CACHE_DURATION_MS;
+
+      const shouldLoad =
+        isOwnProfile ||
+        !cacheIsFresh;
+
+      if (
+        shouldLoad
+      ) {
+        void loadProfile();
       }
-    },
-    [deletingPostIds, viewerUserId]
+
+      return () => {
+        /*
+         * Invalidate requests that
+         * finish after this screen has
+         * lost focus.
+         */
+        requestId.current += 1;
+
+        loadMoreRequest.current =
+          false;
+
+        setIsLoadingMore(
+          false
+        );
+      };
+    }, [
+      isOwnProfile,
+      loadProfile,
+      profileId,
+    ])
   );
 
-  const openPost = useCallback(
-    (post: FeedPost) => {
-      router.push({ pathname: '/post/[id]', params: { id: post.id } });
-    },
-    [router]
-  );
+  const loadMore =
+    useCallback(
+      async () => {
+        if (
+          !viewerUserId ||
+          !cursor ||
+          !hasMore ||
+          loadMoreRequest.current
+        ) {
+          return;
+        }
 
-  const goBack = useCallback(() => {
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
+        loadMoreRequest.current =
+          true;
 
-    router.replace('/');
-  }, [router]);
+        setIsLoadingMore(
+          true
+        );
 
-  if (status === 'loading') {
+        setErrorMessage(
+          null
+        );
+
+        /*
+         * Capture the current profile
+         * request version.
+         *
+         * If a refresh, navigation or
+         * account/profile change occurs
+         * while this page is loading,
+         * the returned page is ignored.
+         */
+        const activeRequestId =
+          requestId.current;
+
+        const activeCursor =
+          cursor;
+
+        try {
+          const page =
+            await getUserPostsPage(
+              profileId,
+              viewerUserId,
+              activeCursor
+            );
+
+          if (
+            requestId.current !==
+            activeRequestId
+          ) {
+            return;
+          }
+
+          setPosts(
+            (
+              current
+            ) => {
+              const existingIds =
+                new Set(
+                  current.map(
+                    (
+                      post
+                    ) =>
+                      post.id
+                  )
+                );
+
+              return [
+                ...current,
+
+                ...page.posts.filter(
+                  (
+                    post
+                  ) =>
+                    !existingIds.has(
+                      post.id
+                    )
+                ),
+              ];
+            }
+          );
+
+          setCursor(
+            page.cursor
+          );
+
+          setHasMore(
+            page.hasMore
+          );
+        } catch (error) {
+          if (
+            requestId.current ===
+            activeRequestId
+          ) {
+            console.warn(
+              '[student-profile] Could not load more posts.',
+              error
+            );
+
+            setErrorMessage(
+              'More posts could not be loaded. Pull down to retry.'
+            );
+          }
+        } finally {
+          loadMoreRequest.current =
+            false;
+
+          setIsLoadingMore(
+            false
+          );
+        }
+      },
+      [
+        cursor,
+        hasMore,
+        profileId,
+        viewerUserId,
+      ]
+    );
+
+  const handleToggleLike =
+    useCallback(
+      async (
+        post: FeedPost
+      ) => {
+        if (
+          !viewerUserId ||
+          likeRequests.current.has(
+            post.id
+          )
+        ) {
+          return;
+        }
+
+        const nextIsLiked =
+          !post.isLikedByCurrentUser;
+
+        const nextLikeCount =
+          Math.max(
+            0,
+            post.likeCount +
+              (
+                nextIsLiked
+                  ? 1
+                  : -1
+              )
+          );
+
+        likeRequests.current.add(
+          post.id
+        );
+
+        setLikePendingIds(
+          (
+            current
+          ) =>
+            new Set(
+              current
+            ).add(
+              post.id
+            )
+        );
+
+        setErrorMessage(
+          null
+        );
+
+        setPosts(
+          (
+            current
+          ) =>
+            current.map(
+              (
+                item
+              ) =>
+                item.id ===
+                post.id
+                  ? {
+                      ...item,
+
+                      isLikedByCurrentUser:
+                        nextIsLiked,
+
+                      likeCount:
+                        nextLikeCount,
+                    }
+                  : item
+            )
+        );
+
+        try {
+          await setPostLike(
+            {
+              isLiked:
+                nextIsLiked,
+
+              postId:
+                post.id,
+
+              userId:
+                viewerUserId,
+            }
+          );
+        } catch (error) {
+          setPosts(
+            (
+              current
+            ) =>
+              current.map(
+                (
+                  item
+                ) =>
+                  item.id ===
+                  post.id
+                    ? {
+                        ...item,
+
+                        isLikedByCurrentUser:
+                          post.isLikedByCurrentUser,
+
+                        likeCount:
+                          post.likeCount,
+                      }
+                    : item
+              )
+          );
+
+          setErrorMessage(
+            getInteractionErrorMessage(
+              error
+            )
+          );
+        } finally {
+          likeRequests.current.delete(
+            post.id
+          );
+
+          setLikePendingIds(
+            (
+              current
+            ) => {
+              const next =
+                new Set(
+                  current
+                );
+
+              next.delete(
+                post.id
+              );
+
+              return next;
+            }
+          );
+        }
+      },
+      [viewerUserId]
+    );
+
+  const handleDeletePost =
+    useCallback(
+      async (
+        post: FeedPost
+      ) => {
+        if (
+          !viewerUserId ||
+          deletingPostIds.has(
+            post.id
+          )
+        ) {
+          return;
+        }
+
+        setDeletingPostIds(
+          (
+            current
+          ) =>
+            new Set(
+              current
+            ).add(
+              post.id
+            )
+        );
+
+        try {
+          const result =
+            await deletePost(
+              post,
+              viewerUserId
+            );
+
+          setPosts(
+            (
+              current
+            ) =>
+              current.filter(
+                (
+                  item
+                ) =>
+                  item.id !==
+                  post.id
+              )
+          );
+
+          setProfile(
+            (
+              current
+            ) => {
+              if (
+                !current
+              ) {
+                return current;
+              }
+
+              const nextProfile =
+                {
+                  ...current,
+
+                  postCount:
+                    Math.max(
+                      0,
+                      current.postCount -
+                        1
+                    ),
+                };
+
+              profileRef.current =
+                nextProfile;
+
+              return nextProfile;
+            }
+          );
+
+          if (
+            result.mediaCleanupFailed
+          ) {
+            Alert.alert(
+              'Post deleted',
+              'The post is gone, but its photo could not be cleaned up automatically.'
+            );
+          }
+        } catch (error) {
+          Alert.alert(
+            'Could not delete post',
+            getPostErrorMessage(
+              error
+            )
+          );
+        } finally {
+          setDeletingPostIds(
+            (
+              current
+            ) => {
+              const next =
+                new Set(
+                  current
+                );
+
+              next.delete(
+                post.id
+              );
+
+              return next;
+            }
+          );
+        }
+      },
+      [
+        deletingPostIds,
+        viewerUserId,
+      ]
+    );
+
+  const openPost =
+    useCallback(
+      (
+        post: FeedPost
+      ) => {
+        router.push({
+          pathname:
+            '/post/[id]',
+
+          params: {
+            id:
+              post.id,
+          },
+        });
+      },
+      [router]
+    );
+
+  const goBack =
+    useCallback(() => {
+      if (
+        router.canGoBack()
+      ) {
+        router.back();
+
+        return;
+      }
+
+      router.replace('/');
+    }, [router]);
+
+  if (
+    status ===
+    'loading'
+  ) {
     return (
       <SafeAreaScreen
-        style={styles.safeArea}
-        withinTabNavigator={!showBackButton}
+        style={
+          styles.safeArea
+        }
+        withinTabNavigator={
+          !showBackButton
+        }
       >
         <ProfileTopBar
-          onBack={showBackButton ? goBack : undefined}
-          onSettings={isOwnProfile ? () => router.push('/settings') : undefined}
+          onBack={
+            showBackButton
+              ? goBack
+              : undefined
+          }
+          onSettings={
+            isOwnProfile
+              ? () =>
+                  router.push(
+                    '/settings'
+                  )
+              : undefined
+          }
           title="Profile"
         />
+
         <ProfileSkeleton />
       </SafeAreaScreen>
     );
   }
 
-  if (status === 'error') {
+  if (
+    status ===
+    'error'
+  ) {
     return (
       <SafeAreaScreen
-        style={styles.safeArea}
-        withinTabNavigator={!showBackButton}
+        style={
+          styles.safeArea
+        }
+        withinTabNavigator={
+          !showBackButton
+        }
       >
         <ProfileTopBar
-          onBack={showBackButton ? goBack : undefined}
-          onSettings={isOwnProfile ? () => router.push('/settings') : undefined}
+          onBack={
+            showBackButton
+              ? goBack
+              : undefined
+          }
+          onSettings={
+            isOwnProfile
+              ? () =>
+                  router.push(
+                    '/settings'
+                  )
+              : undefined
+          }
           title="Profile"
         />
+
         <ProfileState
           actionLabel="Try again"
-          message={errorMessage ?? 'We could not load this profile.'}
-          onAction={() => void loadProfile()}
+          message={
+            errorMessage ??
+            'We could not load this profile.'
+          }
+          onAction={() =>
+            void loadProfile()
+          }
           title="Could not load profile"
         />
       </SafeAreaScreen>
     );
   }
 
-  if (status === 'unavailable' || !profile) {
+  if (
+    status ===
+      'unavailable' ||
+    !profile
+  ) {
     return (
       <SafeAreaScreen
-        style={styles.safeArea}
-        withinTabNavigator={!showBackButton}
+        style={
+          styles.safeArea
+        }
+        withinTabNavigator={
+          !showBackButton
+        }
       >
         <ProfileTopBar
-          onBack={showBackButton ? goBack : undefined}
-          onSettings={isOwnProfile ? () => router.push('/settings') : undefined}
+          onBack={
+            showBackButton
+              ? goBack
+              : undefined
+          }
+          onSettings={
+            isOwnProfile
+              ? () =>
+                  router.push(
+                    '/settings'
+                  )
+              : undefined
+          }
           title="Profile"
         />
+
         <ProfileState
-          actionLabel={showBackButton ? 'Go back' : 'Try again'}
+          actionLabel={
+            showBackButton
+              ? 'Go back'
+              : 'Try again'
+          }
           message="This student profile may be unavailable or outside your university."
-          onAction={showBackButton ? goBack : () => void loadProfile()}
+          onAction={
+            showBackButton
+              ? goBack
+              : () =>
+                  void loadProfile()
+          }
           title="Profile unavailable"
         />
       </SafeAreaScreen>
@@ -358,23 +1077,65 @@ export function StudentProfileScreen({
 
   return (
     <SafeAreaScreen
-      style={styles.safeArea}
-      withinTabNavigator={!showBackButton}
+      style={
+        styles.safeArea
+      }
+      withinTabNavigator={
+        !showBackButton
+      }
     >
       <ProfileTopBar
-        onBack={showBackButton ? goBack : undefined}
-        onMore={isOwnProfile ? undefined : () => setIsProfileOptionsVisible(true)}
-        onSettings={isOwnProfile ? () => router.push('/settings') : undefined}
+        onBack={
+          showBackButton
+            ? goBack
+            : undefined
+        }
+        onMore={
+          isOwnProfile
+            ? undefined
+            : () =>
+                setIsProfileOptionsVisible(
+                  true
+                )
+        }
+        onSettings={
+          isOwnProfile
+            ? () =>
+                router.push(
+                  '/settings'
+                )
+            : undefined
+        }
         title={`@${profile.username}`}
       />
+
       <FlatList
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={
+          styles.listContent
+        }
         data={posts}
-        keyExtractor={(post) => post.id}
+        keyExtractor={(
+          post
+        ) => post.id}
         ListEmptyComponent={
-          <View style={styles.emptyPosts}>
-            <Text style={styles.emptyTitle}>No posts yet.</Text>
-            <Text style={styles.emptyMessage}>
+          <View
+            style={
+              styles.emptyPosts
+            }
+          >
+            <Text
+              style={
+                styles.emptyTitle
+              }
+            >
+              No posts yet.
+            </Text>
+
+            <Text
+              style={
+                styles.emptyMessage
+              }
+            >
               {isOwnProfile
                 ? 'Your conversations will appear here.'
                 : `${profile.fullName}'s conversations will appear here.`}
@@ -384,110 +1145,243 @@ export function StudentProfileScreen({
         ListFooterComponent={
           isLoadingMore ? (
             <ActivityIndicator
-              color={colors.textSecondary}
-              style={styles.footerLoader}
+              color={
+                colors.textSecondary
+              }
+              style={
+                styles.footerLoader
+              }
             />
           ) : null
         }
         ListHeaderComponent={
           <ProfileHeader
-            errorMessage={errorMessage}
-            isOwnProfile={isOwnProfile}
-            onEdit={() => router.push('/edit-profile')}
-            onFollowing={
-              isOwnProfile ? () => router.push('/following') : undefined
+            errorMessage={
+              errorMessage
             }
-            links={links}
-            profile={profile}
+            isOwnProfile={
+              isOwnProfile
+            }
+            onEdit={() =>
+              router.push(
+                '/edit-profile'
+              )
+            }
+            onFollowing={
+              isOwnProfile
+                ? () =>
+                    router.push(
+                      '/following'
+                    )
+                : undefined
+            }
+            links={
+              links
+            }
+            profile={
+              profile
+            }
           />
         }
-        onEndReached={() => void loadMore()}
-        onEndReachedThreshold={0.35}
+        onEndReached={() =>
+          void loadMore()
+        }
+        onEndReachedThreshold={
+          0.35
+        }
         refreshControl={
           <RefreshControl
-            colors={[colors.textPrimary]}
-            onRefresh={() => void loadProfile(true)}
-            progressBackgroundColor={colors.surfaceElevated}
-            refreshing={isRefreshing}
-            tintColor={colors.textPrimary}
+            colors={[
+              colors.textPrimary,
+            ]}
+            onRefresh={() =>
+              void loadProfile(
+                true
+              )
+            }
+            progressBackgroundColor={
+              colors.surfaceElevated
+            }
+            refreshing={
+              isRefreshing
+            }
+            tintColor={
+              colors.textPrimary
+            }
           />
         }
-        renderItem={({ item }) => (
+        renderItem={({
+          item,
+        }) => (
           <PostCard
-            currentUserId={viewerUserId}
-            isDeleting={deletingPostIds.has(item.id)}
-            isLikePending={likePendingIds.has(item.id)}
+            currentUserId={
+              viewerUserId
+            }
+            isDeleting={
+              deletingPostIds.has(
+                item.id
+              )
+            }
+            isLikePending={
+              likePendingIds.has(
+                item.id
+              )
+            }
             onBlockUser={
               isOwnProfile
                 ? undefined
-                : (post) =>
+                : (
+                    post
+                  ) =>
                     post.authorId
-                      ? setBlockTarget({
-                          fullName: post.author.fullName,
-                          id: post.authorId,
-                        })
+                      ? setBlockTarget(
+                          {
+                            fullName:
+                              post.author
+                                .fullName,
+
+                            id:
+                              post.authorId,
+                          }
+                        )
                       : undefined
             }
-            onCommentPress={openPost}
-            onDelete={isOwnProfile ? handleDeletePost : undefined}
-            onOpenPost={openPost}
+            onCommentPress={
+              openPost
+            }
+            onDelete={
+              isOwnProfile
+                ? handleDeletePost
+                : undefined
+            }
+            onOpenPost={
+              openPost
+            }
             onReport={
               isOwnProfile
                 ? undefined
-                : (post) =>
-                    setReportTarget({
-                      id: post.id,
-                      label: 'Report this post',
-                      type: 'post',
-                    })
+                : (
+                    post
+                  ) =>
+                    setReportTarget(
+                      {
+                        id:
+                          post.id,
+
+                        label:
+                          'Report this post',
+
+                        type:
+                          'post',
+                      }
+                    )
             }
-            onToggleLike={handleToggleLike}
-            post={item}
+            onToggleLike={
+              handleToggleLike
+            }
+            post={
+              item
+            }
           />
         )}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={
+          false
+        }
       />
 
       <ActionSheet
         actions={[
           {
-            label: 'Report profile',
+            label:
+              'Report profile',
+
             onPress: () =>
-              setReportTarget({
-                id: profile.id,
-                label: 'Report this profile',
-                type: 'profile',
-              }),
+              setReportTarget(
+                {
+                  id:
+                    profile.id,
+
+                  label:
+                    'Report this profile',
+
+                  type:
+                    'profile',
+                }
+              ),
           },
+
           {
-            label: isBlocked ? 'Unblock student' : 'Block student',
+            label:
+              isBlocked
+                ? 'Unblock student'
+                : 'Block student',
+
             onPress: () =>
-              setBlockTarget({
-                fullName: profile.fullName,
-                id: profile.id,
-              }),
-            tone: isBlocked ? 'default' : 'danger',
+              setBlockTarget(
+                {
+                  fullName:
+                    profile.fullName,
+
+                  id:
+                    profile.id,
+                }
+              ),
+
+            tone:
+              isBlocked
+                ? 'default'
+                : 'danger',
           },
         ]}
-        onClose={() => setIsProfileOptionsVisible(false)}
+        onClose={() =>
+          setIsProfileOptionsVisible(
+            false
+          )
+        }
         title="Profile options"
-        visible={isProfileOptionsVisible}
+        visible={
+          isProfileOptionsVisible
+        }
       />
 
       <ReportSheet
-        onClose={() => setReportTarget(null)}
-        reporterId={viewerUserId}
-        target={reportTarget}
+        onClose={() =>
+          setReportTarget(
+            null
+          )
+        }
+        reporterId={
+          viewerUserId
+        }
+        target={
+          reportTarget
+        }
       />
 
       <BlockUserSheet
-        currentUserId={viewerUserId}
-        mode={
-          isBlocked && blockTarget?.id === profile.id ? 'unblock' : 'block'
+        currentUserId={
+          viewerUserId
         }
-        onChanged={() => void loadProfile(true)}
-        onClose={() => setBlockTarget(null)}
-        user={blockTarget}
+        mode={
+          isBlocked &&
+          blockTarget?.id ===
+            profile.id
+            ? 'unblock'
+            : 'block'
+        }
+        onChanged={() =>
+          void loadProfile(
+            true
+          )
+        }
+        onClose={() =>
+          setBlockTarget(
+            null
+          )
+        }
+        user={
+          blockTarget
+        }
       />
     </SafeAreaScreen>
   );
@@ -504,44 +1398,92 @@ function ProfileTopBar({
   onSettings?: () => void;
   title: string;
 }) {
-  const { colors, styles } = useThemedStyles(createStyles);
+  const { colors, styles } =
+    useThemedStyles(
+      createStyles
+    );
+
   return (
-    <View style={styles.topBar}>
+    <View
+      style={
+        styles.topBar
+      }
+    >
       {onBack ? (
         <Pressable
           accessibilityLabel="Back"
           accessibilityRole="button"
           hitSlop={12}
           onPress={onBack}
-          style={({ pressed }) => [
+          style={({
+            pressed,
+          }) => [
             styles.topBarButton,
-            pressed && styles.pressed,
+            pressed &&
+              styles.pressed,
           ]}
         >
           <SymbolView
-            name={{ android: 'arrow_back', ios: 'chevron.left', web: 'arrow_back' }}
+            name={{
+              android:
+                'arrow_back',
+              ios:
+                'chevron.left',
+              web:
+                'arrow_back',
+            }}
             size={22}
-            tintColor={colors.textPrimary}
+            tintColor={
+              colors.textPrimary
+            }
           />
         </Pressable>
-      ) : <View style={styles.topBarButton} />}
+      ) : (
+        <View
+          style={
+            styles.topBarButton
+          }
+        />
+      )}
 
-      <Text numberOfLines={1} style={styles.topBarTitle}>{title}</Text>
+      <Text
+        numberOfLines={
+          1
+        }
+        style={
+          styles.topBarTitle
+        }
+      >
+        {title}
+      </Text>
+
       {onMore ? (
         <Pressable
           accessibilityLabel="Profile options"
           accessibilityRole="button"
           hitSlop={12}
           onPress={onMore}
-          style={({ pressed }) => [
+          style={({
+            pressed,
+          }) => [
             styles.topBarButton,
-            pressed && styles.pressed,
+            pressed &&
+              styles.pressed,
           ]}
         >
           <SymbolView
-            name={{ android: 'more_horiz', ios: 'ellipsis', web: 'more_horiz' }}
+            name={{
+              android:
+                'more_horiz',
+              ios:
+                'ellipsis',
+              web:
+                'more_horiz',
+            }}
             size={21}
-            tintColor={colors.textPrimary}
+            tintColor={
+              colors.textPrimary
+            }
           />
         </Pressable>
       ) : onSettings ? (
@@ -550,19 +1492,35 @@ function ProfileTopBar({
           accessibilityRole="button"
           hitSlop={12}
           onPress={onSettings}
-          style={({ pressed }) => [
+          style={({
+            pressed,
+          }) => [
             styles.topBarButton,
-            pressed && styles.pressed,
+            pressed &&
+              styles.pressed,
           ]}
         >
           <SymbolView
-            name={{ android: 'settings', ios: 'gearshape', web: 'settings' }}
+            name={{
+              android:
+                'settings',
+              ios:
+                'gearshape',
+              web:
+                'settings',
+            }}
             size={21}
-            tintColor={colors.textPrimary}
+            tintColor={
+              colors.textPrimary
+            }
           />
         </Pressable>
       ) : (
-        <View style={styles.topBarButton} />
+        <View
+          style={
+            styles.topBarButton
+          }
+        />
       )}
     </View>
   );
@@ -576,80 +1534,226 @@ function ProfileHeader({
   links,
   profile,
 }: {
-  errorMessage: string | null;
-  isOwnProfile: boolean;
-  onEdit: () => void;
-  onFollowing?: () => void;
-  links: StructuredLink[];
-  profile: UserProfile;
+  errorMessage:
+    string | null;
+
+  isOwnProfile:
+    boolean;
+
+  onEdit:
+    () => void;
+
+  onFollowing?:
+    () => void;
+
+  links:
+    StructuredLink[];
+
+  profile:
+    UserProfile;
 }) {
-  const { colors, styles } = useThemedStyles(createStyles);
+  const { colors, styles } =
+    useThemedStyles(
+      createStyles
+    );
+
   return (
     <View>
-      <View style={styles.profileHeader}>
-        <View style={styles.metricsRow}>
+      <View
+        style={
+          styles.profileHeader
+        }
+      >
+        <View
+          style={
+            styles.metricsRow
+          }
+        >
           <Avatar
-            fullName={profile.fullName}
+            fullName={
+              profile.fullName
+            }
             size={88}
-            uri={profile.avatarUrl}
-            verified={profile.isVerified}
+            uri={
+              profile.avatarUrl
+            }
+            verified={
+              profile.isVerified
+            }
           />
-          <View style={styles.statsRow}>
-            <ProfileStat label="Posts" value={profile.postCount} />
+
+          <View
+            style={
+              styles.statsRow
+            }
+          >
+            <ProfileStat
+              label="Posts"
+              value={
+                profile.postCount
+              }
+            />
+
             <ProfileStat
               label="Following"
-              onPress={onFollowing}
-              value={profile.organizationFollowingCount}
+              onPress={
+                onFollowing
+              }
+              value={
+                profile.organizationFollowingCount
+              }
             />
           </View>
         </View>
 
-        <View style={styles.nameRow}>
-          <Text numberOfLines={2} style={styles.name}>{profile.fullName}</Text>
+        <View
+          style={
+            styles.nameRow
+          }
+        >
+          <Text
+            numberOfLines={
+              2
+            }
+            style={
+              styles.name
+            }
+          >
+            {
+              profile.fullName
+            }
+          </Text>
+
           {profile.isVerified ? (
             <SymbolView
-              name={{ android: 'verified', ios: 'checkmark.seal.fill', web: 'verified' }}
+              name={{
+                android:
+                  'verified',
+                ios:
+                  'checkmark.seal.fill',
+                web:
+                  'verified',
+              }}
               size={16}
-              tintColor={colors.success}
+              tintColor={
+                colors.success
+              }
             />
           ) : null}
         </View>
-        <Text style={styles.academicMeta}>
-          {profile.institute.shortName} · {profile.branch} · {formatYear(profile.year)}
+
+        <Text
+          style={
+            styles.academicMeta
+          }
+        >
+          {
+            profile.institute
+              .shortName
+          }{' '}
+          ·{' '}
+          {
+            profile.branch
+          }{' '}
+          ·{' '}
+          {formatYear(
+            profile.year
+          )}
         </Text>
 
         {profile.bio ? (
-          <LinkifiedText style={styles.bio}>{profile.bio}</LinkifiedText>
+          <LinkifiedText
+            style={
+              styles.bio
+            }
+          >
+            {
+              profile.bio
+            }
+          </LinkifiedText>
         ) : null}
 
-        <StructuredLinks links={links} ownerName={profile.fullName} />
+        <StructuredLinks
+          links={
+            links
+          }
+          ownerName={
+            profile.fullName
+          }
+        />
 
-        <ProfileBadges badges={profile.badges} maxVisible={3} />
+        <ProfileBadges
+          badges={
+            profile.badges
+          }
+          maxVisible={3}
+        />
 
         {isOwnProfile ? (
           <Pressable
             accessibilityRole="button"
-            onPress={onEdit}
-            style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}
+            onPress={
+              onEdit
+            }
+            style={({
+              pressed,
+            }) => [
+              styles.profileAction,
+              pressed &&
+                styles.pressed,
+            ]}
           >
-            <Text style={styles.profileActionLabel}>Edit profile</Text>
+            <Text
+              style={
+                styles.profileActionLabel
+              }
+            >
+              Edit profile
+            </Text>
           </Pressable>
         ) : null}
 
         {errorMessage ? (
-          <Text accessibilityRole="alert" style={styles.inlineError}>
-            {errorMessage}
+          <Text
+            accessibilityRole="alert"
+            style={
+              styles.inlineError
+            }
+          >
+            {
+              errorMessage
+            }
           </Text>
         ) : null}
       </View>
 
-      <View style={styles.contentTab}>
+      <View
+        style={
+          styles.contentTab
+        }
+      >
         <SymbolView
-          name={{ android: 'view_agenda', ios: 'rectangle.stack', web: 'view_agenda' }}
+          name={{
+            android:
+              'view_agenda',
+            ios:
+              'rectangle.stack',
+            web:
+              'view_agenda',
+          }}
           size={16}
-          tintColor={colors.textPrimary}
+          tintColor={
+            colors.textPrimary
+          }
         />
-        <Text style={styles.contentTabLabel}>POSTS</Text>
+
+        <Text
+          style={
+            styles.contentTabLabel
+          }
+        >
+          POSTS
+        </Text>
       </View>
     </View>
   );
@@ -664,11 +1768,28 @@ function ProfileStat({
   onPress?: () => void;
   value: number;
 }) {
-  const { styles } = useThemedStyles(createStyles);
+  const { styles } =
+    useThemedStyles(
+      createStyles
+    );
+
   const content = (
     <>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text
+        style={
+          styles.statValue
+        }
+      >
+        {value}
+      </Text>
+
+      <Text
+        style={
+          styles.statLabel
+        }
+      >
+        {label}
+      </Text>
     </>
   );
 
@@ -677,44 +1798,163 @@ function ProfileStat({
       accessibilityLabel={`${value} ${label}. Open ${label.toLowerCase()}.`}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.stat, pressed && styles.pressed]}
+      style={({
+        pressed,
+      }) => [
+        styles.stat,
+        pressed &&
+          styles.pressed,
+      ]}
     >
       {content}
     </Pressable>
   ) : (
-    <View style={styles.stat}>{content}</View>
+    <View
+      style={
+        styles.stat
+      }
+    >
+      {content}
+    </View>
   );
 }
 
 function ProfileSkeleton() {
-  const { styles } = useThemedStyles(createStyles);
+  const { styles } =
+    useThemedStyles(
+      createStyles
+    );
+
   return (
-    <View accessibilityLabel="Loading student profile" style={styles.skeleton}>
-      <View style={styles.skeletonMetrics}>
-        <View style={[styles.skeletonBlock, styles.skeletonAvatar]} />
-        <View style={styles.skeletonStats}>
-          {[0, 1].map((item) => (
-            <View key={item} style={styles.skeletonStat}>
-              <View style={[styles.skeletonBlock, styles.skeletonStatValue]} />
-              <View style={[styles.skeletonBlock, styles.skeletonStatLabel]} />
-            </View>
-          ))}
+    <View
+      accessibilityLabel="Loading student profile"
+      style={
+        styles.skeleton
+      }
+    >
+      <View
+        style={
+          styles.skeletonMetrics
+        }
+      >
+        <View
+          style={[
+            styles.skeletonBlock,
+            styles.skeletonAvatar,
+          ]}
+        />
+
+        <View
+          style={
+            styles.skeletonStats
+          }
+        >
+          {[0, 1].map(
+            (
+              item
+            ) => (
+              <View
+                key={
+                  item
+                }
+                style={
+                  styles.skeletonStat
+                }
+              >
+                <View
+                  style={[
+                    styles.skeletonBlock,
+                    styles.skeletonStatValue,
+                  ]}
+                />
+
+                <View
+                  style={[
+                    styles.skeletonBlock,
+                    styles.skeletonStatLabel,
+                  ]}
+                />
+              </View>
+            )
+          )}
         </View>
       </View>
-      <View style={[styles.skeletonBlock, styles.skeletonName]} />
-      <View style={[styles.skeletonBlock, styles.skeletonMeta]} />
-      <View style={[styles.skeletonBlock, styles.skeletonBio]} />
-      <View style={[styles.skeletonBlock, styles.skeletonButton]} />
-      <View style={styles.skeletonDivider} />
-      {[0, 1].map((item) => (
-        <View key={item} style={styles.skeletonPost}>
-          <View style={[styles.skeletonBlock, styles.skeletonPostAvatar]} />
-          <View style={styles.skeletonPostCopy}>
-            <View style={[styles.skeletonBlock, styles.skeletonPostName]} />
-            <View style={[styles.skeletonBlock, styles.skeletonPostLine]} />
+
+      <View
+        style={[
+          styles.skeletonBlock,
+          styles.skeletonName,
+        ]}
+      />
+
+      <View
+        style={[
+          styles.skeletonBlock,
+          styles.skeletonMeta,
+        ]}
+      />
+
+      <View
+        style={[
+          styles.skeletonBlock,
+          styles.skeletonBio,
+        ]}
+      />
+
+      <View
+        style={[
+          styles.skeletonBlock,
+          styles.skeletonButton,
+        ]}
+      />
+
+      <View
+        style={
+          styles.skeletonDivider
+        }
+      />
+
+      {[0, 1].map(
+        (
+          item
+        ) => (
+          <View
+            key={
+              item
+            }
+            style={
+              styles.skeletonPost
+            }
+          >
+            <View
+              style={[
+                styles.skeletonBlock,
+                styles.skeletonPostAvatar,
+              ]}
+            />
+
+            <View
+              style={
+                styles.skeletonPostCopy
+              }
+            >
+              <View
+                style={[
+                  styles.skeletonBlock,
+                  styles.skeletonPostName,
+                ]}
+              />
+
+              <View
+                style={[
+                  styles.skeletonBlock,
+                  styles.skeletonPostLine,
+                ]}
+              />
+            </View>
           </View>
-        </View>
-      ))}
+        )
+      )}
     </View>
   );
 }
@@ -730,356 +1970,508 @@ function ProfileState({
   onAction: () => void;
   title: string;
 }) {
-  const { styles } = useThemedStyles(createStyles);
+  const { styles } =
+    useThemedStyles(
+      createStyles
+    );
+
   return (
-    <View style={styles.state}>
-      <Text style={styles.stateTitle}>{title}</Text>
-      <Text style={styles.stateMessage}>{message}</Text>
+    <View
+      style={
+        styles.state
+      }
+    >
+      <Text
+        style={
+          styles.stateTitle
+        }
+      >
+        {title}
+      </Text>
+
+      <Text
+        style={
+          styles.stateMessage
+        }
+      >
+        {message}
+      </Text>
+
       <Pressable
         accessibilityRole="button"
         onPress={onAction}
-        style={({ pressed }) => [
+        style={({
+          pressed,
+        }) => [
           styles.stateButton,
-          pressed && styles.pressed,
+          pressed &&
+            styles.pressed,
         ]}
       >
-        <Text style={styles.stateButtonText}>{actionLabel}</Text>
+        <Text
+          style={
+            styles.stateButtonText
+          }
+        >
+          {
+            actionLabel
+          }
+        </Text>
       </Pressable>
     </View>
   );
 }
 
-function formatYear(year: number) {
-  const suffix = year === 1 ? 'st' : year === 2 ? 'nd' : year === 3 ? 'rd' : 'th';
+function formatYear(
+  year: number
+) {
+  const suffix =
+    year === 1
+      ? 'st'
+      : year === 2
+        ? 'nd'
+        : year === 3
+          ? 'rd'
+          : 'th';
+
   return `${year}${suffix} year`;
 }
 
-function isUuid(value: string) {
+function isUuid(
+  value: string
+) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value
   );
 }
 
-const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+const createStyles = (
+  colors: ThemeColors
+) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor:
+        colors.background,
+    },
 
-  topBar: {
-    minHeight: 56,
-    paddingHorizontal: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
+    topBar: {
+      minHeight: 56,
+      paddingHorizontal:
+        spacing.md,
+      borderBottomWidth:
+        1,
+      borderBottomColor:
+        colors.borderSubtle,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'space-between',
+    },
 
-  topBarButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    topBarButton: {
+      width: 44,
+      height: 44,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+    },
 
-  topBarTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
+    topBarTitle: {
+      flex: 1,
+      textAlign:
+        'center',
+      fontSize: 15,
+      fontWeight:
+        '700',
+      color:
+        colors.textPrimary,
+    },
 
-  listContent: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
+    listContent: {
+      flexGrow: 1,
+      paddingHorizontal:
+        spacing.lg,
+      paddingBottom:
+        spacing.xxl,
+    },
 
-  profileHeader: {
-    paddingTop: spacing.lg,
-    alignItems: 'stretch',
-  },
+    profileHeader: {
+      paddingTop:
+        spacing.lg,
+      alignItems:
+        'stretch',
+    },
 
-  metricsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    metricsRow: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
 
-  nameRow: {
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
+    nameRow: {
+      marginTop:
+        spacing.md,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      gap: 6,
+    },
 
-  name: {
-    flexShrink: 1,
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
+    name: {
+      flexShrink: 1,
+      fontSize: 16,
+      lineHeight: 22,
+      fontWeight:
+        '700',
+      color:
+        colors.textPrimary,
+    },
 
-  academicMeta: {
-    marginTop: 3,
-    fontSize: 12,
-    lineHeight: 18,
-    color: colors.textSecondary,
-  },
+    academicMeta: {
+      marginTop: 3,
+      fontSize: 12,
+      lineHeight: 18,
+      color:
+        colors.textSecondary,
+    },
 
-  statsRow: {
-    flex: 1,
-    minHeight: 88,
-    marginLeft: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    statsRow: {
+      flex: 1,
+      minHeight: 88,
+      marginLeft:
+        spacing.lg,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
 
-  stat: {
-    flex: 1,
-    minHeight: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    stat: {
+      flex: 1,
+      minHeight: 56,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+    },
 
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
+    statValue: {
+      fontSize: 18,
+      fontWeight:
+        '700',
+      color:
+        colors.textPrimary,
+    },
 
-  statLabel: {
-    marginTop: 3,
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
+    statLabel: {
+      marginTop: 3,
+      fontSize: 10,
+      fontWeight:
+        '600',
+      color:
+        colors.textMuted,
+    },
 
-  bio: {
-    marginTop: spacing.sm,
-    fontSize: 14,
-    lineHeight: 21,
-    color: colors.textPrimary,
-  },
+    bio: {
+      marginTop:
+        spacing.sm,
+      fontSize: 14,
+      lineHeight: 21,
+      color:
+        colors.textPrimary,
+    },
 
-  profileAction: {
-    width: '100%',
-    minHeight: 38,
-    marginTop: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-  },
+    profileAction: {
+      width: '100%',
+      minHeight: 38,
+      marginTop:
+        spacing.md,
+      paddingHorizontal:
+        spacing.lg,
+      borderWidth: 1,
+      borderColor:
+        colors.border,
+      borderRadius:
+        radius.sm,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      backgroundColor:
+        colors.surface,
+    },
 
-  profileActionLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
+    profileActionLabel: {
+      fontSize: 13,
+      fontWeight:
+        '700',
+      color:
+        colors.textPrimary,
+    },
 
-  inlineError: {
-    width: '100%',
-    marginTop: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    textAlign: 'center',
-    fontSize: 12,
-    lineHeight: 18,
-    color: colors.danger,
-    backgroundColor: colors.dangerSoft,
-  },
+    inlineError: {
+      width: '100%',
+      marginTop:
+        spacing.md,
+      padding:
+        spacing.md,
+      borderRadius:
+        radius.md,
+      textAlign:
+        'center',
+      fontSize: 12,
+      lineHeight: 18,
+      color:
+        colors.danger,
+      backgroundColor:
+        colors.dangerSoft,
+    },
 
-  contentTab: {
-    minHeight: 46,
-    marginTop: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.textPrimary,
-  },
+    contentTab: {
+      minHeight: 46,
+      marginTop:
+        spacing.lg,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      gap:
+        spacing.sm,
+      borderBottomWidth:
+        1,
+      borderBottomColor:
+        colors.textPrimary,
+    },
 
-  contentTabLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.1,
-    color: colors.textPrimary,
-  },
+    contentTabLabel: {
+      fontSize: 10,
+      fontWeight:
+        '700',
+      letterSpacing:
+        1.1,
+      color:
+        colors.textPrimary,
+    },
 
-  emptyPosts: {
-    minHeight: 180,
-    paddingVertical: spacing.xl,
-    justifyContent: 'center',
-  },
+    emptyPosts: {
+      minHeight: 180,
+      paddingVertical:
+        spacing.xl,
+      justifyContent:
+        'center',
+    },
 
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
+    emptyTitle: {
+      fontSize: 16,
+      fontWeight:
+        '700',
+      color:
+        colors.textPrimary,
+    },
 
-  emptyMessage: {
-    marginTop: spacing.xs,
-    fontSize: 13,
-    lineHeight: 19,
-    color: colors.textSecondary,
-  },
+    emptyMessage: {
+      marginTop:
+        spacing.xs,
+      fontSize: 13,
+      lineHeight: 19,
+      color:
+        colors.textSecondary,
+    },
 
-  footerLoader: {
-    marginVertical: spacing.lg,
-  },
+    footerLoader: {
+      marginVertical:
+        spacing.lg,
+    },
 
-  state: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
+    state: {
+      flex: 1,
+      paddingHorizontal:
+        spacing.lg,
+      alignItems:
+        'flex-start',
+      justifyContent:
+        'center',
+    },
 
-  stateTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
+    stateTitle: {
+      fontSize: 24,
+      fontWeight:
+        '700',
+      color:
+        colors.textPrimary,
+    },
 
-  stateMessage: {
-    maxWidth: 320,
-    marginTop: spacing.sm,
-    fontSize: 14,
-    lineHeight: 21,
-    color: colors.textSecondary,
-  },
+    stateMessage: {
+      maxWidth: 320,
+      marginTop:
+        spacing.sm,
+      fontSize: 14,
+      lineHeight: 21,
+      color:
+        colors.textSecondary,
+    },
 
-  stateButton: {
-    minHeight: 44,
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.textPrimary,
-  },
+    stateButton: {
+      minHeight: 44,
+      marginTop:
+        spacing.lg,
+      paddingHorizontal:
+        spacing.md,
+      borderRadius:
+        radius.full,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      backgroundColor:
+        colors.textPrimary,
+    },
 
-  stateButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.white,
-  },
+    stateButtonText: {
+      fontSize: 13,
+      fontWeight:
+        '700',
+      color:
+        colors.white,
+    },
 
-  skeleton: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-  },
+    skeleton: {
+      flex: 1,
+      paddingHorizontal:
+        spacing.lg,
+      paddingTop:
+        spacing.xl,
+    },
 
-  skeletonBlock: {
-    borderRadius: radius.sm,
-    backgroundColor: colors.border,
-  },
+    skeletonBlock: {
+      borderRadius:
+        radius.sm,
+      backgroundColor:
+        colors.border,
+    },
 
-  skeletonMetrics: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    skeletonMetrics: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
 
-  skeletonAvatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-  },
+    skeletonAvatar: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+    },
 
-  skeletonName: {
-    width: '68%',
-    height: 14,
-    marginTop: spacing.md,
-  },
+    skeletonName: {
+      width: '68%',
+      height: 14,
+      marginTop:
+        spacing.md,
+    },
 
-  skeletonMeta: {
-    width: '78%',
-    height: 10,
-    marginTop: spacing.md,
-  },
+    skeletonMeta: {
+      width: '78%',
+      height: 10,
+      marginTop:
+        spacing.md,
+    },
 
-  skeletonStats: {
-    flex: 1,
-    minHeight: 88,
-    marginLeft: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    skeletonStats: {
+      flex: 1,
+      minHeight: 88,
+      marginLeft:
+        spacing.lg,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
 
-  skeletonStat: {
-    flex: 1,
-    alignItems: 'center',
-  },
+    skeletonStat: {
+      flex: 1,
+      alignItems:
+        'center',
+    },
 
-  skeletonStatValue: {
-    width: 28,
-    height: 14,
-  },
+    skeletonStatValue: {
+      width: 28,
+      height: 14,
+    },
 
-  skeletonStatLabel: {
-    width: 50,
-    height: 8,
-    marginTop: spacing.sm,
-  },
+    skeletonStatLabel: {
+      width: 50,
+      height: 8,
+      marginTop:
+        spacing.sm,
+    },
 
-  skeletonBio: {
-    width: '86%',
-    height: 12,
-    marginTop: spacing.lg,
-  },
+    skeletonBio: {
+      width: '86%',
+      height: 12,
+      marginTop:
+        spacing.lg,
+    },
 
-  skeletonButton: {
-    width: '100%',
-    height: 38,
-    marginTop: spacing.md,
-    borderRadius: radius.sm,
-  },
+    skeletonButton: {
+      width: '100%',
+      height: 38,
+      marginTop:
+        spacing.md,
+      borderRadius:
+        radius.sm,
+    },
 
-  skeletonDivider: {
-    width: '100%',
-    height: 1,
-    marginTop: spacing.xl,
-    backgroundColor: colors.borderSubtle,
-  },
+    skeletonDivider: {
+      width: '100%',
+      height: 1,
+      marginTop:
+        spacing.xl,
+      backgroundColor:
+        colors.borderSubtle,
+    },
 
-  skeletonPost: {
-    width: '100%',
-    paddingVertical: spacing.lg,
-    flexDirection: 'row',
-  },
+    skeletonPost: {
+      width: '100%',
+      paddingVertical:
+        spacing.lg,
+      flexDirection:
+        'row',
+    },
 
-  skeletonPostAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-  },
+    skeletonPostAvatar: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+    },
 
-  skeletonPostCopy: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
+    skeletonPostCopy: {
+      flex: 1,
+      marginLeft:
+        spacing.md,
+    },
 
-  skeletonPostName: {
-    width: 132,
-    height: 11,
-  },
+    skeletonPostName: {
+      width: 132,
+      height: 11,
+    },
 
-  skeletonPostLine: {
-    width: '88%',
-    height: 12,
-    marginTop: spacing.lg,
-  },
+    skeletonPostLine: {
+      width: '88%',
+      height: 12,
+      marginTop:
+        spacing.lg,
+    },
 
-  pressed: {
-    opacity: 0.58,
-  },
-});
+    pressed: {
+      opacity: 0.58,
+    },
+  });
