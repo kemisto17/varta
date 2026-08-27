@@ -1,6 +1,6 @@
 import { useThemedStyles } from '../../hooks/useTheme';
 import { Link } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AuthField } from '../../components/auth/AuthField';
@@ -20,8 +20,13 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitPendingRef = useRef(false);
 
   const handleLogin = async () => {
+    if (submitPendingRef.current) {
+      return;
+    }
+
     setErrorMessage(null);
 
     if (!isValidEmail(email)) {
@@ -34,15 +39,25 @@ export default function LoginScreen() {
       return;
     }
 
+    submitPendingRef.current = true;
     setIsSubmitting(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: normalizeEmail(email),
-      password,
-    });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: normalizeEmail(email),
+        password,
+      });
 
-    if (error) {
+      if (!error) {
+        return;
+      }
+
+      submitPendingRef.current = false;
       setErrorMessage(getAuthErrorMessage(error.message));
+      setIsSubmitting(false);
+    } catch {
+      submitPendingRef.current = false;
+      setErrorMessage('We could not sign you in. Check your connection and try again.');
       setIsSubmitting(false);
     }
   };

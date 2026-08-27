@@ -44,6 +44,9 @@ export function FeedProvider({
   const loadingMoreRef =
     useRef(false);
 
+  const refreshingRef =
+    useRef(false);
+
   const removedPostIdsRef =
     useRef(
       new Set<string>()
@@ -56,6 +59,14 @@ export function FeedProvider({
     useState<
       FeedPost[]
     >([]);
+
+  const [
+    stateUserId,
+    setStateUserId,
+  ] =
+    useState<string | null>(
+      null
+    );
 
   const [
     status,
@@ -103,11 +114,16 @@ export function FeedProvider({
   useEffect(() => {
     requestId.current += 1;
 
+    setStateUserId(
+      userId
+    );
+
     postsRef.current = [];
     cursorRef.current = null;
     hasMoreRef.current = true;
     hasLoadedRef.current = false;
     loadingMoreRef.current = false;
+    refreshingRef.current = false;
 
     removedPostIdsRef.current =
       new Set<string>();
@@ -129,6 +145,26 @@ export function FeedProvider({
         if (!userId) {
           return;
         }
+
+        /*
+         * A first-page refresh invalidates
+         * any pagination request already
+         * in flight.
+         *
+         * Release the old pagination lock
+         * here, then block new load-more
+         * requests until this refresh
+         * finishes.
+         */
+        refreshingRef.current =
+          true;
+
+        loadingMoreRef.current =
+          false;
+
+        setIsLoadingMore(
+          false
+        );
 
         const activeRequestId =
           requestId.current +
@@ -192,6 +228,10 @@ export function FeedProvider({
           hasLoadedRef.current =
             true;
 
+          setStateUserId(
+            userId
+          );
+
           setPosts(
             visiblePosts
           );
@@ -230,6 +270,9 @@ export function FeedProvider({
             requestId.current ===
             activeRequestId
           ) {
+            refreshingRef.current =
+              false;
+
             setIsRefreshing(
               false
             );
@@ -244,6 +287,7 @@ export function FeedProvider({
       async () => {
         if (
           !userId ||
+          refreshingRef.current ||
           loadingMoreRef.current ||
           !hasMoreRef.current ||
           !cursorRef.current ||
@@ -323,6 +367,13 @@ export function FeedProvider({
             page.hasMore
           );
         } catch (error) {
+          if (
+            requestId.current !==
+            activeRequestId
+          ) {
+            return;
+          }
+
           console.warn(
             '[feed] Could not load more campus posts.',
             error
@@ -332,12 +383,17 @@ export function FeedProvider({
             'We could not load more posts. Please try again.'
           );
         } finally {
-          loadingMoreRef.current =
-            false;
+          if (
+            requestId.current ===
+            activeRequestId
+          ) {
+            loadingMoreRef.current =
+              false;
 
-          setIsLoadingMore(
-            false
-          );
+            setIsLoadingMore(
+              false
+            );
+          }
         }
       },
       [userId]
@@ -484,25 +540,53 @@ export function FeedProvider({
       []
     );
 
+  const isCurrentUserState =
+    stateUserId ===
+    userId;
+
   const value =
     useMemo(
       () => ({
-        errorMessage,
-        hasMore,
-        isLoadingMore,
-        isRefreshing,
+        errorMessage:
+          isCurrentUserState
+            ? errorMessage
+            : null,
+
+        hasMore:
+          isCurrentUserState &&
+          hasMore,
+
+        isLoadingMore:
+          isCurrentUserState &&
+          isLoadingMore,
+
+        isRefreshing:
+          isCurrentUserState &&
+          isRefreshing,
+
         loadMore,
-        posts,
+
+        posts:
+          isCurrentUserState
+            ? posts
+            : [],
+
         prependPost,
         refreshFeed,
         removePost,
-        status,
+
+        status:
+          isCurrentUserState
+            ? status
+            : 'idle',
+
         updatePostCommentCount,
         updatePostLike,
       }),
       [
         errorMessage,
         hasMore,
+        isCurrentUserState,
         isLoadingMore,
         isRefreshing,
         loadMore,

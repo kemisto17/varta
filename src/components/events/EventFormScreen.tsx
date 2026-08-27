@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import type { ImagePickerAsset } from 'expo-image-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
@@ -33,6 +33,8 @@ export function EventFormScreen({
 }: EventFormScreenProps) {
   const { colors, styles } = useThemedStyles(createStyles);
   const defaultStart = initialEvent ? new Date(initialEvent.startsAt) : getDefaultStart();
+  const pickingRef = useRef(false);
+  const submitPendingRef = useRef(false);
   const [coverAsset, setCoverAsset] = useState<ImagePickerAsset | null>(null);
   const [description, setDescription] = useState(initialEvent?.description ?? '');
   const [endsAt, setEndsAt] = useState<Date | null>(
@@ -47,10 +49,11 @@ export function EventFormScreen({
   const [eventTitle, setEventTitle] = useState(initialEvent?.title ?? '');
 
   const pickCover = async () => {
-    if (isPicking || isSubmitting) {
+    if (pickingRef.current || submitPendingRef.current) {
       return;
     }
 
+    pickingRef.current = true;
     setIsPicking(true);
     setErrorMessage(null);
 
@@ -83,15 +86,17 @@ export function EventFormScreen({
     } catch {
       setErrorMessage('We could not open your photo library. Please try again.');
     } finally {
+      pickingRef.current = false;
       setIsPicking(false);
     }
   };
 
   const submit = async () => {
-    if (isSubmitting) {
+    if (submitPendingRef.current) {
       return;
     }
 
+    submitPendingRef.current = true;
     setIsSubmitting(true);
     setErrorMessage(null);
 
@@ -109,6 +114,7 @@ export function EventFormScreen({
       console.warn('[event-form] Could not save event.', error);
       setErrorMessage(getEventErrorMessage(error));
     } finally {
+      submitPendingRef.current = false;
       setIsSubmitting(false);
     }
   };

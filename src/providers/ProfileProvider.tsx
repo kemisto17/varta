@@ -13,6 +13,7 @@ export function ProfileProvider({ children }: PropsWithChildren) {
   const resolvedUserId = useRef<string | null>(null);
   const statusRef = useRef<ProfileStatus>('idle');
   const [refreshIndex, setRefreshIndex] = useState(0);
+  const [stateUserId, setStateUserId] = useState<string | null>(null);
   const [status, setStatus] = useState<ProfileStatus>('idle');
   const [profile, setProfile] = useState<Profile | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -23,6 +24,7 @@ export function ProfileProvider({ children }: PropsWithChildren) {
 
     if (!userId) {
       resolvedUserId.current = null;
+      setStateUserId(null);
       statusRef.current = 'idle';
       setProfile(null);
       setStatus('idle');
@@ -54,6 +56,7 @@ export function ProfileProvider({ children }: PropsWithChildren) {
         const nextStatus = nextProfile ? 'ready' : 'missing';
 
         resolvedUserId.current = userId;
+        setStateUserId(userId);
         statusRef.current = nextStatus;
         setProfile(nextProfile);
         setStatus(nextStatus);
@@ -63,7 +66,8 @@ export function ProfileProvider({ children }: PropsWithChildren) {
         }
 
         if (!isBackgroundRefresh) {
-          resolvedUserId.current = null;
+          resolvedUserId.current = userId;
+          setStateUserId(userId);
           statusRef.current = 'error';
           setProfile(null);
           setStatus('error');
@@ -83,28 +87,42 @@ export function ProfileProvider({ children }: PropsWithChildren) {
   }, []);
 
   const markProfileCreated = useCallback((nextProfile: Profile) => {
+    if (nextProfile.id !== userId) {
+      return;
+    }
+
     requestId.current += 1;
     resolvedUserId.current = nextProfile.id;
+    setStateUserId(nextProfile.id);
     statusRef.current = 'ready';
     setProfile(nextProfile);
     setStatus('ready');
     setErrorMessage(null);
-  }, []);
+  }, [userId]);
+
+  const isCurrentUserState = stateUserId === userId;
+  const exposedProfile = isCurrentUserState ? profile : null;
+  const exposedStatus: ProfileStatus = !userId
+    ? 'idle'
+    : isCurrentUserState
+      ? status
+      : 'loading';
+  const exposedErrorMessage = isCurrentUserState ? errorMessage : null;
 
   const value = useMemo(
     () => ({
-      errorMessage,
+      errorMessage: exposedErrorMessage,
       markProfileCreated,
-      profile,
+      profile: exposedProfile,
       refreshProfile,
-      status,
+      status: exposedStatus,
     }),
     [
-      errorMessage,
+      exposedErrorMessage,
+      exposedProfile,
+      exposedStatus,
       markProfileCreated,
-      profile,
       refreshProfile,
-      status,
     ]
   );
 

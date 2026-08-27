@@ -1,108 +1,214 @@
-import { useThemedStyles } from '../../hooks/useTheme';
 import { Link } from 'expo-router';
 import type { PropsWithChildren } from 'react';
 import {
-  KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View, } from 'react-native';
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useThemedStyles } from '../../hooks/useTheme';
 
+import {
+  spacing,
+  type ThemeColors,
+} from '../../constants/theme';
 import { SafeAreaScreen } from '../SafeAreaScreen';
-import { spacing, type ThemeColors } from '../../constants/theme';
 
-type AuthScaffoldProps = PropsWithChildren<{
-  showBack?: boolean;
-}>;
+type AuthScaffoldProps =
+  PropsWithChildren<{
+    showBack?: boolean;
+  }>;
 
-export function AuthScaffold({ children, showBack = true }: AuthScaffoldProps) {
-  const { styles } = useThemedStyles(createStyles);
+export function AuthScaffold({
+  children,
+  showBack = true,
+}: AuthScaffoldProps) {
+  const { styles } =
+    useThemedStyles(
+      createStyles
+    );
+
   return (
-    <SafeAreaScreen style={styles.safeArea}>
+    <SafeAreaScreen
+      style={
+        styles.safeArea
+      }
+    >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardView}
+        behavior={
+          Platform.OS === 'ios'
+            ? 'padding'
+            : 'height'
+        }
+        style={
+          styles.keyboardView
+        }
       >
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={
+            styles.content
+          }
+          keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={
+            false
+          }
         >
-          <View style={styles.header}>
+          <View
+            style={
+              styles.header
+            }
+          >
             {showBack ? (
-              <Link href="/(auth)/welcome" replace asChild>
+              <Link
+                href="/(auth)/welcome"
+                replace
+                asChild
+              >
                 <Pressable
                   accessibilityLabel="Back to welcome"
                   accessibilityRole="button"
-                  hitSlop={10}
-                  style={({ pressed }) => [
+                  hitSlop={
+                    10
+                  }
+                  style={({
+                    pressed,
+                  }) => [
                     styles.backButton,
-                    pressed && styles.pressed,
+
+                    pressed &&
+                      styles.pressed,
                   ]}
                 >
-                  <Text style={styles.backIcon}>←</Text>
+                  <Text
+                    style={
+                      styles.backIcon
+                    }
+                  >
+                    ←
+                  </Text>
                 </Pressable>
               </Link>
             ) : (
-              <View style={styles.backButton} />
+              <View
+                style={
+                  styles.backButton
+                }
+              />
             )}
 
-            <Text style={styles.brand}>VĀRTĀ</Text>
-            <View style={styles.backButton} />
+            <Text
+              style={
+                styles.brand
+              }
+            >
+              VĀRTĀ
+            </Text>
+
+            <View
+              style={
+                styles.backButton
+              }
+            />
           </View>
 
-          <View style={styles.body}>{children}</View>
+          <View
+            style={
+              styles.body
+            }
+          >
+            {
+              children
+            }
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaScreen>
   );
 }
 
-const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+const createStyles = (
+  colors: ThemeColors
+) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
 
-  keyboardView: {
-    flex: 1,
-  },
+      backgroundColor:
+        colors.background,
+    },
 
-  content: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
+    keyboardView: {
+      flex: 1,
+    },
 
-  header: {
-    minHeight: 64,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
+    content: {
+      flexGrow: 1,
 
-  backButton: {
-    width: 42,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+      paddingHorizontal:
+        spacing.lg,
 
-  backIcon: {
-    fontSize: 27,
-    lineHeight: 30,
-    color: colors.textPrimary,
-  },
+      paddingBottom:
+        spacing.xl,
+    },
 
-  brand: {
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 3,
-    color: colors.textPrimary,
-  },
+    header: {
+      minHeight: 64,
 
-  body: {
-    flex: 1,
-    paddingTop: spacing.xl,
-  },
+      flexDirection:
+        'row',
 
-  pressed: {
-    opacity: 0.5,
-  },
-});
+      alignItems:
+        'center',
+
+      justifyContent:
+        'space-between',
+    },
+
+    backButton: {
+      width: 42,
+
+      height: 42,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+    },
+
+    backIcon: {
+      fontSize: 27,
+
+      lineHeight: 30,
+
+      color:
+        colors.textPrimary,
+    },
+
+    brand: {
+      fontSize: 13,
+
+      fontWeight:
+        '700',
+
+      letterSpacing: 3,
+
+      color:
+        colors.textPrimary,
+    },
+
+    body: {
+      flex: 1,
+
+      paddingTop:
+        spacing.xl,
+    },
+
+    pressed: {
+      opacity: 0.5,
+    },
+  });

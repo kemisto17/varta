@@ -9,6 +9,7 @@ import { EventFormScreen } from '../../../components/events/EventFormScreen';
 import { spacing, type ThemeColors } from '../../../constants/theme';
 import { useAuth } from '../../../hooks/useAuth';
 import { getEventById, updateOrganizationEvent } from '../../../lib/events';
+import { isUuid } from '../../../lib/identifiers';
 import type { EventDetail, EventFormValues } from '../../../types/event';
 
 export default function EditEventScreen() {
@@ -24,7 +25,7 @@ export default function EditEventScreen() {
     let isActive = true;
     const userId = session?.user.id;
 
-    if (!eventId || !userId) {
+    if (!isUuid(eventId) || !userId) {
       setIsLoading(false);
       return () => { isActive = false; };
     }
@@ -47,7 +48,12 @@ export default function EditEventScreen() {
     }
 
     await updateOrganizationEvent({ event, values });
-    router.back();
+
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace({ pathname: '/event/[id]', params: { id: event.id } });
+    }
   };
 
   if (isLoading) {

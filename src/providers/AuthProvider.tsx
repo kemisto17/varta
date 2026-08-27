@@ -11,10 +11,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     let isMounted = true;
+    let authEventVersion = 0;
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      authEventVersion += 1;
+
       if (!isMounted) {
         return;
       }
@@ -24,12 +27,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     });
 
     const restoreSession = async () => {
+      const restoreVersion = authEventVersion;
       const {
         data: { session: storedSession },
         error,
       } = await supabase.auth.getSession();
 
-      if (!isMounted) {
+      if (!isMounted || authEventVersion !== restoreVersion) {
         return;
       }
 

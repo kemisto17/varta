@@ -1,6 +1,6 @@
 import { useThemedStyles } from '../../hooks/useTheme';
 import { Link } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AuthField } from '../../components/auth/AuthField';
@@ -24,8 +24,13 @@ export default function RegisterScreen() {
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitPendingRef = useRef(false);
 
   const handleRegister = async () => {
+    if (submitPendingRef.current) {
+      return;
+    }
+
     setErrorMessage(null);
 
     if (!isValidEmail(email)) {
@@ -43,22 +48,34 @@ export default function RegisterScreen() {
       return;
     }
 
+    submitPendingRef.current = true;
     setIsSubmitting(true);
 
     const normalizedEmail = normalizeEmail(email);
-    const { data, error } = await supabase.auth.signUp({
-      email: normalizedEmail,
-      password,
-    });
 
-    if (error) {
-      setErrorMessage(getAuthErrorMessage(error.message));
-      setIsSubmitting(false);
-      return;
-    }
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+      });
 
-    if (!data.session) {
+      if (error) {
+        submitPendingRef.current = false;
+        setErrorMessage(getAuthErrorMessage(error.message));
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (data.session) {
+        return;
+      }
+
+      submitPendingRef.current = false;
       setConfirmationEmail(normalizedEmail);
+      setIsSubmitting(false);
+    } catch {
+      submitPendingRef.current = false;
+      setErrorMessage('We could not create your account. Check your connection and try again.');
       setIsSubmitting(false);
     }
   };

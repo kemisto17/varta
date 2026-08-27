@@ -782,6 +782,40 @@ export async function createOrganizationEvent({
 
     return published;
   } catch (error) {
+    const reconciliation =
+      await supabase
+        .from('events')
+        .select('id, status')
+        .eq('id', draft.id)
+        .maybeSingle();
+
+    if (
+      !reconciliation.error &&
+      reconciliation.data?.status ===
+        'published'
+    ) {
+      return {
+        id: reconciliation.data.id,
+      };
+    }
+
+    if (reconciliation.error) {
+      console.warn(
+        '[events] Event creation outcome is ambiguous; preserving the draft and cover.',
+        reconciliation.error
+      );
+
+      throw error;
+    }
+
+    if (
+      !reconciliation.data ||
+      reconciliation.data.status !==
+        'draft'
+    ) {
+      throw error;
+    }
+
     /*
      * Delete R2 media before deleting
      * the event row.
@@ -897,10 +931,7 @@ export async function updateOrganizationEvent({
         values.title.trim(),
     };
 
-  const {
-    data,
-    error,
-  } =
+  const updateResult =
     await supabase
       .from('events')
       .update(update)
@@ -911,30 +942,71 @@ export async function updateOrganizationEvent({
       .select('id')
       .single();
 
-  if (error) {
-    if (uploadedPath) {
-      try {
-        await deleteEventCover(
-          {
-            eventId:
-              event.id,
-            organizationId:
-              event.organization.id,
-            path:
-              uploadedPath,
-          }
-        );
-      } catch (
-        cleanupError
+  let data =
+    updateResult.data;
+
+  if (updateResult.error) {
+    const reconciliation =
+      await supabase
+        .from('events')
+        .select(
+          'id, cover_path, description, ends_at, location, registration_url, starts_at, title'
+        )
+        .eq('id', event.id)
+        .maybeSingle();
+
+    if (
+      reconciliation.data &&
+      eventMatchesUpdate(
+        reconciliation.data,
+        update
+      )
+    ) {
+      data = {
+        id: reconciliation.data.id,
+      };
+    } else {
+      if (
+        uploadedPath &&
+        !reconciliation.error
+      ) {
+        try {
+          await deleteEventCover(
+            {
+              eventId:
+                event.id,
+              organizationId:
+                event.organization.id,
+              path:
+                uploadedPath,
+            }
+          );
+        } catch (
+          cleanupError
+        ) {
+          console.warn(
+            '[events] Could not clean up failed event cover upload.',
+            cleanupError
+          );
+        }
+      } else if (
+        uploadedPath &&
+        reconciliation.error
       ) {
         console.warn(
-          '[events] Could not clean up failed event cover upload.',
-          cleanupError
+          '[events] Event update outcome is ambiguous; preserving the new cover.',
+          reconciliation.error
         );
       }
-    }
 
-    throw error;
+      throw updateResult.error;
+    }
+  }
+
+  if (!data) {
+    throw new Error(
+      'The updated event could not be loaded.'
+    );
   }
 
   /*
@@ -976,6 +1048,30 @@ export async function updateOrganizationEvent({
   }
 
   return data;
+}
+
+function eventMatchesUpdate(
+  event: {
+    cover_path: string | null;
+    description: string;
+    ends_at: string | null;
+    location: string;
+    registration_url: string | null;
+    starts_at: string;
+    title: string;
+  },
+  update: TablesUpdate<'events'>
+) {
+  return (
+    event.cover_path === update.cover_path &&
+    event.description === update.description &&
+    event.ends_at === update.ends_at &&
+    event.location === update.location &&
+    event.registration_url ===
+      update.registration_url &&
+    event.starts_at === update.starts_at &&
+    event.title === update.title
+  );
 }
 
 export async function cancelOrganizationEvent(

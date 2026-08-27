@@ -1,7 +1,7 @@
 import { useThemedStyles } from '../hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
 
@@ -26,14 +26,16 @@ export default function FeedbackScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const submitPendingRef = useRef(false);
 
   const handleSubmit = async () => {
     const userId = session?.user.id;
 
-    if (!userId || isSubmitting) {
+    if (!userId || submitPendingRef.current) {
       return;
     }
 
+    submitPendingRef.current = true;
     setIsSubmitting(true);
     setErrorMessage(null);
 
@@ -44,6 +46,7 @@ export default function FeedbackScreen() {
       console.warn('[feedback] Could not submit feedback.', error);
       setErrorMessage(getFeedbackErrorMessage(error));
     } finally {
+      submitPendingRef.current = false;
       setIsSubmitting(false);
     }
   };

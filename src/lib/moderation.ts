@@ -153,57 +153,58 @@ export async function unblockUser(blockerId: string, blockedId: string) {
   }
 }
 
-export async function getBlockedUsers(blockerId: string): Promise<BlockedUser[]> {
-  const { data: blocks, error: blocksError } = await supabase
-    .from('user_blocks')
-    .select('blocked_id, created_at')
-    .eq('blocker_id', blockerId)
-    .order('created_at', { ascending: false });
-
-  if (blocksError) {
-    throw blocksError;
-  }
-
-  const blockedIds = blocks.map((block) => block.blocked_id);
-
-  if (blockedIds.length === 0) {
-    return [];
-  }
-
-  const { data: profiles, error: profilesError } = await supabase
-    .from('profiles')
-    .select('id, full_name, username, avatar_path')
-    .in('id', blockedIds);
-
-  if (profilesError) {
-    throw profilesError;
-  }
-
-  const avatarPaths = profiles.flatMap((profile) =>
-    profile.avatar_path ? [profile.avatar_path] : []
+export async function getBlockedUsers(): Promise<BlockedUser[]> {
+  const {
+    data,
+    error,
+  } = await supabase.rpc(
+    'get_my_blocked_users'
   );
-  const avatarUrlByPath = await getAvatarUrls(avatarPaths);
-  const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
 
-  return blocks.flatMap((block) => {
-    const profile = profileById.get(block.blocked_id);
+  if (error) {
+    throw error;
+  }
 
-    if (!profile) {
-      return [];
-    }
+  const rows =
+    data ?? [];
 
-    return [
-      {
-        avatarUrl: profile.avatar_path
-          ? (avatarUrlByPath.get(profile.avatar_path) ?? null)
+  const avatarPaths =
+    rows.flatMap(
+      (row) =>
+        row.avatar_path
+          ? [row.avatar_path]
+          : []
+    );
+
+  const avatarUrlByPath =
+    await getAvatarUrls(
+      avatarPaths
+    );
+
+  return rows.map(
+    (row) => ({
+      avatarUrl:
+        row.avatar_path
+          ? (
+              avatarUrlByPath.get(
+                row.avatar_path
+              ) ?? null
+            )
           : null,
-        blockedAt: block.created_at,
-        fullName: profile.full_name,
-        id: profile.id,
-        username: profile.username,
-      },
-    ];
-  });
+
+      blockedAt:
+        row.blocked_at,
+
+      fullName:
+        row.full_name,
+
+      id:
+        row.id,
+
+      username:
+        row.username,
+    })
+  );
 }
 
 export function getModerationErrorMessage(error: unknown) {

@@ -2,7 +2,7 @@ import type { ImagePickerAsset } from 'expo-image-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
@@ -39,6 +39,9 @@ export default function EditProfileScreen() {
   const { session } = useAuth();
   const { profile, refreshProfile } = useProfile();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [currentAvatarPath, setCurrentAvatarPath] = useState<string | null>(
+    profile?.avatar_path ?? null
+  );
   const [bio, setBio] = useState(profile?.bio ?? '');
   const [branch, setBranch] = useState(profile?.branch ?? '');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -53,6 +56,16 @@ export default function EditProfileScreen() {
   const [username, setUsername] = useState(profile?.username ?? '');
   const [year, setYear] = useState<number | null>(profile?.year ?? null);
   const userId = session?.user.id ?? null;
+  const pickingRef = useRef(false);
+  const savePendingRef = useRef(false);
+
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/profile');
+    }
+  };
 
   useEffect(() => {
     let isActive = true;
@@ -85,10 +98,11 @@ export default function EditProfileScreen() {
   }, [userId]);
 
   const pickAvatar = async () => {
-    if (isPicking || isSaving) {
+    if (pickingRef.current || savePendingRef.current) {
       return;
     }
 
+    pickingRef.current = true;
     setIsPicking(true);
     setErrorMessage(null);
 
@@ -122,6 +136,7 @@ export default function EditProfileScreen() {
     } catch {
       setErrorMessage('We could not open your photo library. Please try again.');
     } finally {
+      pickingRef.current = false;
       setIsPicking(false);
     }
   };
@@ -133,10 +148,11 @@ export default function EditProfileScreen() {
   };
 
   const handleSave = async () => {
-    if (!userId || !profile || !year || isSaving) {
+    if (!userId || !profile || !year || savePendingRef.current) {
       return;
     }
 
+    savePendingRef.current = true;
     setIsSaving(true);
     setErrorMessage(null);
     let savingLinks = false;
@@ -146,7 +162,7 @@ export default function EditProfileScreen() {
         asset: selectedAsset,
         bio,
         branch,
-        currentAvatarPath: profile.avatar_path,
+        currentAvatarPath,
         fullName,
         removeAvatar,
         userId,
@@ -154,10 +170,15 @@ export default function EditProfileScreen() {
         year,
       });
 
-      savingLinks = true;
-      await replaceProfileLinks(userId, links);
+      setCurrentAvatarPath(result.profile.avatar_path);
+      setAvatarUrl(selectedAsset?.uri ?? (removeAvatar ? null : avatarUrl));
+      setSelectedAsset(null);
+      setRemoveAvatar(false);
 
       refreshProfile();
+
+      savingLinks = true;
+      await replaceProfileLinks(userId, links);
 
       if (result.avatarCleanupFailed) {
         Alert.alert(
@@ -166,7 +187,11 @@ export default function EditProfileScreen() {
         );
       }
 
-      router.back();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)/profile');
+      }
     } catch (error) {
       console.warn('[edit-profile] Could not update profile.', error);
       setErrorMessage(
@@ -174,6 +199,7 @@ export default function EditProfileScreen() {
           ? getLinksErrorMessage(error)
           : getProfileUpdateErrorMessage(error)
       );
+      savePendingRef.current = false;
       setIsSaving(false);
     }
   };
@@ -193,7 +219,7 @@ export default function EditProfileScreen() {
             accessibilityRole="button"
             disabled={isSaving}
             hitSlop={12}
-            onPress={() => router.back()}
+            onPress={goBack}
             style={({ pressed }) => [
               styles.headerButton,
               pressed && styles.pressed,

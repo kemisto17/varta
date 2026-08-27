@@ -1,6 +1,6 @@
 import { useThemedStyles } from '../../hooks/useTheme';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,6 +34,7 @@ export function ReportSheet({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const submitPendingRef = useRef(false);
 
   useEffect(() => {
     if (target) {
@@ -41,16 +42,18 @@ export function ReportSheet({
       setErrorMessage(null);
       setIsDuplicate(false);
       setIsSubmitting(false);
+      submitPendingRef.current = false;
       setReason(null);
       setSubmitted(false);
     }
   }, [target]);
 
   const handleSubmit = async () => {
-    if (!reporterId || !target || !reason || isSubmitting) {
+    if (!reporterId || !target || !reason || submitPendingRef.current) {
       return;
     }
 
+    submitPendingRef.current = true;
     setIsSubmitting(true);
     setErrorMessage(null);
 
@@ -64,6 +67,7 @@ export function ReportSheet({
       setIsDuplicate(result.duplicate);
       setSubmitted(true);
     } catch (error) {
+      submitPendingRef.current = false;
       setErrorMessage(getModerationErrorMessage(error));
       setIsSubmitting(false);
     }

@@ -38,6 +38,14 @@ export default function NotificationsScreen() {
     [notifications]
   );
 
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  }, [router]);
+
   const handleNotificationPress = useCallback(
     async (notification: AppNotification) => {
       try {
@@ -87,7 +95,7 @@ export default function NotificationsScreen() {
 
       if (notification.type === 'verification_rejected') {
         refreshVerification();
-        router.back();
+        goBack();
         return;
       }
 
@@ -98,7 +106,7 @@ export default function NotificationsScreen() {
         router.replace('/(tabs)/profile');
       }
     },
-    [markRead, refreshVerification, router]
+    [goBack, markRead, refreshVerification, router]
   );
 
   const handleMarkAllRead = useCallback(async () => {
@@ -120,7 +128,7 @@ export default function NotificationsScreen() {
         <Pressable
           accessibilityLabel="Go back"
           accessibilityRole="button"
-          onPress={() => router.back()}
+          onPress={goBack}
           style={({ pressed }) => [
             styles.headerButton,
             pressed && styles.pressed,

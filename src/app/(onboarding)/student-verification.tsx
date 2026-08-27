@@ -1,5 +1,5 @@
 import type { ImagePickerAsset } from 'expo-image-picker';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
@@ -14,6 +14,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
 import { useVerification } from '../../hooks/useVerification';
 import {
+  getStudentVerification,
   getVerificationErrorMessage,
   submitStudentVerification,
 } from '../../lib/verification';
@@ -27,8 +28,13 @@ export default function StudentVerificationScreen() {
   const [studentId, setStudentId] = useState<ImagePickerAsset | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitPendingRef = useRef(false);
 
   const handleSubmit = async () => {
+    if (submitPendingRef.current) {
+      return;
+    }
+
     setErrorMessage(null);
 
     const normalizedEnrollmentNumber = enrollmentNumber.trim();
@@ -51,18 +57,35 @@ export default function StudentVerificationScreen() {
       return;
     }
 
+    submitPendingRef.current = true;
     setIsSubmitting(true);
+    const userId = session.user.id;
 
     try {
       const verification = await submitStudentVerification({
         asset: studentId,
         enrollmentNumber: normalizedEnrollmentNumber,
         instituteId: profile.institute_id,
-        userId: session.user.id,
+        userId,
       });
 
       markVerificationSubmitted(verification);
     } catch (error) {
+      try {
+        const existingVerification = await getStudentVerification(userId);
+
+        if (existingVerification) {
+          markVerificationSubmitted(existingVerification);
+          return;
+        }
+      } catch (reconciliationError) {
+        console.warn(
+          '[student-verification] Could not reconcile verification submission.',
+          reconciliationError
+        );
+      }
+
+      submitPendingRef.current = false;
       setErrorMessage(getVerificationErrorMessage(error));
       setIsSubmitting(false);
     }

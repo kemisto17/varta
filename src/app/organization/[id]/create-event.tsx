@@ -10,6 +10,7 @@ import { spacing, type ThemeColors } from '../../../constants/theme';
 import { useAuth } from '../../../hooks/useAuth';
 import { createOrganizationEvent } from '../../../lib/events';
 import { getOrganizationById, isOrganizationManagerRole } from '../../../lib/organizations';
+import { isUuid } from '../../../lib/identifiers';
 import type { EventFormValues } from '../../../types/event';
 import type { CampusOrganization } from '../../../types/organization';
 
@@ -26,7 +27,7 @@ export default function CreateEventScreen() {
     let isActive = true;
     const userId = session?.user.id;
 
-    if (!organizationId || !userId) {
+    if (!isUuid(organizationId) || !userId) {
       setIsLoading(false);
       return () => { isActive = false; };
     }
@@ -50,8 +51,13 @@ export default function CreateEventScreen() {
       throw new Error('Event creation is unavailable.');
     }
 
-    await createOrganizationEvent({ organization, userId, values });
-    router.back();
+    const createdEvent = await createOrganizationEvent({ organization, userId, values });
+
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace({ pathname: '/event/[id]', params: { id: createdEvent.id } });
+    }
   };
 
   if (isLoading) {

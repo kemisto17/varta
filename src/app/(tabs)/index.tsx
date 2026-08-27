@@ -90,6 +90,32 @@ export default function HomeScreen() {
       new Set<string>()
     );
 
+  const deletePostRequestsRef =
+    useRef(
+      new Set<string>()
+    );
+
+  const eventInterestRequestsRef =
+    useRef(
+      new Set<string>()
+    );
+
+  const campusNowRequestIdRef =
+    useRef(0);
+
+  const activeUserIdRef =
+    useRef<string | null>(
+      null
+    );
+
+  const [
+    stateUserId,
+    setStateUserId,
+  ] =
+    useState<
+      string | null
+    >(null);
+
   const campusNowLoadedRef =
     useRef(false);
 
@@ -192,6 +218,20 @@ export default function HomeScreen() {
    * user.
    */
   useEffect(() => {
+    activeUserIdRef.current =
+      session?.user.id ?? null;
+
+    setStateUserId(
+      session?.user.id ?? null
+    );
+
+    campusNowRequestIdRef.current +=
+      1;
+
+    likeRequestsRef.current.clear();
+    deletePostRequestsRef.current.clear();
+    eventInterestRequestsRef.current.clear();
+
     campusNowLoadedRef.current =
       false;
 
@@ -215,6 +255,26 @@ export default function HomeScreen() {
 
     setEventInterestPendingIds(
       new Set()
+    );
+
+    setDeletingPostIds(
+      new Set()
+    );
+
+    setLikePendingIds(
+      new Set()
+    );
+
+    setInteractionError(
+      null
+    );
+
+    setBlockTarget(
+      null
+    );
+
+    setReportTarget(
+      null
     );
   }, [session?.user.id]);
 
@@ -273,6 +333,13 @@ export default function HomeScreen() {
           return;
         }
 
+        const requestId =
+          campusNowRequestIdRef.current +
+          1;
+
+        campusNowRequestIdRef.current =
+          requestId;
+
         setCampusNowError(
           null
         );
@@ -291,6 +358,15 @@ export default function HomeScreen() {
               userId
             );
 
+          if (
+            campusNowRequestIdRef.current !==
+              requestId ||
+            activeUserIdRef.current !==
+              userId
+          ) {
+            return;
+          }
+
           setCampusNowEvents(
             nextEvents
           );
@@ -298,6 +374,15 @@ export default function HomeScreen() {
           lastCampusNowRefreshAtRef.current =
             Date.now();
         } catch (error) {
+          if (
+            campusNowRequestIdRef.current !==
+              requestId ||
+            activeUserIdRef.current !==
+              userId
+          ) {
+            return;
+          }
+
           console.warn(
             '[campus-now] Could not load campus events.',
             error
@@ -307,12 +392,19 @@ export default function HomeScreen() {
             'Check your connection and try again.'
           );
         } finally {
-          campusNowLoadedRef.current =
-            true;
+          if (
+            campusNowRequestIdRef.current ===
+              requestId &&
+            activeUserIdRef.current ===
+              userId
+          ) {
+            campusNowLoadedRef.current =
+              true;
 
-          setCampusNowLoading(
-            false
-          );
+            setCampusNowLoading(
+              false
+            );
+          }
         }
       },
       [session?.user.id]
@@ -409,7 +501,7 @@ export default function HomeScreen() {
 
         if (
           !userId ||
-          eventInterestPendingIds.has(
+          eventInterestRequestsRef.current.has(
             event.id
           )
         ) {
@@ -418,6 +510,10 @@ export default function HomeScreen() {
 
         const nextInterested =
           !event.isInterested;
+
+        eventInterestRequestsRef.current.add(
+          event.id
+        );
 
         setEventInterestPendingIds(
           (current) =>
@@ -454,6 +550,13 @@ export default function HomeScreen() {
             }
           );
         } catch (error) {
+          if (
+            activeUserIdRef.current !==
+            userId
+          ) {
+            return;
+          }
+
           console.warn(
             '[campus-now] Could not update event interest.',
             error
@@ -464,7 +567,9 @@ export default function HomeScreen() {
               current.map(
                 (item) =>
                   item.id ===
-                  event.id
+                    event.id &&
+                  item.isInterested ===
+                    nextInterested
                     ? {
                         ...item,
                         isInterested:
@@ -480,6 +585,17 @@ export default function HomeScreen() {
             )
           );
         } finally {
+          if (
+            activeUserIdRef.current !==
+            userId
+          ) {
+            return;
+          }
+
+          eventInterestRequestsRef.current.delete(
+            event.id
+          );
+
           setEventInterestPendingIds(
             (current) => {
               const next =
@@ -497,7 +613,6 @@ export default function HomeScreen() {
         }
       },
       [
-        eventInterestPendingIds,
         session?.user.id,
       ]
     );
@@ -512,12 +627,16 @@ export default function HomeScreen() {
 
         if (
           !userId ||
-          deletingPostIds.has(
+          deletePostRequestsRef.current.has(
             post.id
           )
         ) {
           return;
         }
+
+        deletePostRequestsRef.current.add(
+          post.id
+        );
 
         setDeletingPostIds(
           (current) =>
@@ -535,6 +654,13 @@ export default function HomeScreen() {
               userId
             );
 
+          if (
+            activeUserIdRef.current !==
+            userId
+          ) {
+            return;
+          }
+
           removePost(
             post.id
           );
@@ -548,6 +674,13 @@ export default function HomeScreen() {
             );
           }
         } catch (error) {
+          if (
+            activeUserIdRef.current !==
+            userId
+          ) {
+            return;
+          }
+
           Alert.alert(
             'Could not delete post',
             getPostErrorMessage(
@@ -555,6 +688,17 @@ export default function HomeScreen() {
             )
           );
         } finally {
+          if (
+            activeUserIdRef.current !==
+            userId
+          ) {
+            return;
+          }
+
+          deletePostRequestsRef.current.delete(
+            post.id
+          );
+
           setDeletingPostIds(
             (current) => {
               const next =
@@ -572,7 +716,6 @@ export default function HomeScreen() {
         }
       },
       [
-        deletingPostIds,
         removePost,
         session?.user.id,
       ]
@@ -650,6 +793,13 @@ export default function HomeScreen() {
             }
           );
         } catch (error) {
+          if (
+            activeUserIdRef.current !==
+            userId
+          ) {
+            return;
+          }
+
           console.warn(
             '[feed] Could not update post like.',
             error
@@ -672,6 +822,13 @@ export default function HomeScreen() {
             )
           );
         } finally {
+          if (
+            activeUserIdRef.current !==
+            userId
+          ) {
+            return;
+          }
+
           likeRequestsRef.current.delete(
             post.id
           );
@@ -773,6 +930,58 @@ export default function HomeScreen() {
   const isInitialLoading =
     status === 'idle' ||
     status === 'loading';
+
+  const currentUserId =
+    session?.user.id ?? null;
+
+  const isCurrentUserState =
+    stateUserId ===
+    currentUserId;
+
+  const displayedCampusNowEvents =
+    isCurrentUserState
+      ? campusNowEvents
+      : [];
+
+  const displayedCampusNowError =
+    isCurrentUserState
+      ? campusNowError
+      : null;
+
+  const displayedCampusNowLoading =
+    isCurrentUserState
+      ? campusNowLoading
+      : true;
+
+  const displayedEventInterestPendingIds =
+    isCurrentUserState
+      ? eventInterestPendingIds
+      : new Set<string>();
+
+  const displayedDeletingPostIds =
+    isCurrentUserState
+      ? deletingPostIds
+      : new Set<string>();
+
+  const displayedLikePendingIds =
+    isCurrentUserState
+      ? likePendingIds
+      : new Set<string>();
+
+  const displayedInteractionError =
+    isCurrentUserState
+      ? interactionError
+      : null;
+
+  const displayedReportTarget =
+    isCurrentUserState
+      ? reportTarget
+      : null;
+
+  const displayedBlockTarget =
+    isCurrentUserState
+      ? blockTarget
+      : null;
 
   return (
     <SafeAreaScreen
@@ -977,16 +1186,16 @@ export default function HomeScreen() {
 
             <CampusNowSection
               errorMessage={
-                campusNowError
+                displayedCampusNowError
               }
               events={
-                campusNowEvents
+                displayedCampusNowEvents
               }
               interestPendingIds={
-                eventInterestPendingIds
+                displayedEventInterestPendingIds
               }
               isLoading={
-                campusNowLoading
+                displayedCampusNowLoading
               }
               onEventPress={(
                 event
@@ -1072,7 +1281,7 @@ export default function HomeScreen() {
               </Pressable>
             ) : null}
 
-            {interactionError ? (
+            {displayedInteractionError ? (
               <Pressable
                 accessibilityRole="button"
                 onPress={() =>
@@ -1094,7 +1303,7 @@ export default function HomeScreen() {
                   }
                 >
                   {
-                    interactionError
+                    displayedInteractionError
                   }
                 </Text>
 
@@ -1143,12 +1352,12 @@ export default function HomeScreen() {
               null
             }
             isDeleting={
-              deletingPostIds.has(
+              displayedDeletingPostIds.has(
                 item.id
               )
             }
             isLikePending={
-              likePendingIds.has(
+              displayedLikePendingIds.has(
                 item.id
               )
             }
@@ -1220,7 +1429,7 @@ export default function HomeScreen() {
           null
         }
         target={
-          reportTarget
+          displayedReportTarget
         }
       />
 
@@ -1238,7 +1447,7 @@ export default function HomeScreen() {
           )
         }
         user={
-          blockTarget
+          displayedBlockTarget
         }
       />
     </SafeAreaScreen>

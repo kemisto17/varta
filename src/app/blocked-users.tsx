@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,8 +10,8 @@ import {
   View,
 } from 'react-native';
 
-import { SafeAreaScreen } from '../components/SafeAreaScreen';
 import { Avatar } from '../components/Avatar';
+import { SafeAreaScreen } from '../components/SafeAreaScreen';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { radius, spacing, type ThemeColors } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
@@ -28,23 +28,58 @@ export default function BlockedUsersScreen() {
   const { session } = useAuth();
   const { colors, styles } = useThemedStyles(createStyles);
   const userId = session?.user.id ?? null;
+  const requestIdRef = useRef(0);
+  const hasLoadedRef = useRef(false);
+  const pendingIdsRef = useRef(new Set<string>());
+  const activeUserIdRef = useRef<string | null>(null);
+
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
   const [status, setStatus] = useState<ScreenStatus>('loading');
+
+  useEffect(() => {
+    activeUserIdRef.current = userId;
+    requestIdRef.current += 1;
+    hasLoadedRef.current = false;
+    pendingIdsRef.current.clear();
+    setBlockedUsers([]);
+    setErrorMessage(null);
+    setPendingIds(new Set());
+    setStatus('loading');
+  }, [userId]);
 
   const loadBlockedUsers = useCallback(async () => {
     if (!userId) {
       return;
     }
 
-    setStatus('loading');
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setErrorMessage(null);
+
+    if (!hasLoadedRef.current) {
+      setStatus('loading');
+    }
 
     try {
-      setBlockedUsers(await getBlockedUsers(userId));
+      const nextBlockedUsers = await getBlockedUsers();
+
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
+
+      hasLoadedRef.current = true;
+      setBlockedUsers(nextBlockedUsers);
       setStatus('ready');
     } catch (error) {
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
+
       console.warn('[blocked-users] Could not load blocked users.', error);
-      setStatus('error');
+      setErrorMessage('Check your connection and try again.');
+      setStatus(hasLoadedRef.current ? 'ready' : 'error');
     }
   }, [userId]);
 
@@ -60,17 +95,38 @@ export default function BlockedUsersScreen() {
         return;
       }
 
+      if (pendingIdsRef.current.has(blockedUser.id)) {
+        return;
+      }
+
+      pendingIdsRef.current.add(blockedUser.id);
       setPendingIds((current) => new Set(current).add(blockedUser.id));
+      setErrorMessage(null);
 
       try {
         await unblockUser(userId, blockedUser.id);
+
+        if (activeUserIdRef.current !== userId) {
+          return;
+        }
+
         setBlockedUsers((current) =>
           current.filter((user) => user.id !== blockedUser.id)
         );
       } catch (error) {
+        if (activeUserIdRef.current !== userId) {
+          return;
+        }
+
         console.warn('[blocked-users] Could not unblock user.', error);
         Alert.alert('Could not unblock', 'Check your connection and try again.');
       } finally {
+        pendingIdsRef.current.delete(blockedUser.id);
+
+        if (activeUserIdRef.current !== userId) {
+          return;
+        }
+
         setPendingIds((current) => {
           const next = new Set(current);
           next.delete(blockedUser.id);
@@ -83,7 +139,7 @@ export default function BlockedUsersScreen() {
 
   const confirmUnblock = useCallback(
     (blockedUser: BlockedUser) => {
-      if (!userId || pendingIds.has(blockedUser.id)) {
+      if (!userId || pendingIdsRef.current.has(blockedUser.id)) {
         return;
       }
 
@@ -99,7 +155,7 @@ export default function BlockedUsersScreen() {
         ]
       );
     },
-    [handleUnblock, pendingIds, userId]
+    [handleUnblock, userId]
   );
 
   return (
@@ -113,7 +169,7 @@ export default function BlockedUsersScreen() {
         <View style={styles.state}>
           <Text style={styles.stateTitle}>Could not load blocked users</Text>
           <Text style={styles.stateMessage}>
-            Check your connection and try again.
+            {errorMessage ?? 'Check your connection and try again.'}
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -178,6 +234,11 @@ export default function BlockedUsersScreen() {
           }}
         />
       )}
+      {errorMessage && status === 'ready' ? (
+        <Text accessibilityRole="alert" style={styles.inlineError}>
+          {errorMessage}
+        </Text>
+      ) : null}
     </SafeAreaScreen>
   );
 }
@@ -265,6 +326,14 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 13,
       fontWeight: '700',
       color: colors.white,
+    },
+    inlineError: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      textAlign: 'center',
+      fontSize: 12,
+      color: colors.danger,
+      backgroundColor: colors.dangerSoft,
     },
     pressed: {
       opacity: 0.58,

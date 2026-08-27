@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -17,6 +17,7 @@ import { LinksEditor } from '../../../components/links/LinksEditor';
 import { radius, spacing, type ThemeColors } from '../../../constants/theme';
 import { useAuth } from '../../../hooks/useAuth';
 import { getManagedOrganizationEvents } from '../../../lib/events';
+import { isUuid } from '../../../lib/identifiers';
 import {
   getLinksErrorMessage,
   getOrganizationLinks,
@@ -44,6 +45,10 @@ export default function ManageOrganizationScreen() {
     : params.id;
 
   const { session } = useAuth();
+  const userId = session?.user.id ?? null;
+  const requestIdRef = useRef(0);
+  const organizationRef = useRef<CampusOrganization | null>(null);
+  const saveLinksPendingRef = useRef(false);
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [events, setEvents] = useState<ManageableEvent[]>([]);
@@ -53,12 +58,31 @@ export default function ManageOrganizationScreen() {
   const [organization, setOrganization] =
     useState<CampusOrganization | null>(null);
 
-  const loadPage = useCallback(async () => {
-    const userId = session?.user.id;
+  useEffect(() => {
+    requestIdRef.current += 1;
+    organizationRef.current = null;
+    saveLinksPendingRef.current = false;
+    setErrorMessage(null);
+    setEvents([]);
+    setIsLoading(true);
+    setIsSavingLinks(false);
+    setLinks([]);
+    setOrganization(null);
+  }, [organizationId, userId]);
 
-    if (!organizationId || !userId) {
+  const loadPage = useCallback(async () => {
+    if (!isUuid(organizationId) || !userId) {
       setIsLoading(false);
       return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    const hasExistingOrganization =
+      organizationRef.current?.id === organizationId;
+
+    if (!hasExistingOrganization) {
+      setIsLoading(true);
     }
 
     setErrorMessage(null);
@@ -71,9 +95,13 @@ export default function ManageOrganizationScreen() {
 
       const role = nextOrganization?.role ?? null;
 
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
+
       if (!nextOrganization || !isOrganizationManagerRole(role)) {
+        organizationRef.current = null;
         setOrganization(null);
-        setIsLoading(false);
         return;
       }
 
@@ -86,6 +114,11 @@ export default function ManageOrganizationScreen() {
         getOrganizationLinks(organizationId),
       ]);
 
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
+
+      organizationRef.current = nextOrganization;
       setOrganization(nextOrganization);
       setEvents(nextEvents);
       setLinks(
@@ -95,6 +128,10 @@ export default function ManageOrganizationScreen() {
         }))
       );
     } catch (error) {
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
+
       console.warn(
         '[organization-manage] Could not load page.',
         error
@@ -104,13 +141,19 @@ export default function ManageOrganizationScreen() {
         'We could not load organization management. Try again.'
       );
     } finally {
-      setIsLoading(false);
+      if (requestIdRef.current === requestId) {
+        setIsLoading(false);
+      }
     }
-  }, [organizationId, session?.user.id]);
+  }, [organizationId, userId]);
 
   useFocusEffect(
     useCallback(() => {
       void loadPage();
+
+      return () => {
+        requestIdRef.current += 1;
+      };
     }, [loadPage])
   );
 
@@ -118,11 +161,12 @@ export default function ManageOrganizationScreen() {
     if (
       !organization ||
       !canManageOrganizationLinks(organization.role) ||
-      isSavingLinks
+      saveLinksPendingRef.current
     ) {
       return;
     }
 
+    saveLinksPendingRef.current = true;
     setIsSavingLinks(true);
     setErrorMessage(null);
 
@@ -139,6 +183,7 @@ export default function ManageOrganizationScreen() {
 
       setErrorMessage(getLinksErrorMessage(error));
     } finally {
+      saveLinksPendingRef.current = false;
       setIsSavingLinks(false);
     }
   };

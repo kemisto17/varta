@@ -102,8 +102,42 @@ export function StudentProfileScreen({
       new Set<string>()
     );
 
+  const deleteRequests =
+    useRef(
+      new Set<string>()
+    );
+
   const loadMoreRequest =
     useRef(false);
+
+  const firstPageRequest =
+    useRef(false);
+
+  const activeViewerUserIdRef =
+    useRef<string | null>(
+      null
+    );
+
+  const activeProfileIdRef =
+    useRef<string | null>(
+      null
+    );
+
+  const [
+    stateProfileId,
+    setStateProfileId,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  const [
+    stateViewerUserId,
+    setStateViewerUserId,
+  ] =
+    useState<string | null>(
+      null
+    );
 
   const [
     blockTarget,
@@ -230,6 +264,14 @@ export function StudentProfileScreen({
    * Reset everything if either changes.
    */
   useEffect(() => {
+    activeViewerUserIdRef.current =
+      viewerUserId;
+
+    activeProfileIdRef.current =
+      isUuid(profileId)
+        ? profileId
+        : null;
+
     requestId.current += 1;
 
     profileRef.current =
@@ -238,11 +280,17 @@ export function StudentProfileScreen({
     lastLoadedAtRef.current =
       0;
 
+    firstPageRequest.current =
+      false;
+
     loadMoreRequest.current =
       false;
 
     likeRequests.current.clear();
+    deleteRequests.current.clear();
 
+    setStateProfileId(null);
+    setStateViewerUserId(null);
     setProfile(null);
     setPosts([]);
     setLinks([]);
@@ -293,6 +341,9 @@ export function StudentProfileScreen({
 
         requestId.current =
           activeRequestId;
+
+        firstPageRequest.current =
+          true;
 
         /*
          * Any full profile refresh
@@ -373,6 +424,14 @@ export function StudentProfileScreen({
             lastLoadedAtRef.current =
               0;
 
+            setStateProfileId(
+              profileId
+            );
+
+            setStateViewerUserId(
+              viewerUserId
+            );
+
             setProfile(
               null
             );
@@ -409,6 +468,14 @@ export function StudentProfileScreen({
 
           lastLoadedAtRef.current =
             Date.now();
+
+          setStateProfileId(
+            profileId
+          );
+
+          setStateViewerUserId(
+            viewerUserId
+          );
 
           setProfile(
             nextProfile
@@ -450,6 +517,14 @@ export function StudentProfileScreen({
             error
           );
 
+          setStateProfileId(
+            profileId
+          );
+
+          setStateViewerUserId(
+            viewerUserId
+          );
+
           setErrorMessage(
             'We could not load this profile. Check your connection and try again.'
           );
@@ -469,6 +544,9 @@ export function StudentProfileScreen({
             requestId.current ===
             activeRequestId
           ) {
+            firstPageRequest.current =
+              false;
+
             setIsRefreshing(
               false
             );
@@ -525,8 +603,30 @@ export function StudentProfileScreen({
          * Invalidate requests that
          * finish after this screen has
          * lost focus.
+         *
+         * If a like/delete mutation is
+         * still running, force the next
+         * focus to reload even for an
+         * otherwise-fresh cached profile.
+         * A failed mutation may finish
+         * while this screen is hidden,
+         * so reusing the optimistic cache
+         * would otherwise show stale data.
          */
+        if (
+          likeRequests.current.size >
+            0 ||
+          deleteRequests.current.size >
+            0
+        ) {
+          lastLoadedAtRef.current =
+            0;
+        }
+
         requestId.current += 1;
+
+        firstPageRequest.current =
+          false;
 
         loadMoreRequest.current =
           false;
@@ -547,6 +647,7 @@ export function StudentProfileScreen({
       async () => {
         if (
           !viewerUserId ||
+          firstPageRequest.current ||
           !cursor ||
           !hasMore ||
           loadMoreRequest.current
@@ -646,12 +747,17 @@ export function StudentProfileScreen({
             );
           }
         } finally {
-          loadMoreRequest.current =
-            false;
+          if (
+            requestId.current ===
+            activeRequestId
+          ) {
+            loadMoreRequest.current =
+              false;
 
-          setIsLoadingMore(
-            false
-          );
+            setIsLoadingMore(
+              false
+            );
+          }
         }
       },
       [
@@ -732,6 +838,9 @@ export function StudentProfileScreen({
             )
         );
 
+        const activeRequestId =
+          requestId.current;
+
         try {
           await setPostLike(
             {
@@ -746,6 +855,17 @@ export function StudentProfileScreen({
             }
           );
         } catch (error) {
+          if (
+            requestId.current !==
+              activeRequestId ||
+            activeViewerUserIdRef.current !==
+              viewerUserId ||
+            activeProfileIdRef.current !==
+              profileId
+          ) {
+            return;
+          }
+
           setPosts(
             (
               current
@@ -775,6 +895,28 @@ export function StudentProfileScreen({
             )
           );
         } finally {
+          /*
+           * A mutation from a previous
+           * viewer/profile must not clear
+           * the lock owned by the current
+           * screen.
+           *
+           * A same-profile refresh is
+           * different: it invalidates the
+           * optimistic rollback, but the
+           * original mutation still owns
+           * this lock and should release
+           * it when it finishes.
+           */
+          if (
+            activeViewerUserIdRef.current !==
+              viewerUserId ||
+            activeProfileIdRef.current !==
+              profileId
+          ) {
+            return;
+          }
+
           likeRequests.current.delete(
             post.id
           );
@@ -797,7 +939,10 @@ export function StudentProfileScreen({
           );
         }
       },
-      [viewerUserId]
+      [
+        profileId,
+        viewerUserId,
+      ]
     );
 
   const handleDeletePost =
@@ -807,12 +952,16 @@ export function StudentProfileScreen({
       ) => {
         if (
           !viewerUserId ||
-          deletingPostIds.has(
+          deleteRequests.current.has(
             post.id
           )
         ) {
           return;
         }
+
+        deleteRequests.current.add(
+          post.id
+        );
 
         setDeletingPostIds(
           (
@@ -825,12 +974,26 @@ export function StudentProfileScreen({
             )
         );
 
+        const activeRequestId =
+          requestId.current;
+
         try {
           const result =
             await deletePost(
               post,
               viewerUserId
             );
+
+          if (
+            requestId.current !==
+              activeRequestId ||
+            activeViewerUserIdRef.current !==
+              viewerUserId ||
+            activeProfileIdRef.current !==
+              profileId
+          ) {
+            return;
+          }
 
           setPosts(
             (
@@ -883,6 +1046,17 @@ export function StudentProfileScreen({
             );
           }
         } catch (error) {
+          if (
+            requestId.current !==
+              activeRequestId ||
+            activeViewerUserIdRef.current !==
+              viewerUserId ||
+            activeProfileIdRef.current !==
+              profileId
+          ) {
+            return;
+          }
+
           Alert.alert(
             'Could not delete post',
             getPostErrorMessage(
@@ -890,6 +1064,19 @@ export function StudentProfileScreen({
             )
           );
         } finally {
+          if (
+            activeViewerUserIdRef.current !==
+              viewerUserId ||
+            activeProfileIdRef.current !==
+              profileId
+          ) {
+            return;
+          }
+
+          deleteRequests.current.delete(
+            post.id
+          );
+
           setDeletingPostIds(
             (
               current
@@ -909,7 +1096,7 @@ export function StudentProfileScreen({
         }
       },
       [
-        deletingPostIds,
+        profileId,
         viewerUserId,
       ]
     );
@@ -944,6 +1131,110 @@ export function StudentProfileScreen({
 
       router.replace('/');
     }, [router]);
+
+  const hasValidIdentity =
+    Boolean(
+      viewerUserId &&
+      isUuid(profileId)
+    );
+
+  const hasCurrentState =
+    stateProfileId ===
+      profileId &&
+    stateViewerUserId ===
+      viewerUserId;
+
+  /*
+   * Effects run after render.
+   *
+   * When the route or authenticated
+   * account changes, there is therefore
+   * one render where React still holds
+   * the previous profile state. Never
+   * expose that previous profile.
+   */
+  if (
+    hasValidIdentity &&
+    !hasCurrentState
+  ) {
+    return (
+      <SafeAreaScreen
+        style={
+          styles.safeArea
+        }
+        withinTabNavigator={
+          !showBackButton
+        }
+      >
+        <ProfileTopBar
+          onBack={
+            showBackButton
+              ? goBack
+              : undefined
+          }
+          onSettings={
+            isOwnProfile
+              ? () =>
+                  router.push(
+                    '/settings'
+                  )
+              : undefined
+          }
+          title="Profile"
+        />
+
+        <ProfileSkeleton />
+      </SafeAreaScreen>
+    );
+  }
+
+  if (
+    !hasValidIdentity
+  ) {
+    return (
+      <SafeAreaScreen
+        style={
+          styles.safeArea
+        }
+        withinTabNavigator={
+          !showBackButton
+        }
+      >
+        <ProfileTopBar
+          onBack={
+            showBackButton
+              ? goBack
+              : undefined
+          }
+          onSettings={
+            isOwnProfile
+              ? () =>
+                  router.push(
+                    '/settings'
+                  )
+              : undefined
+          }
+          title="Profile"
+        />
+
+        <ProfileState
+          actionLabel={
+            showBackButton
+              ? 'Go back'
+              : 'Try again'
+          }
+          message="This student profile may be unavailable or outside your university."
+          onAction={
+            showBackButton
+              ? goBack
+              : () =>
+                  void loadProfile()
+          }
+          title="Profile unavailable"
+        />
+      </SafeAreaScreen>
+    );
+  }
 
   if (
     status ===

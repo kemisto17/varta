@@ -2,7 +2,7 @@ import { useThemedStyles } from '../../hooks/useTheme';
 import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View, } from 'react-native';
 
@@ -18,6 +18,7 @@ import {
   setEventInterest,
 } from '../../lib/events';
 import { formatEventDateRange } from '../../lib/time';
+import { isUuid } from '../../lib/identifiers';
 import type { EventDetail } from '../../types/event';
 
 type DetailStatus = 'loading' | 'ready' | 'unavailable' | 'error';
@@ -28,8 +29,12 @@ export default function EventDetailScreen() {
   const params = useLocalSearchParams<{ id: string | string[] }>();
   const eventId = Array.isArray(params.id) ? params.id[0] : params.id;
   const { session } = useAuth();
+  const userId = session?.user.id ?? null;
   const requestIdRef = useRef(0);
   const eventRef = useRef<EventDetail | null>(null);
+  const interestPendingRef = useRef(false);
+  const cancellationPendingRef = useRef(false);
+  const activeUserIdRef = useRef<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -37,10 +42,17 @@ export default function EventDetailScreen() {
   const [isInterestPending, setIsInterestPending] = useState(false);
   const [status, setStatus] = useState<DetailStatus>('loading');
 
-  const loadEvent = useCallback(async () => {
-    const userId = session?.user.id;
+  useEffect(() => {
+    activeUserIdRef.current = userId;
+    requestIdRef.current += 1;
+    interestPendingRef.current = false;
+    cancellationPendingRef.current = false;
+    setIsCancelling(false);
+    setIsInterestPending(false);
+  }, [eventId, userId]);
 
-    if (!eventId || !userId) {
+  const loadEvent = useCallback(async () => {
+    if (!isUuid(eventId) || !userId) {
       setStatus('unavailable');
       return;
     }
@@ -73,40 +85,61 @@ export default function EventDetailScreen() {
       setErrorMessage('We could not load this event. Check your connection and try again.');
       setStatus(hasExistingEvent ? 'ready' : 'error');
     }
-  }, [eventId, session?.user.id]);
+  }, [eventId, userId]);
 
   useFocusEffect(
     useCallback(() => {
       void loadEvent();
+
+      return () => {
+        requestIdRef.current += 1;
+      };
     }, [loadEvent])
   );
 
   const toggleInterest = async () => {
-    const userId = session?.user.id;
-
-    if (!event || !userId || isInterestPending || event.status !== 'published') {
+    if (!event || !userId || interestPendingRef.current || event.status !== 'published') {
       return;
     }
 
     const previous = event.isInterested;
     const next = !previous;
+    interestPendingRef.current = true;
     setIsInterestPending(true);
     setErrorMessage(null);
-    setEvent({ ...event, isInterested: next });
+    const optimisticEvent = { ...event, isInterested: next };
+    eventRef.current = optimisticEvent;
+    setEvent(optimisticEvent);
 
     try {
       await setEventInterest({ eventId: event.id, isInterested: next, userId });
     } catch (error) {
+      if (activeUserIdRef.current !== userId) {
+        return;
+      }
+
       console.warn('[event-detail] Could not update interest.', error);
-      setEvent((current) => (current ? { ...current, isInterested: previous } : current));
+      setEvent((current) => {
+        if (!current || current.id !== event.id || current.isInterested !== next) {
+          return current;
+        }
+
+        const rolledBack = { ...current, isInterested: previous };
+        eventRef.current = rolledBack;
+        return rolledBack;
+      });
       setErrorMessage(getEventErrorMessage(error));
     } finally {
-      setIsInterestPending(false);
+      interestPendingRef.current = false;
+
+      if (activeUserIdRef.current === userId) {
+        setIsInterestPending(false);
+      }
     }
   };
 
   const confirmCancellation = () => {
-    if (!event || isCancelling || event.status === 'cancelled') {
+    if (!event || cancellationPendingRef.current || event.status === 'cancelled') {
       return;
     }
 
@@ -125,21 +158,37 @@ export default function EventDetailScreen() {
   };
 
   const cancelEvent = async () => {
-    if (!event) {
+    if (!event || cancellationPendingRef.current) {
       return;
     }
 
+    cancellationPendingRef.current = true;
     setIsCancelling(true);
     setErrorMessage(null);
 
     try {
       await cancelOrganizationEvent(event.id);
-      setEvent({ ...event, status: 'cancelled' });
+
+      if (activeUserIdRef.current !== userId) {
+        return;
+      }
+
+      const cancelledEvent: EventDetail = { ...event, status: 'cancelled' };
+      eventRef.current = cancelledEvent;
+      setEvent(cancelledEvent);
     } catch (error) {
+      if (activeUserIdRef.current !== userId) {
+        return;
+      }
+
       console.warn('[event-detail] Could not cancel event.', error);
       setErrorMessage(getEventErrorMessage(error));
     } finally {
-      setIsCancelling(false);
+      cancellationPendingRef.current = false;
+
+      if (activeUserIdRef.current === userId) {
+        setIsCancelling(false);
+      }
     }
   };
 

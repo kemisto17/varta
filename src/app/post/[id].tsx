@@ -39,6 +39,7 @@ import {
   getPostById,
   getPostErrorMessage,
 } from '../../lib/posts';
+import { isUuid } from '../../lib/identifiers';
 import { formatRelativeTimestamp } from '../../lib/time';
 import type { FeedPost, PostComment } from '../../types/post';
 
@@ -86,6 +87,9 @@ export default function PostDetailScreen() {
     useRef(false);
 
   const isCommentRequestPending =
+    useRef(false);
+
+  const isDeletePostRequestPending =
     useRef(false);
 
   const isLoadingMoreCommentsRef =
@@ -198,7 +202,7 @@ export default function PostDetailScreen() {
     useCallback(
       async () => {
         if (
-          !postId ||
+          !isUuid(postId) ||
           !userId
         ) {
           setStatus(
@@ -783,10 +787,13 @@ export default function PostDetailScreen() {
       ) => {
         if (
           !userId ||
-          isDeletingPost
+          isDeletePostRequestPending.current
         ) {
           return;
         }
+
+        isDeletePostRequestPending.current =
+          true;
 
         setIsDeletingPost(
           true
@@ -818,6 +825,9 @@ export default function PostDetailScreen() {
 
           goBack();
         } catch (error) {
+          isDeletePostRequestPending.current =
+            false;
+
           console.warn(
             '[post-detail] Could not delete post.',
             error
@@ -836,7 +846,6 @@ export default function PostDetailScreen() {
       },
       [
         goBack,
-        isDeletingPost,
         removePost,
         userId,
       ]

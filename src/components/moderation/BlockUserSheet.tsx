@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { ModerationUser } from '../../lib/moderation';
 import {
@@ -25,21 +25,24 @@ export function BlockUserSheet({
 }: BlockUserSheetProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const changePendingRef = useRef(false);
 
   useEffect(() => {
     if (user) {
       setErrorMessage(null);
       setIsPending(false);
+      changePendingRef.current = false;
     }
   }, [mode, user]);
 
   const isBlocking = mode === 'block';
 
   const handleChange = async () => {
-    if (!currentUserId || !user || isPending) {
+    if (!currentUserId || !user || changePendingRef.current) {
       return;
     }
 
+    changePendingRef.current = true;
     setIsPending(true);
     setErrorMessage(null);
 
@@ -53,6 +56,7 @@ export function BlockUserSheet({
       onClose();
       onChanged();
     } catch (error) {
+      changePendingRef.current = false;
       setErrorMessage(getModerationErrorMessage(error));
       setIsPending(false);
     }

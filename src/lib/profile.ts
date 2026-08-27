@@ -171,14 +171,46 @@ export async function updateStudentProfile(input: UpdateStudentProfileInput) {
     username: values.username,
     year: values.year,
   };
-  const { data, error } = await supabase
+  const updateResult = await supabase
     .from('profiles')
     .update(update)
     .eq('id', input.userId)
     .select('*')
     .single();
 
-  if (error) {
+  let data = updateResult.data;
+
+  if (updateResult.error) {
+    const reconciliation = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', input.userId)
+      .maybeSingle();
+
+    if (
+      reconciliation.data &&
+      profileMatchesUpdate(reconciliation.data, update)
+    ) {
+      data = reconciliation.data;
+    } else {
+      if (uploadedAvatarPath && !reconciliation.error) {
+        try {
+          await deleteUserAvatar(uploadedAvatarPath, input.userId);
+        } catch (cleanupError) {
+          console.warn('[profile] Could not clean up a failed avatar upload.', cleanupError);
+        }
+      } else if (uploadedAvatarPath && reconciliation.error) {
+        console.warn(
+          '[profile] Avatar update outcome is ambiguous; preserving the new upload.',
+          reconciliation.error
+        );
+      }
+
+      throw updateResult.error;
+    }
+  }
+
+  if (!data) {
     if (uploadedAvatarPath) {
       try {
         await deleteUserAvatar(uploadedAvatarPath, input.userId);
@@ -187,7 +219,7 @@ export async function updateStudentProfile(input: UpdateStudentProfileInput) {
       }
     }
 
-    throw error;
+    throw new Error('The updated profile could not be loaded.');
   }
 
   let avatarCleanupFailed = false;
@@ -306,6 +338,20 @@ function mapUserProfile(
     username: row.username,
     year: row.year,
   };
+}
+
+function profileMatchesUpdate(
+  profile: Tables<'profiles'>,
+  update: TablesUpdate<'profiles'>
+) {
+  return (
+    profile.avatar_path === update.avatar_path &&
+    profile.bio === update.bio &&
+    profile.branch === update.branch &&
+    profile.full_name === update.full_name &&
+    profile.username === update.username &&
+    profile.year === update.year
+  );
 }
 
 async function getProfileAvatarUrl(avatarPath: string | null) {

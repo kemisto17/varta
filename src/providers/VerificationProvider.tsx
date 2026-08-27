@@ -60,6 +60,14 @@ export function VerificationProvider({
     );
 
   const [
+    stateUserId,
+    setStateUserId,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  const [
     verification,
     setVerification,
   ] =
@@ -100,6 +108,10 @@ export function VerificationProvider({
     ) {
       resolvedUserId.current =
         null;
+
+      setStateUserId(
+        null
+      );
 
       statusRef.current =
         'idle';
@@ -173,6 +185,10 @@ export function VerificationProvider({
           resolvedUserId.current =
             userId;
 
+          setStateUserId(
+            userId
+          );
+
           statusRef.current =
             nextStatus;
 
@@ -205,7 +221,11 @@ export function VerificationProvider({
            */
           if (!isBackgroundRefresh) {
             resolvedUserId.current =
-              null;
+              userId;
+
+            setStateUserId(
+              userId
+            );
 
             statusRef.current =
               'error';
@@ -301,11 +321,22 @@ export function VerificationProvider({
         nextVerification:
           StudentVerification
       ) => {
+        if (
+          nextVerification.user_id !==
+          userId
+        ) {
+          return;
+        }
+
         requestId.current +=
           1;
 
         resolvedUserId.current =
           nextVerification.user_id;
+
+        setStateUserId(
+          nextVerification.user_id
+        );
 
         statusRef.current =
           getVerificationStatus(
@@ -324,7 +355,7 @@ export function VerificationProvider({
           null
         );
       },
-      []
+      [userId]
     );
 
   const markVerificationDeleted =
@@ -345,6 +376,10 @@ export function VerificationProvider({
       resolvedUserId.current =
         userId;
 
+      setStateUserId(
+        userId
+      );
+
       statusRef.current =
         'missing';
 
@@ -361,23 +396,48 @@ export function VerificationProvider({
       );
     }, [userId]);
 
+  const isCurrentUserState =
+    stateUserId ===
+    userId;
+
+  const exposedStatus:
+    VerificationStatus =
+      !userId
+        ? 'idle'
+        : isCurrentUserState
+          ? status
+          : 'loading';
+
+  const exposedVerification =
+    isCurrentUserState
+      ? verification
+      : null;
+
+  const exposedErrorMessage =
+    isCurrentUserState
+      ? errorMessage
+      : null;
+
   const value =
     useMemo(
       () => ({
-        errorMessage,
+        errorMessage:
+          exposedErrorMessage,
         markVerificationDeleted,
         markVerificationSubmitted,
         refreshVerification,
-        status,
-        verification,
+        status:
+          exposedStatus,
+        verification:
+          exposedVerification,
       }),
       [
-        errorMessage,
+        exposedErrorMessage,
+        exposedStatus,
+        exposedVerification,
         markVerificationDeleted,
         markVerificationSubmitted,
         refreshVerification,
-        status,
-        verification,
       ]
     );
 

@@ -1147,6 +1147,16 @@ export type Database = {
           organization_id: string
         }[]
       }
+      get_my_blocked_users: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          avatar_path: string | null
+          blocked_at: string
+          full_name: string
+          id: string
+          username: string
+        }[]
+      }
       get_organization_profile_summary: {
         Args: { target_organization_id: string }
         Returns: {

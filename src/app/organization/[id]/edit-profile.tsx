@@ -2,7 +2,7 @@ import type { ImagePickerAsset } from 'expo-image-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +28,7 @@ import {
 import { useAuth } from '../../../hooks/useAuth';
 import { useThemedStyles } from '../../../hooks/useTheme';
 import { requestImageLibraryAccess } from '../../../lib/imagePicker';
+import { isUuid } from '../../../lib/identifiers';
 import {
   canManageOrganizationProfile,
   getOrganizationById,
@@ -71,11 +72,27 @@ export default function EditOrganizationProfileScreen() {
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
 
+  const pickingRef = useRef(false);
+  const savePendingRef = useRef(false);
+
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else if (isUuid(organizationId)) {
+      router.replace({
+        pathname: '/organization/[id]',
+        params: { id: organizationId },
+      });
+    } else {
+      router.replace('/');
+    }
+  };
+
   useEffect(() => {
     let active = true;
 
     const loadOrganization = async () => {
-      if (!organizationId || !userId) {
+      if (!isUuid(organizationId) || !userId) {
         if (active) {
           setIsLoading(false);
         }
@@ -133,10 +150,11 @@ export default function EditOrganizationProfileScreen() {
   }, [organizationId, userId]);
 
   const pickAvatar = async () => {
-    if (isPicking || isSaving) {
+    if (pickingRef.current || savePendingRef.current) {
       return;
     }
 
+    pickingRef.current = true;
     setIsPicking(true);
     setErrorMessage(null);
 
@@ -192,6 +210,7 @@ export default function EditOrganizationProfileScreen() {
         'We could not open your photo library. Please try again.'
       );
     } finally {
+      pickingRef.current = false;
       setIsPicking(false);
     }
   };
@@ -206,11 +225,12 @@ export default function EditOrganizationProfileScreen() {
     if (
       !organization ||
       !userId ||
-      isSaving
+      savePendingRef.current
     ) {
       return;
     }
 
+    savePendingRef.current = true;
     setIsSaving(true);
     setErrorMessage(null);
 
@@ -232,7 +252,14 @@ export default function EditOrganizationProfileScreen() {
         );
       }
 
-      router.back();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace({
+          pathname: '/organization/[id]',
+          params: { id: organization.id },
+        });
+      }
     } catch (error) {
       console.warn(
         '[organization-edit-profile] Could not update organization.',
@@ -243,6 +270,7 @@ export default function EditOrganizationProfileScreen() {
         getOrganizationUpdateErrorMessage(error)
       );
 
+      savePendingRef.current = false;
       setIsSaving(false);
     }
   };
@@ -273,7 +301,7 @@ export default function EditOrganizationProfileScreen() {
             accessibilityLabel="Back"
             accessibilityRole="button"
             hitSlop={12}
-            onPress={() => router.back()}
+            onPress={goBack}
             style={({ pressed }) => [
               styles.headerButton,
               pressed && styles.pressed,
@@ -324,7 +352,7 @@ export default function EditOrganizationProfileScreen() {
             accessibilityRole="button"
             disabled={isSaving}
             hitSlop={12}
-            onPress={() => router.back()}
+            onPress={goBack}
             style={({ pressed }) => [
               styles.headerButton,
               pressed && styles.pressed,

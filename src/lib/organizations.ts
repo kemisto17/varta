@@ -1,7 +1,7 @@
 import type { QueryData } from '@supabase/supabase-js';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
-import type { TablesUpdate } from '../types/database';
+import type { Tables, TablesUpdate } from '../types/database';
 import type {
   CampusOrganization,
   FollowedOrganization,
@@ -561,7 +561,7 @@ export async function updateOrganizationProfile(
       name,
     };
 
-  const { data, error } =
+  const updateResult =
     await supabase
       .from('organizations')
       .update(update)
@@ -574,22 +574,64 @@ export async function updateOrganizationProfile(
       )
       .single();
 
-  if (error) {
-    if (uploadedAvatarPath) {
-      try {
-        await deleteOrganizationAvatar(
-          uploadedAvatarPath,
+  let data =
+    updateResult.data;
+
+  if (updateResult.error) {
+    const reconciliation =
+      await supabase
+        .from('organizations')
+        .select(
+          'id, name, description, avatar_path'
+        )
+        .eq(
+          'id',
           input.organizationId
-        );
-      } catch (cleanupError) {
+        )
+        .maybeSingle();
+
+    if (
+      reconciliation.data &&
+      organizationMatchesUpdate(
+        reconciliation.data,
+        update
+      )
+    ) {
+      data = reconciliation.data;
+    } else {
+      if (
+        uploadedAvatarPath &&
+        !reconciliation.error
+      ) {
+        try {
+          await deleteOrganizationAvatar(
+            uploadedAvatarPath,
+            input.organizationId
+          );
+        } catch (cleanupError) {
+          console.warn(
+            '[organization] Could not clean up failed avatar upload.',
+            cleanupError
+          );
+        }
+      } else if (
+        uploadedAvatarPath &&
+        reconciliation.error
+      ) {
         console.warn(
-          '[organization] Could not clean up failed avatar upload.',
-          cleanupError
+          '[organization] Avatar update outcome is ambiguous; preserving the new upload.',
+          reconciliation.error
         );
       }
-    }
 
-    throw error;
+      throw updateResult.error;
+    }
+  }
+
+  if (!data) {
+    throw new Error(
+      'The updated organization could not be loaded.'
+    );
   }
 
   let avatarCleanupFailed =
@@ -620,6 +662,22 @@ export async function updateOrganizationProfile(
     organization:
       data,
   };
+}
+
+function organizationMatchesUpdate(
+  organization: Pick<
+    Tables<'organizations'>,
+    'avatar_path' | 'description' | 'name'
+  >,
+  update: TablesUpdate<'organizations'>
+) {
+  return (
+    organization.avatar_path ===
+      update.avatar_path &&
+    organization.description ===
+      update.description &&
+    organization.name === update.name
+  );
 }
 
 async function deleteOrganizationAvatar(

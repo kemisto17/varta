@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
@@ -16,6 +16,7 @@ import {
   createStudentProfile,
   getInstitutes,
   getProfileCreationErrorMessage,
+  getStudentProfile,
   type InstituteOption,
   normalizeUsername,
 } from '../../lib/profile';
@@ -37,6 +38,7 @@ export default function SetupProfileScreen() {
   const [instituteError, setInstituteError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitPendingRef = useRef(false);
 
   const loadInstitutes = useCallback(async () => {
     setIsLoadingInstitutes(true);
@@ -61,6 +63,10 @@ export default function SetupProfileScreen() {
   }, [loadInstitutes]);
 
   const handleSubmit = async () => {
+    if (submitPendingRef.current) {
+      return;
+    }
+
     setFormError(null);
 
     const normalizedFullName = fullName.trim();
@@ -103,13 +109,15 @@ export default function SetupProfileScreen() {
       return;
     }
 
+    submitPendingRef.current = true;
     setIsSubmitting(true);
+    const userId = session.user.id;
 
     try {
       const createdProfile = await createStudentProfile({
         branch: normalizedBranch,
         full_name: normalizedFullName,
-        id: session.user.id,
+        id: userId,
         institute_id: selectedInstitute.id,
         username: normalizedUsername,
         year,
@@ -117,6 +125,21 @@ export default function SetupProfileScreen() {
 
       markProfileCreated(createdProfile);
     } catch (error) {
+      try {
+        const existingProfile = await getStudentProfile(userId);
+
+        if (existingProfile) {
+          markProfileCreated(existingProfile);
+          return;
+        }
+      } catch (reconciliationError) {
+        console.warn(
+          '[setup-profile] Could not reconcile profile creation.',
+          reconciliationError
+        );
+      }
+
+      submitPendingRef.current = false;
       setFormError(getProfileCreationErrorMessage(error));
       setIsSubmitting(false);
     }
