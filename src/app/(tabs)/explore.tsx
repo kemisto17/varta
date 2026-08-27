@@ -1,17 +1,40 @@
-import { useTheme, useThemedStyles } from '../../hooks/useTheme';
-import { useFocusEffect, useRouter } from 'expo-router';
+import {
+  useFocusEffect,
+  useRouter,
+} from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import {
-  useCallback, useEffect, useMemo, useRef, useState, } from 'react';
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
-  ActivityIndicator, Keyboard, Pressable, SectionList, StyleSheet, Text, TextInput, View, } from 'react-native';
+  ActivityIndicator,
+  Keyboard,
+  Pressable,
+  SectionList,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { Avatar } from '../../components/Avatar';
-import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { EventCard } from '../../components/events/EventCard';
 import { OrganizationAvatar } from '../../components/organizations/OrganizationAvatar';
-import { radius, spacing, type ThemeColors } from '../../constants/theme';
+import { SafeAreaScreen } from '../../components/SafeAreaScreen';
+import {
+  radius,
+  spacing,
+  type ThemeColors,
+} from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
+import {
+  useTheme,
+  useThemedStyles,
+} from '../../hooks/useTheme';
 import {
   addRecentSearch,
   clearRecentSearches,
@@ -34,14 +57,34 @@ import type {
   SearchResults,
 } from '../../types/search';
 
-type SearchStatus = 'idle' | 'searching' | 'ready' | 'error';
-type DiscoveryStatus = 'loading' | 'ready' | 'error';
+type SearchStatus =
+  | 'idle'
+  | 'searching'
+  | 'ready'
+  | 'error';
+
+type DiscoveryStatus =
+  | 'loading'
+  | 'ready'
+  | 'error';
 
 type ExploreItem =
-  | { kind: 'discovery-event'; value: CampusEvent }
-  | { kind: 'event'; value: SearchEvent }
-  | { kind: 'organization'; value: SearchOrganization }
-  | { kind: 'person'; value: SearchPerson };
+  | {
+      kind: 'discovery-event';
+      value: CampusEvent;
+    }
+  | {
+      kind: 'event';
+      value: SearchEvent;
+    }
+  | {
+      kind: 'organization';
+      value: SearchOrganization;
+    }
+  | {
+      kind: 'person';
+      value: SearchPerson;
+    };
 
 type ExploreSection = {
   data: ExploreItem[];
@@ -59,351 +102,1133 @@ const EMPTY_DISCOVERY_RESULTS: DiscoveryResults = {
   organizations: [],
 };
 
-export default function ExploreScreen() {
-  const { colors, styles } = useThemedStyles(createStyles);
-  const router = useRouter();
-  const { session } = useAuth();
-  const userId = session?.user.id ?? null;
-  const searchRequestId = useRef(0);
-  const [discovery, setDiscovery] = useState(EMPTY_DISCOVERY_RESULTS);
-  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
-  const [discoveryStatus, setDiscoveryStatus] =
-    useState<DiscoveryStatus>('loading');
-  const [query, setQuery] = useState('');
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [results, setResults] = useState(EMPTY_SEARCH_RESULTS);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [searchNonce, setSearchNonce] = useState(0);
-  const [searchStatus, setSearchStatus] = useState<SearchStatus>('idle');
-  const normalizedQuery = normalizeSearchQuery(query);
-  const isSearching = searchStatus === 'searching';
-  const isSearchMode = normalizedQuery.length >= MIN_SEARCH_CHARACTERS;
+const DISCOVERY_CACHE_DURATION_MS =
+  2 * 60 * 1000;
 
-  const loadDiscovery = useCallback(async () => {
+export default function ExploreScreen() {
+  const { colors, styles } =
+    useThemedStyles(createStyles);
+
+  const router = useRouter();
+
+  const { session } =
+    useAuth();
+
+  const userId =
+    session?.user.id ?? null;
+
+  const searchRequestId =
+    useRef(0);
+
+  const discoveryRequestId =
+    useRef(0);
+
+  const discoveryLoadedRef =
+    useRef(false);
+
+  const discoveryLoadingRef =
+    useRef(false);
+
+  const lastDiscoveryLoadedAtRef =
+    useRef(0);
+
+  const [
+    discovery,
+    setDiscovery,
+  ] =
+    useState<DiscoveryResults>(
+      EMPTY_DISCOVERY_RESULTS
+    );
+
+  const [
+    discoveryError,
+    setDiscoveryError,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  const [
+    discoveryStatus,
+    setDiscoveryStatus,
+  ] =
+    useState<DiscoveryStatus>(
+      'loading'
+    );
+
+  const [
+    query,
+    setQuery,
+  ] =
+    useState('');
+
+  const [
+    recentSearches,
+    setRecentSearches,
+  ] =
+    useState<string[]>([]);
+
+  const [
+    results,
+    setResults,
+  ] =
+    useState<SearchResults>(
+      EMPTY_SEARCH_RESULTS
+    );
+
+  const [
+    searchError,
+    setSearchError,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  const [
+    searchNonce,
+    setSearchNonce,
+  ] =
+    useState(0);
+
+  const [
+    searchStatus,
+    setSearchStatus,
+  ] =
+    useState<SearchStatus>(
+      'idle'
+    );
+
+  const normalizedQuery =
+    normalizeSearchQuery(
+      query
+    );
+
+  const isSearching =
+    searchStatus ===
+    'searching';
+
+  const isSearchMode =
+    normalizedQuery.length >=
+    MIN_SEARCH_CHARACTERS;
+
+  /*
+   * All Explore state belongs to
+   * the authenticated user.
+   *
+   * Reset the cached discovery and
+   * search state when the account
+   * changes so stale data from another
+   * session cannot remain visible.
+   */
+  useEffect(() => {
+    searchRequestId.current +=
+      1;
+
+    discoveryRequestId.current +=
+      1;
+
+    discoveryLoadedRef.current =
+      false;
+
+    discoveryLoadingRef.current =
+      false;
+
+    lastDiscoveryLoadedAtRef.current =
+      0;
+
+    setDiscovery(
+      EMPTY_DISCOVERY_RESULTS
+    );
+
+    setDiscoveryError(
+      null
+    );
+
+    setDiscoveryStatus(
+      'loading'
+    );
+
+    setQuery('');
+
+    setResults(
+      EMPTY_SEARCH_RESULTS
+    );
+
+    setSearchError(
+      null
+    );
+
+    setSearchStatus(
+      'idle'
+    );
+
+    setSearchNonce(
+      0
+    );
+
+    setRecentSearches(
+      []
+    );
+
     if (!userId) {
       return;
     }
 
-    setDiscoveryStatus('loading');
-    setDiscoveryError(null);
+    let isActive =
+      true;
 
-    try {
-      setDiscovery(await getVartaDiscovery(userId));
-      setDiscoveryStatus('ready');
-    } catch (error) {
-      console.warn('[explore] Could not load discovery.', error);
-      setDiscoveryError('Discovery is unavailable. Check your connection.');
-      setDiscoveryStatus('error');
-    }
+    /*
+     * Recent searches are local user
+     * state. Load them once when the
+     * authenticated user changes.
+     *
+     * addRecentSearch() and
+     * clearRecentSearches() already
+     * update the React state locally,
+     * so there is no reason to read
+     * them again every time Explore
+     * regains focus.
+     */
+    void getRecentSearches(
+      userId
+    )
+      .then(
+        (
+          nextRecentSearches
+        ) => {
+          if (isActive) {
+            setRecentSearches(
+              nextRecentSearches
+            );
+          }
+        }
+      )
+      .catch(() => {
+        if (isActive) {
+          setRecentSearches(
+            []
+          );
+        }
+      });
+
+    return () => {
+      isActive =
+        false;
+    };
   }, [userId]);
 
+  const loadDiscovery =
+    useCallback(
+      async (
+        forceLoadingState =
+          false
+      ) => {
+        if (
+          !userId ||
+          discoveryLoadingRef.current
+        ) {
+          return;
+        }
+
+        discoveryLoadingRef.current =
+          true;
+
+        const activeRequestId =
+          discoveryRequestId.current +
+          1;
+
+        discoveryRequestId.current =
+          activeRequestId;
+
+        const hasLoaded =
+          discoveryLoadedRef.current;
+
+        /*
+         * Show the full loading state
+         * only on the first request or
+         * when the user explicitly
+         * retries an empty/error state.
+         *
+         * Background refreshes keep the
+         * current discovery cards
+         * visible.
+         */
+        if (
+          !hasLoaded ||
+          forceLoadingState
+        ) {
+          setDiscoveryStatus(
+            'loading'
+          );
+        }
+
+        setDiscoveryError(
+          null
+        );
+
+        try {
+          const nextDiscovery =
+            await getVartaDiscovery(
+              userId
+            );
+
+          if (
+            discoveryRequestId.current !==
+            activeRequestId
+          ) {
+            return;
+          }
+
+          discoveryLoadedRef.current =
+            true;
+
+          lastDiscoveryLoadedAtRef.current =
+            Date.now();
+
+          setDiscovery(
+            nextDiscovery
+          );
+
+          setDiscoveryStatus(
+            'ready'
+          );
+        } catch (error) {
+          if (
+            discoveryRequestId.current !==
+            activeRequestId
+          ) {
+            return;
+          }
+
+          console.warn(
+            '[explore] Could not load discovery.',
+            error
+          );
+
+          setDiscoveryError(
+            'Discovery is unavailable. Check your connection.'
+          );
+
+          /*
+           * If discovery was already
+           * loaded, keep the existing
+           * cards visible instead of
+           * replacing the whole screen
+           * with an error state.
+           */
+          setDiscoveryStatus(
+            hasLoaded
+              ? 'ready'
+              : 'error'
+          );
+        } finally {
+          if (
+            discoveryRequestId.current ===
+            activeRequestId
+          ) {
+            discoveryLoadingRef.current =
+              false;
+          }
+        }
+      },
+      [userId]
+    );
+
+  /*
+   * Explore discovery is intentionally
+   * short-lived cached data.
+   *
+   * Returning from a user,
+   * organization, or event profile
+   * within two minutes reuses the
+   * current discovery instead of
+   * hitting Supabase again.
+   */
   useFocusEffect(
     useCallback(() => {
       if (!userId) {
         return;
       }
 
-      void loadDiscovery();
-      void getRecentSearches(userId)
-        .then(setRecentSearches)
-        .catch(() => setRecentSearches([]));
-    }, [loadDiscovery, userId])
+      const now =
+        Date.now();
+
+      const shouldRefresh =
+        !discoveryLoadedRef.current ||
+        now -
+          lastDiscoveryLoadedAtRef.current >=
+          DISCOVERY_CACHE_DURATION_MS;
+
+      if (
+        shouldRefresh
+      ) {
+        void loadDiscovery();
+      }
+    }, [
+      loadDiscovery,
+      userId,
+    ])
   );
 
+  /*
+   * Debounced search.
+   *
+   * Every new query invalidates the
+   * previous request and aborts its
+   * network operation.
+   */
   useEffect(() => {
-    const activeRequestId = searchRequestId.current + 1;
-    searchRequestId.current = activeRequestId;
+    const activeRequestId =
+      searchRequestId.current +
+      1;
+
+    searchRequestId.current =
+      activeRequestId;
 
     if (!isSearchMode) {
-      setResults(EMPTY_SEARCH_RESULTS);
-      setSearchError(null);
-      setSearchStatus('idle');
+      setResults(
+        EMPTY_SEARCH_RESULTS
+      );
+
+      setSearchError(
+        null
+      );
+
+      setSearchStatus(
+        'idle'
+      );
+
       return;
     }
 
-    const controller = new AbortController();
-    setSearchError(null);
-    setSearchStatus('searching');
-    const timer = setTimeout(() => {
-      void searchVarta(normalizedQuery, controller.signal)
-        .then((nextResults) => {
-          if (searchRequestId.current !== activeRequestId) {
-            return;
-          }
+    const controller =
+      new AbortController();
 
-          setResults(nextResults);
-          setSearchStatus('ready');
-        })
-        .catch((error: unknown) => {
-          if (
-            controller.signal.aborted ||
-            searchRequestId.current !== activeRequestId
-          ) {
-            return;
-          }
+    setSearchError(
+      null
+    );
 
-          console.warn('[explore] Search request failed.', error);
-          setSearchError(getSearchErrorMessage());
-          setSearchStatus('error');
-        });
-    }, 320);
+    setSearchStatus(
+      'searching'
+    );
+
+    const timer =
+      setTimeout(() => {
+        void searchVarta(
+          normalizedQuery,
+          controller.signal
+        )
+          .then(
+            (
+              nextResults
+            ) => {
+              if (
+                searchRequestId.current !==
+                activeRequestId
+              ) {
+                return;
+              }
+
+              setResults(
+                nextResults
+              );
+
+              setSearchStatus(
+                'ready'
+              );
+            }
+          )
+          .catch(
+            (
+              error: unknown
+            ) => {
+              if (
+                controller.signal
+                  .aborted ||
+                searchRequestId.current !==
+                  activeRequestId
+              ) {
+                return;
+              }
+
+              console.warn(
+                '[explore] Search request failed.',
+                error
+              );
+
+              setSearchError(
+                getSearchErrorMessage()
+              );
+
+              setSearchStatus(
+                'error'
+              );
+            }
+          );
+      }, 320);
 
     return () => {
-      clearTimeout(timer);
+      clearTimeout(
+        timer
+      );
+
       controller.abort();
     };
-  }, [isSearchMode, normalizedQuery, searchNonce]);
+  }, [
+    isSearchMode,
+    normalizedQuery,
+    searchNonce,
+    userId,
+  ]);
 
-  const sections = useMemo<ExploreSection[]>(() => {
-    if (isSearchMode) {
+  const sections =
+    useMemo<
+      ExploreSection[]
+    >(() => {
+      if (isSearchMode) {
+        return [
+          {
+            data:
+              results.people.map(
+                (value) => ({
+                  kind:
+                    'person',
+                  value,
+                })
+              ),
+
+            title:
+              'Students',
+          },
+
+          {
+            data:
+              results.organizations.map(
+                (value) => ({
+                  kind:
+                    'organization',
+                  value,
+                })
+              ),
+
+            title:
+              'Organizations',
+          },
+
+          {
+            data:
+              results.events.map(
+                (value) => ({
+                  kind:
+                    'event',
+                  value,
+                })
+              ),
+
+            title:
+              'Upcoming events',
+          },
+        ].filter(
+          (section) =>
+            section.data
+              .length > 0
+        ) as ExploreSection[];
+      }
+
+      if (
+        normalizedQuery.length >
+        0
+      ) {
+        return [];
+      }
+
       return [
         {
-          data: results.people.map((value) => ({ kind: 'person', value })),
-          title: 'Students',
+          data:
+            discovery.organizations.map(
+              (value) => ({
+                kind:
+                  'organization',
+                value,
+              })
+            ),
+
+          title:
+            'Official organizations',
         },
+
         {
-          data: results.organizations.map((value) => ({
-            kind: 'organization',
-            value,
-          })),
-          title: 'Organizations',
+          data:
+            discovery.events.map(
+              (value) => ({
+                kind:
+                  'discovery-event',
+                value,
+              })
+            ),
+
+          title:
+            'Coming up',
         },
-        {
-          data: results.events.map((value) => ({ kind: 'event', value })),
-          title: 'Upcoming events',
-        },
-      ].filter((section) => section.data.length > 0) as ExploreSection[];
-    }
+      ].filter(
+        (section) =>
+          section.data
+            .length > 0
+      ) as ExploreSection[];
+    }, [
+      discovery,
+      isSearchMode,
+      normalizedQuery.length,
+      results,
+    ]);
 
-    if (normalizedQuery.length > 0) {
-      return [];
-    }
+  const rememberQuery =
+    useCallback(
+      (
+        value: string
+      ) => {
+        if (
+          !userId ||
+          value.length <
+            MIN_SEARCH_CHARACTERS
+        ) {
+          return;
+        }
 
-    return [
-      {
-        data: discovery.organizations.map((value) => ({
-          kind: 'organization',
-          value,
-        })),
-        title: 'Official organizations',
+        void addRecentSearch(
+          userId,
+          value
+        )
+          .then(
+            setRecentSearches
+          )
+          .catch(
+            () =>
+              undefined
+          );
       },
-      {
-        data: discovery.events.map((value) => ({
-          kind: 'discovery-event',
-          value,
-        })),
-        title: 'Coming up',
-      },
-    ].filter((section) => section.data.length > 0) as ExploreSection[];
-  }, [discovery, isSearchMode, normalizedQuery.length, results]);
+      [userId]
+    );
 
-  const rememberQuery = useCallback(
-    (value: string) => {
+  const openItem =
+    useCallback(
+      (
+        item:
+          ExploreItem
+      ) => {
+        if (
+          isSearchMode
+        ) {
+          rememberQuery(
+            normalizedQuery
+          );
+        }
+
+        Keyboard.dismiss();
+
+        if (
+          item.kind ===
+          'person'
+        ) {
+          router.push({
+            pathname:
+              '/user/[id]',
+
+            params: {
+              id:
+                item.value.id,
+            },
+          });
+
+          return;
+        }
+
+        if (
+          item.kind ===
+          'organization'
+        ) {
+          router.push({
+            pathname:
+              '/organization/[id]',
+
+            params: {
+              id:
+                item.value.id,
+            },
+          });
+
+          return;
+        }
+
+        router.push({
+          pathname:
+            '/event/[id]',
+
+          params: {
+            id:
+              item.value.id,
+          },
+        });
+      },
+      [
+        isSearchMode,
+        normalizedQuery,
+        rememberQuery,
+        router,
+      ]
+    );
+
+  const clearHistory =
+    useCallback(() => {
       if (!userId) {
         return;
       }
 
-      void addRecentSearch(userId, value)
-        .then(setRecentSearches)
-        .catch(() => undefined);
-    },
-    [userId]
-  );
+      setRecentSearches(
+        []
+      );
 
-  const openItem = useCallback(
-    (item: ExploreItem) => {
-      if (isSearchMode) {
-        rememberQuery(normalizedQuery);
+      void clearRecentSearches(
+        userId
+      ).catch(
+        () =>
+          undefined
+      );
+    }, [userId]);
+
+  const renderItem =
+    ({
+      item,
+    }: {
+      item:
+        ExploreItem;
+    }) => {
+      if (
+        item.kind ===
+        'person'
+      ) {
+        return (
+          <PersonResult
+            person={
+              item.value
+            }
+            onPress={() =>
+              openItem(
+                item
+              )
+            }
+          />
+        );
       }
 
-      Keyboard.dismiss();
-
-      if (item.kind === 'person') {
-        router.push({ pathname: '/user/[id]', params: { id: item.value.id } });
-      } else if (item.kind === 'organization') {
-        router.push({
-          pathname: '/organization/[id]',
-          params: { id: item.value.id },
-        });
-      } else {
-        router.push({
-          pathname: '/event/[id]',
-          params: { id: item.value.id },
-        });
+      if (
+        item.kind ===
+        'organization'
+      ) {
+        return (
+          <OrganizationResult
+            organization={
+              item.value
+            }
+            onPress={() =>
+              openItem(
+                item
+              )
+            }
+          />
+        );
       }
-    },
-    [isSearchMode, normalizedQuery, rememberQuery, router]
-  );
 
-  const clearHistory = useCallback(() => {
-    if (!userId) {
-      return;
-    }
+      if (
+        item.kind ===
+        'event'
+      ) {
+        return (
+          <EventResult
+            event={
+              item.value
+            }
+            onPress={() =>
+              openItem(
+                item
+              )
+            }
+          />
+        );
+      }
 
-    setRecentSearches([]);
-    void clearRecentSearches(userId).catch(() => undefined);
-  }, [userId]);
-
-  const renderItem = ({ item }: { item: ExploreItem }) => {
-    if (item.kind === 'person') {
       return (
-        <PersonResult
-          person={item.value}
-          onPress={() => openItem(item)}
+        <EventCard
+          event={
+            item.value
+          }
+          onPress={() =>
+            openItem(
+              item
+            )
+          }
         />
       );
-    }
-
-    if (item.kind === 'organization') {
-      return (
-        <OrganizationResult
-          organization={item.value}
-          onPress={() => openItem(item)}
-        />
-      );
-    }
-
-    if (item.kind === 'event') {
-      return (
-        <EventResult event={item.value} onPress={() => openItem(item)} />
-      );
-    }
-
-    return (
-      <EventCard event={item.value} onPress={() => openItem(item)} />
-    );
-  };
+    };
 
   return (
-    <SafeAreaScreen style={styles.safeArea} withinTabNavigator>
+    <SafeAreaScreen
+      style={
+        styles.safeArea
+      }
+      withinTabNavigator
+    >
       <SectionList
         contentContainerStyle={[
           styles.content,
-          sections.length === 0 && styles.emptyContent,
+          sections.length ===
+            0 &&
+            styles.emptyContent,
         ]}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
-        keyExtractor={(item) => `${item.kind}:${item.value.id}`}
+        keyExtractor={(
+          item
+        ) =>
+          `${item.kind}:${item.value.id}`
+        }
         ListEmptyComponent={
           <ExploreEmptyState
-            discoveryError={discoveryError}
-            discoveryStatus={discoveryStatus}
-            isSearchMode={isSearchMode}
-            normalizedQuery={normalizedQuery}
-            onDiscoveryRetry={() => void loadDiscovery()}
-            onSearchRetry={() => setSearchNonce((current) => current + 1)}
-            searchError={searchError}
-            searchStatus={searchStatus}
+            discoveryError={
+              discoveryError
+            }
+            discoveryStatus={
+              discoveryStatus
+            }
+            isSearchMode={
+              isSearchMode
+            }
+            normalizedQuery={
+              normalizedQuery
+            }
+            onDiscoveryRetry={() =>
+              void loadDiscovery(
+                true
+              )
+            }
+            onSearchRetry={() =>
+              setSearchNonce(
+                (
+                  current
+                ) =>
+                  current +
+                  1
+              )
+            }
+            searchError={
+              searchError
+            }
+            searchStatus={
+              searchStatus
+            }
           />
         }
         ListHeaderComponent={
           <View>
-            <Text style={styles.brand}>VĀRTĀ</Text>
-            <Text style={styles.heading}>Find your campus.</Text>
-            <View style={styles.searchField}>
+            <Text
+              style={
+                styles.brand
+              }
+            >
+              VĀRTĀ
+            </Text>
+
+            <Text
+              style={
+                styles.heading
+              }
+            >
+              Find your campus.
+            </Text>
+
+            <View
+              style={
+                styles.searchField
+              }
+            >
               <SymbolView
-                name={{ android: 'search', ios: 'magnifyingglass', web: 'search' }}
+                name={{
+                  android:
+                    'search',
+                  ios:
+                    'magnifyingglass',
+                  web:
+                    'search',
+                }}
                 size={20}
-                tintColor={colors.textMuted}
+                tintColor={
+                  colors.textMuted
+                }
               />
+
               <TextInput
                 accessibilityLabel="Search students, organizations, and events"
-                autoCorrect={false}
-                maxLength={80}
-                onChangeText={setQuery}
-                onSubmitEditing={() => rememberQuery(normalizedQuery)}
+                autoCorrect={
+                  false
+                }
+                maxLength={
+                  80
+                }
+                onChangeText={
+                  setQuery
+                }
+                onSubmitEditing={() =>
+                  rememberQuery(
+                    normalizedQuery
+                  )
+                }
                 placeholder="Students, organizations, events"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={
+                  colors.textMuted
+                }
                 returnKeyType="search"
-                selectionColor={colors.textPrimary}
-                style={styles.searchInput}
-                value={query}
+                selectionColor={
+                  colors.textPrimary
+                }
+                style={
+                  styles.searchInput
+                }
+                value={
+                  query
+                }
               />
+
               {isSearching ? (
-                <ActivityIndicator color={colors.textSecondary} size="small" />
-              ) : query.length > 0 ? (
+                <ActivityIndicator
+                  color={
+                    colors.textSecondary
+                  }
+                  size="small"
+                />
+              ) : query.length >
+                0 ? (
                 <Pressable
                   accessibilityLabel="Clear search"
                   accessibilityRole="button"
-                  hitSlop={10}
-                  onPress={() => setQuery('')}
-                  style={({ pressed }) => pressed && styles.pressed}
+                  hitSlop={
+                    10
+                  }
+                  onPress={() =>
+                    setQuery('')
+                  }
+                  style={({
+                    pressed,
+                  }) =>
+                    pressed &&
+                    styles.pressed
+                  }
                 >
                   <SymbolView
-                    name={{ android: 'cancel', ios: 'xmark.circle.fill', web: 'cancel' }}
+                    name={{
+                      android:
+                        'cancel',
+                      ios:
+                        'xmark.circle.fill',
+                      web:
+                        'cancel',
+                    }}
                     size={20}
-                    tintColor={colors.textMuted}
+                    tintColor={
+                      colors.textMuted
+                    }
                   />
                 </Pressable>
               ) : null}
             </View>
 
-            {searchError && sections.length > 0 ? (
-              <Text accessibilityRole="alert" style={styles.inlineError}>
-                {searchError}
+            {searchError &&
+            sections.length >
+              0 ? (
+              <Text
+                accessibilityRole="alert"
+                style={
+                  styles.inlineError
+                }
+              >
+                {
+                  searchError
+                }
               </Text>
             ) : null}
 
             {!isSearchMode &&
             discoveryError &&
-            sections.length > 0 ? (
-              <Text accessibilityRole="alert" style={styles.inlineError}>
-                {discoveryError}
+            sections.length >
+              0 ? (
+              <Text
+                accessibilityRole="alert"
+                style={
+                  styles.inlineError
+                }
+              >
+                {
+                  discoveryError
+                }
               </Text>
             ) : null}
 
-            {normalizedQuery.length === 0 && recentSearches.length > 0 ? (
-              <View style={styles.recentBlock}>
-                <View style={styles.recentHeadingRow}>
-                  <Text style={styles.recentHeading}>Recent searches</Text>
+            {normalizedQuery.length ===
+              0 &&
+            recentSearches.length >
+              0 ? (
+              <View
+                style={
+                  styles.recentBlock
+                }
+              >
+                <View
+                  style={
+                    styles.recentHeadingRow
+                  }
+                >
+                  <Text
+                    style={
+                      styles.recentHeading
+                    }
+                  >
+                    Recent searches
+                  </Text>
+
                   <Pressable
                     accessibilityRole="button"
-                    onPress={clearHistory}
-                    style={({ pressed }) => pressed && styles.pressed}
+                    onPress={
+                      clearHistory
+                    }
+                    style={({
+                      pressed,
+                    }) =>
+                      pressed &&
+                      styles.pressed
+                    }
                   >
-                    <Text style={styles.clearHistory}>Clear</Text>
+                    <Text
+                      style={
+                        styles.clearHistory
+                      }
+                    >
+                      Clear
+                    </Text>
                   </Pressable>
                 </View>
-                <View style={styles.recentChips}>
-                  {recentSearches.map((item) => (
-                    <Pressable
-                      accessibilityRole="button"
-                      key={item.toLocaleLowerCase()}
-                      onPress={() => setQuery(item)}
-                      style={({ pressed }) => [
-                        styles.recentChip,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <SymbolView
-                        name={{ android: 'history', ios: 'clock', web: 'history' }}
-                        size={13}
-                        tintColor={colors.textSecondary}
-                      />
-                      <Text numberOfLines={1} style={styles.recentChipText}>
-                        {item}
-                      </Text>
-                    </Pressable>
-                  ))}
+
+                <View
+                  style={
+                    styles.recentChips
+                  }
+                >
+                  {recentSearches.map(
+                    (
+                      item
+                    ) => (
+                      <Pressable
+                        accessibilityRole="button"
+                        key={item.toLocaleLowerCase()}
+                        onPress={() =>
+                          setQuery(
+                            item
+                          )
+                        }
+                        style={({
+                          pressed,
+                        }) => [
+                          styles.recentChip,
+                          pressed &&
+                            styles.pressed,
+                        ]}
+                      >
+                        <SymbolView
+                          name={{
+                            android:
+                              'history',
+                            ios:
+                              'clock',
+                            web:
+                              'history',
+                          }}
+                          size={
+                            13
+                          }
+                          tintColor={
+                            colors.textSecondary
+                          }
+                        />
+
+                        <Text
+                          numberOfLines={
+                            1
+                          }
+                          style={
+                            styles.recentChipText
+                          }
+                        >
+                          {
+                            item
+                          }
+                        </Text>
+                      </Pressable>
+                    )
+                  )}
                 </View>
               </View>
             ) : null}
 
-            {normalizedQuery.length === 0 ? (
-              <View style={styles.discoveryHeading}>
-                <Text style={styles.eyebrow}>DISCOVER</Text>
-                <Text style={styles.discoveryTitle}>Around your university</Text>
+            {normalizedQuery.length ===
+            0 ? (
+              <View
+                style={
+                  styles.discoveryHeading
+                }
+              >
+                <Text
+                  style={
+                    styles.eyebrow
+                  }
+                >
+                  DISCOVER
+                </Text>
+
+                <Text
+                  style={
+                    styles.discoveryTitle
+                  }
+                >
+                  Around your
+                  university
+                </Text>
               </View>
             ) : null}
           </View>
         }
-        renderItem={renderItem}
-        renderSectionHeader={({ section }) => (
-          <Text style={styles.sectionTitle}>{section.title}</Text>
+        renderItem={
+          renderItem
+        }
+        renderSectionHeader={({
+          section,
+        }) => (
+          <Text
+            style={
+              styles.sectionTitle
+            }
+          >
+            {
+              section.title
+            }
+          </Text>
         )}
-        sections={sections}
-        showsVerticalScrollIndicator={false}
-        stickySectionHeadersEnabled={false}
+        sections={
+          sections
+        }
+        showsVerticalScrollIndicator={
+          false
+        }
+        stickySectionHeadersEnabled={
+          false
+        }
       />
     </SafeAreaScreen>
   );
@@ -416,30 +1241,90 @@ function PersonResult({
   onPress: () => void;
   person: SearchPerson;
 }) {
-  const { styles } = useThemedStyles(createStyles);
+  const { styles } =
+    useThemedStyles(
+      createStyles
+    );
+
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.resultRow, pressed && styles.rowPressed]}
+      style={({
+        pressed,
+      }) => [
+        styles.resultRow,
+        pressed &&
+          styles.rowPressed,
+      ]}
     >
       <Avatar
-        fullName={person.full_name}
+        fullName={
+          person.full_name
+        }
         size={48}
-        uri={person.avatarUrl}
-        verified={person.is_verified}
+        uri={
+          person.avatarUrl
+        }
+        verified={
+          person.is_verified
+        }
       />
-      <View style={styles.resultCopy}>
-        <Text numberOfLines={1} style={styles.resultTitle}>
-          {person.full_name}
+
+      <View
+        style={
+          styles.resultCopy
+        }
+      >
+        <Text
+          numberOfLines={
+            1
+          }
+          style={
+            styles.resultTitle
+          }
+        >
+          {
+            person.full_name
+          }
         </Text>
-        <Text numberOfLines={1} style={styles.resultHandle}>
-          @{person.username}
+
+        <Text
+          numberOfLines={
+            1
+          }
+          style={
+            styles.resultHandle
+          }
+        >
+          @
+          {
+            person.username
+          }
         </Text>
-        <Text numberOfLines={1} style={styles.resultMeta}>
-          {person.branch} · Year {person.year} · {person.institute_short_name}
+
+        <Text
+          numberOfLines={
+            1
+          }
+          style={
+            styles.resultMeta
+          }
+        >
+          {
+            person.branch
+          }{' '}
+          · Year{' '}
+          {
+            person.year
+          }{' '}
+          ·{' '}
+          {
+            person.institute_short_name
+          }
         </Text>
       </View>
+
       <Chevron />
     </Pressable>
   );
@@ -450,40 +1335,109 @@ function OrganizationResult({
   organization,
 }: {
   onPress: () => void;
-  organization: SearchOrganization;
+  organization:
+    SearchOrganization;
 }) {
-  const { colors, styles } = useThemedStyles(createStyles);
+  const {
+    colors,
+    styles,
+  } =
+    useThemedStyles(
+      createStyles
+    );
+
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.resultRow, pressed && styles.rowPressed]}
+      style={({
+        pressed,
+      }) => [
+        styles.resultRow,
+        pressed &&
+          styles.rowPressed,
+      ]}
     >
       <OrganizationAvatar
-        name={organization.name}
+        name={
+          organization.name
+        }
         size={48}
-        uri={organization.avatarUrl}
+        uri={
+          organization.avatarUrl
+        }
       />
-      <View style={styles.resultCopy}>
-        <View style={styles.verifiedRow}>
-          <Text numberOfLines={1} style={styles.resultTitle}>
-            {organization.name}
+
+      <View
+        style={
+          styles.resultCopy
+        }
+      >
+        <View
+          style={
+            styles.verifiedRow
+          }
+        >
+          <Text
+            numberOfLines={
+              1
+            }
+            style={
+              styles.resultTitle
+            }
+          >
+            {
+              organization.name
+            }
           </Text>
+
           {organization.is_verified ? (
             <SymbolView
-              name={{ android: 'verified', ios: 'checkmark.seal.fill', web: 'verified' }}
-              size={15}
-              tintColor={colors.textPrimary}
+              name={{
+                android:
+                  'verified',
+                ios:
+                  'checkmark.seal.fill',
+                web:
+                  'verified',
+              }}
+              size={
+                15
+              }
+              tintColor={
+                colors.textPrimary
+              }
             />
           ) : null}
         </View>
-        <Text numberOfLines={1} style={styles.resultHandle}>
-          @{organization.slug}
+
+        <Text
+          numberOfLines={
+            1
+          }
+          style={
+            styles.resultHandle
+          }
+        >
+          @
+          {
+            organization.slug
+          }
         </Text>
-        <Text numberOfLines={1} style={styles.resultMeta}>
-          {organization.institute_short_name || 'University-wide'}
+
+        <Text
+          numberOfLines={
+            1
+          }
+          style={
+            styles.resultMeta
+          }
+        >
+          {organization.institute_short_name ||
+            'University-wide'}
         </Text>
       </View>
+
       <Chevron />
     </Pressable>
   );
@@ -493,58 +1447,166 @@ function EventResult({
   event,
   onPress,
 }: {
-  event: SearchEvent;
+  event:
+    SearchEvent;
   onPress: () => void;
 }) {
-  const { colors, styles } = useThemedStyles(createStyles);
-  const date = new Date(event.starts_at);
-  const month = new Intl.DateTimeFormat('en', { month: 'short' })
-    .format(date)
-    .toUpperCase();
+  const {
+    colors,
+    styles,
+  } =
+    useThemedStyles(
+      createStyles
+    );
+
+  const date =
+    new Date(
+      event.starts_at
+    );
+
+  const month =
+    new Intl.DateTimeFormat(
+      'en',
+      {
+        month:
+          'short',
+      }
+    )
+      .format(date)
+      .toUpperCase();
 
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.resultRow, pressed && styles.rowPressed]}
+      style={({
+        pressed,
+      }) => [
+        styles.resultRow,
+        pressed &&
+          styles.rowPressed,
+      ]}
     >
-      <View style={styles.dateTile}>
-        <Text style={styles.dateMonth}>{month}</Text>
-        <Text style={styles.dateDay}>{date.getDate()}</Text>
-      </View>
-      <View style={styles.resultCopy}>
-        <Text numberOfLines={2} style={styles.resultTitle}>
-          {event.title}
+      <View
+        style={
+          styles.dateTile
+        }
+      >
+        <Text
+          style={
+            styles.dateMonth
+          }
+        >
+          {month}
         </Text>
-        <View style={styles.verifiedRow}>
-          <Text numberOfLines={1} style={styles.resultHandle}>
-            {event.organization_name}
+
+        <Text
+          style={
+            styles.dateDay
+          }
+        >
+          {
+            date.getDate()
+          }
+        </Text>
+      </View>
+
+      <View
+        style={
+          styles.resultCopy
+        }
+      >
+        <Text
+          numberOfLines={
+            2
+          }
+          style={
+            styles.resultTitle
+          }
+        >
+          {
+            event.title
+          }
+        </Text>
+
+        <View
+          style={
+            styles.verifiedRow
+          }
+        >
+          <Text
+            numberOfLines={
+              1
+            }
+            style={
+              styles.resultHandle
+            }
+          >
+            {
+              event.organization_name
+            }
           </Text>
+
           {event.organization_is_verified ? (
             <SymbolView
-              name={{ android: 'verified', ios: 'checkmark.seal.fill', web: 'verified' }}
-              size={13}
-              tintColor={colors.textSecondary}
+              name={{
+                android:
+                  'verified',
+                ios:
+                  'checkmark.seal.fill',
+                web:
+                  'verified',
+              }}
+              size={
+                13
+              }
+              tintColor={
+                colors.textSecondary
+              }
             />
           ) : null}
         </View>
-        <Text numberOfLines={1} style={styles.resultMeta}>
-          {formatEventStart(event.starts_at)}
-          {event.location ? ` · ${event.location}` : ''}
+
+        <Text
+          numberOfLines={
+            1
+          }
+          style={
+            styles.resultMeta
+          }
+        >
+          {formatEventStart(
+            event.starts_at
+          )}
+          {event.location
+            ? ` · ${event.location}`
+            : ''}
         </Text>
       </View>
+
       <Chevron />
     </Pressable>
   );
 }
 
 function Chevron() {
-  const { colors } = useTheme();
+  const { colors } =
+    useTheme();
+
   return (
     <SymbolView
-      name={{ android: 'chevron_right', ios: 'chevron.right', web: 'chevron_right' }}
+      name={{
+        android:
+          'chevron_right',
+        ios:
+          'chevron.right',
+        web:
+          'chevron_right',
+      }}
       size={15}
-      tintColor={colors.textMuted}
+      tintColor={
+        colors.textMuted
+      }
     />
   );
 }
@@ -559,32 +1621,71 @@ function ExploreEmptyState({
   searchError,
   searchStatus,
 }: {
-  discoveryError: string | null;
-  discoveryStatus: DiscoveryStatus;
-  isSearchMode: boolean;
-  normalizedQuery: string;
-  onDiscoveryRetry: () => void;
-  onSearchRetry: () => void;
-  searchError: string | null;
-  searchStatus: SearchStatus;
+  discoveryError:
+    string | null;
+
+  discoveryStatus:
+    DiscoveryStatus;
+
+  isSearchMode:
+    boolean;
+
+  normalizedQuery:
+    string;
+
+  onDiscoveryRetry:
+    () => void;
+
+  onSearchRetry:
+    () => void;
+
+  searchError:
+    string | null;
+
+  searchStatus:
+    SearchStatus;
 }) {
-  const { colors, styles } = useThemedStyles(createStyles);
-  if (isSearchMode && searchStatus === 'searching') {
+  const {
+    colors,
+    styles,
+  } =
+    useThemedStyles(
+      createStyles
+    );
+
+  if (
+    isSearchMode &&
+    searchStatus ===
+      'searching'
+  ) {
     return null;
   }
 
-  if (isSearchMode && searchStatus === 'error') {
+  if (
+    isSearchMode &&
+    searchStatus ===
+      'error'
+  ) {
     return (
       <StateCard
         actionLabel="Try again"
-        message={searchError ?? getSearchErrorMessage()}
-        onAction={onSearchRetry}
+        message={
+          searchError ??
+          getSearchErrorMessage()
+        }
+        onAction={
+          onSearchRetry
+        }
         title="Search paused"
       />
     );
   }
 
-  if (isSearchMode && searchStatus === 'ready') {
+  if (
+    isSearchMode &&
+    searchStatus ===
+      'ready'
+  ) {
     return (
       <StateCard
         message="Try a full name, username, organization, or event title."
@@ -593,7 +1694,10 @@ function ExploreEmptyState({
     );
   }
 
-  if (normalizedQuery.length > 0) {
+  if (
+    normalizedQuery.length >
+    0
+  ) {
     return (
       <StateCard
         message={`Enter at least ${MIN_SEARCH_CHARACTERS} characters to search.`}
@@ -602,20 +1706,40 @@ function ExploreEmptyState({
     );
   }
 
-  if (discoveryStatus === 'loading') {
+  if (
+    discoveryStatus ===
+    'loading'
+  ) {
     return (
-      <View accessibilityLabel="Loading discovery" style={styles.loadingState}>
-        <ActivityIndicator color={colors.textSecondary} />
+      <View
+        accessibilityLabel="Loading discovery"
+        style={
+          styles.loadingState
+        }
+      >
+        <ActivityIndicator
+          color={
+            colors.textSecondary
+          }
+        />
       </View>
     );
   }
 
-  if (discoveryStatus === 'error') {
+  if (
+    discoveryStatus ===
+    'error'
+  ) {
     return (
       <StateCard
         actionLabel="Try again"
-        message={discoveryError ?? 'Check your connection and try again.'}
-        onAction={onDiscoveryRetry}
+        message={
+          discoveryError ??
+          'Check your connection and try again.'
+        }
+        onAction={
+          onDiscoveryRetry
+        }
         title="Discovery paused"
       />
     );
@@ -635,214 +1759,419 @@ function StateCard({
   onAction,
   title,
 }: {
-  actionLabel?: string;
-  message: string;
-  onAction?: () => void;
-  title: string;
+  actionLabel?:
+    string;
+
+  message:
+    string;
+
+  onAction?:
+    () => void;
+
+  title:
+    string;
 }) {
-  const { styles } = useThemedStyles(createStyles);
+  const { styles } =
+    useThemedStyles(
+      createStyles
+    );
+
   return (
-    <View style={styles.stateCard}>
-      <Text style={styles.stateTitle}>{title}</Text>
-      <Text style={styles.stateMessage}>{message}</Text>
-      {actionLabel && onAction ? (
+    <View
+      style={
+        styles.stateCard
+      }
+    >
+      <Text
+        style={
+          styles.stateTitle
+        }
+      >
+        {title}
+      </Text>
+
+      <Text
+        style={
+          styles.stateMessage
+        }
+      >
+        {message}
+      </Text>
+
+      {actionLabel &&
+      onAction ? (
         <Pressable
           accessibilityRole="button"
-          onPress={onAction}
-          style={({ pressed }) => pressed && styles.pressed}
+          onPress={
+            onAction
+          }
+          style={({
+            pressed,
+          }) =>
+            pressed &&
+            styles.pressed
+          }
         >
-          <Text style={styles.retry}>{actionLabel}</Text>
+          <Text
+            style={
+              styles.retry
+            }
+          >
+            {
+              actionLabel
+            }
+          </Text>
         </Pressable>
       ) : null}
     </View>
   );
 }
 
-const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
-  content: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  emptyContent: { flexGrow: 1 },
-  brand: {
-    marginTop: spacing.lg,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 2.4,
-    color: colors.textSecondary,
-  },
-  heading: {
-    marginTop: spacing.sm,
-    fontSize: 29,
-    fontWeight: '700',
-    letterSpacing: -0.7,
-    color: colors.textPrimary,
-  },
-  searchField: {
-    minHeight: 52,
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-  },
-  searchInput: {
-    flex: 1,
-    minHeight: 50,
-    paddingVertical: 0,
-    fontSize: 15,
-    color: colors.textPrimary,
-  },
-  recentBlock: { marginTop: spacing.lg },
-  inlineError: {
-    marginTop: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    fontSize: 12,
-    lineHeight: 18,
-    color: colors.danger,
-    backgroundColor: colors.dangerSoft,
-  },
-  recentHeadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  recentHeading: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  clearHistory: {
-    paddingVertical: spacing.xs,
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  recentChips: {
-    marginTop: spacing.sm,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  recentChip: {
-    maxWidth: '100%',
-    minHeight: 34,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-  },
-  recentChipText: { fontSize: 12, color: colors.textSecondary },
-  discoveryHeading: { marginTop: spacing.xl },
-  eyebrow: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.3,
-    color: colors.textMuted,
-  },
-  discoveryTitle: {
-    marginTop: spacing.xs,
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  sectionTitle: {
-    marginTop: spacing.xl,
-    marginBottom: spacing.sm,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: colors.textSecondary,
-  },
-  resultRow: {
-    minHeight: 76,
-    marginBottom: spacing.sm,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-  },
-  rowPressed: { backgroundColor: colors.borderSubtle },
-  resultCopy: { flex: 1, minWidth: 0 },
-  resultTitle: {
-    flexShrink: 1,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  resultHandle: {
-    flexShrink: 1,
-    marginTop: 2,
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  resultMeta: {
-    marginTop: 3,
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  dateTile: {
-    width: 48,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.md,
-    backgroundColor: colors.textPrimary,
-  },
-  dateMonth: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    color: colors.textMuted,
-  },
-  dateDay: { fontSize: 19, fontWeight: '700', color: colors.white },
-  loadingState: {
-    minHeight: 170,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stateCard: {
-    minHeight: 170,
-    padding: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stateTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-    color: colors.textPrimary,
-  },
-  stateMessage: {
-    maxWidth: 290,
-    marginTop: spacing.sm,
-    fontSize: 13,
-    lineHeight: 19,
-    textAlign: 'center',
-    color: colors.textSecondary,
-  },
-  retry: {
-    marginTop: spacing.md,
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  pressed: { opacity: 0.55 },
-});
+const createStyles = (
+  colors: ThemeColors
+) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor:
+        colors.background,
+    },
+
+    content: {
+      paddingHorizontal:
+        spacing.lg,
+      paddingBottom:
+        spacing.xxl,
+    },
+
+    emptyContent: {
+      flexGrow: 1,
+    },
+
+    brand: {
+      marginTop:
+        spacing.lg,
+      fontSize: 11,
+      fontWeight:
+        '800',
+      letterSpacing:
+        2.4,
+      color:
+        colors.textSecondary,
+    },
+
+    heading: {
+      marginTop:
+        spacing.sm,
+      fontSize: 29,
+      fontWeight:
+        '700',
+      letterSpacing:
+        -0.7,
+      color:
+        colors.textPrimary,
+    },
+
+    searchField: {
+      minHeight: 52,
+      marginTop:
+        spacing.lg,
+      paddingHorizontal:
+        spacing.md,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      gap:
+        spacing.sm,
+      borderWidth: 1,
+      borderColor:
+        colors.border,
+      borderRadius:
+        radius.lg,
+      backgroundColor:
+        colors.surface,
+    },
+
+    searchInput: {
+      flex: 1,
+      minHeight: 50,
+      paddingVertical:
+        0,
+      fontSize: 15,
+      color:
+        colors.textPrimary,
+    },
+
+    recentBlock: {
+      marginTop:
+        spacing.lg,
+    },
+
+    inlineError: {
+      marginTop:
+        spacing.md,
+      padding:
+        spacing.md,
+      borderRadius:
+        radius.md,
+      fontSize: 12,
+      lineHeight: 18,
+      color:
+        colors.danger,
+      backgroundColor:
+        colors.dangerSoft,
+    },
+
+    recentHeadingRow: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'space-between',
+    },
+
+    recentHeading: {
+      fontSize: 13,
+      fontWeight:
+        '700',
+      color:
+        colors.textPrimary,
+    },
+
+    clearHistory: {
+      paddingVertical:
+        spacing.xs,
+      fontSize: 12,
+      fontWeight:
+        '600',
+      color:
+        colors.textSecondary,
+    },
+
+    recentChips: {
+      marginTop:
+        spacing.sm,
+      flexDirection:
+        'row',
+      flexWrap:
+        'wrap',
+      gap:
+        spacing.sm,
+    },
+
+    recentChip: {
+      maxWidth:
+        '100%',
+      minHeight: 34,
+      paddingHorizontal:
+        12,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      gap: 6,
+      borderWidth: 1,
+      borderColor:
+        colors.border,
+      borderRadius:
+        radius.full,
+      backgroundColor:
+        colors.surface,
+    },
+
+    recentChipText: {
+      fontSize: 12,
+      color:
+        colors.textSecondary,
+    },
+
+    discoveryHeading: {
+      marginTop:
+        spacing.xl,
+    },
+
+    eyebrow: {
+      fontSize: 10,
+      fontWeight:
+        '800',
+      letterSpacing:
+        1.3,
+      color:
+        colors.textMuted,
+    },
+
+    discoveryTitle: {
+      marginTop:
+        spacing.xs,
+      fontSize: 20,
+      fontWeight:
+        '700',
+      color:
+        colors.textPrimary,
+    },
+
+    sectionTitle: {
+      marginTop:
+        spacing.xl,
+      marginBottom:
+        spacing.sm,
+      fontSize: 12,
+      fontWeight:
+        '800',
+      letterSpacing:
+        0.8,
+      textTransform:
+        'uppercase',
+      color:
+        colors.textSecondary,
+    },
+
+    resultRow: {
+      minHeight: 76,
+      marginBottom:
+        spacing.sm,
+      padding: 12,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      gap: 12,
+      borderWidth: 1,
+      borderColor:
+        colors.borderSubtle,
+      borderRadius:
+        radius.lg,
+      backgroundColor:
+        colors.surface,
+    },
+
+    rowPressed: {
+      backgroundColor:
+        colors.borderSubtle,
+    },
+
+    resultCopy: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    resultTitle: {
+      flexShrink: 1,
+      fontSize: 15,
+      lineHeight: 20,
+      fontWeight:
+        '700',
+      color:
+        colors.textPrimary,
+    },
+
+    resultHandle: {
+      flexShrink: 1,
+      marginTop: 2,
+      fontSize: 12,
+      color:
+        colors.textSecondary,
+    },
+
+    resultMeta: {
+      marginTop: 3,
+      fontSize: 11,
+      color:
+        colors.textMuted,
+    },
+
+    verifiedRow: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      gap: 5,
+    },
+
+    dateTile: {
+      width: 48,
+      height: 52,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      borderRadius:
+        radius.md,
+      backgroundColor:
+        colors.textPrimary,
+    },
+
+    dateMonth: {
+      fontSize: 9,
+      fontWeight:
+        '800',
+      letterSpacing:
+        0.8,
+      color:
+        colors.textMuted,
+    },
+
+    dateDay: {
+      fontSize: 19,
+      fontWeight:
+        '700',
+      color:
+        colors.white,
+    },
+
+    loadingState: {
+      minHeight: 170,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+    },
+
+    stateCard: {
+      minHeight: 170,
+      padding:
+        spacing.lg,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+    },
+
+    stateTitle: {
+      fontSize: 18,
+      fontWeight:
+        '700',
+      textAlign:
+        'center',
+      color:
+        colors.textPrimary,
+    },
+
+    stateMessage: {
+      maxWidth: 290,
+      marginTop:
+        spacing.sm,
+      fontSize: 13,
+      lineHeight: 19,
+      textAlign:
+        'center',
+      color:
+        colors.textSecondary,
+    },
+
+    retry: {
+      marginTop:
+        spacing.md,
+      fontSize: 13,
+      fontWeight:
+        '700',
+      color:
+        colors.textPrimary,
+    },
+
+    pressed: {
+      opacity: 0.55,
+    },
+  });
