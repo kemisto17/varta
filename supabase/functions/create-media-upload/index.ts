@@ -1,4 +1,4 @@
-import "@supabase/functions-js/edge-runtime.d.ts";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import {
   PutObjectCommand,
@@ -24,22 +24,24 @@ const MAX_AVATAR_IMAGE_SIZE =
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type UploadRequest = {
-  contentType?: string;
-  eventId?: string | null;
-  fileSize?: number;
-  organizationId?: string | null;
-  kind?:
-    | "avatar"
-    | "event-image"
-    | "organization-avatar"
-    | "post";
-};
+type MediaKind =
+  | "avatar"
+  | "event-image"
+  | "organization-avatar"
+  | "post";
 
 type OrganizationRole =
   | "owner"
   | "admin"
   | "editor";
+
+type UploadRequest = {
+  contentType?: string;
+  eventId?: string | null;
+  fileSize?: number;
+  organizationId?: string | null;
+  kind?: MediaKind;
+};
 
 function getRequiredEnv(
   name: string
@@ -104,6 +106,10 @@ function isUuid(
   );
 }
 
+/*
+ * Returns the current user's university ID
+ * only when their student profile is verified.
+ */
 async function getVerifiedUniversityId(
   supabase: ReturnType<
     typeof createClient
@@ -122,7 +128,10 @@ async function getVerifiedUniversityId(
           university_id
         )
       `)
-      .eq("id", userId)
+      .eq(
+        "id",
+        userId
+      )
       .maybeSingle();
 
   if (error) {
@@ -149,6 +158,14 @@ async function getVerifiedUniversityId(
   );
 }
 
+/*
+ * Validates:
+ *
+ * - current membership
+ * - allowed role
+ * - active organization
+ * - same university
+ */
 async function getOrganizationAccess(
   supabase: ReturnType<
     typeof createClient
@@ -234,6 +251,15 @@ async function getOrganizationAccess(
   return role;
 }
 
+/*
+ * Event permissions:
+ *
+ * owner/admin:
+ *   any event in organization
+ *
+ * editor:
+ *   only event they created
+ */
 async function canManageEvent(
   supabase: ReturnType<
     typeof createClient
@@ -305,6 +331,12 @@ Deno.serve(async (req) => {
   }
 
   try {
+    /*
+     * ========================================================
+     * AUTHENTICATION
+     * ========================================================
+     */
+
     const authorization =
       req.headers.get(
         "Authorization"
@@ -382,8 +414,26 @@ Deno.serve(async (req) => {
     const userId =
       userData.user.id;
 
-    const body =
-      (await req.json()) as UploadRequest;
+    /*
+     * ========================================================
+     * REQUEST VALIDATION
+     * ========================================================
+     */
+
+    let body: UploadRequest;
+
+    try {
+      body =
+        (await req.json()) as UploadRequest;
+    } catch {
+      return json(
+        {
+          error:
+            "Invalid request body.",
+        },
+        400
+      );
+    }
 
     if (
       body.kind !== "post" &&
@@ -453,10 +503,14 @@ Deno.serve(async (req) => {
     }
 
     /*
-     * Every social R2 upload
-     * requires a verified campus
-     * profile.
+     * ========================================================
+     * VERIFIED CAMPUS ACCOUNT
+     * ========================================================
+     *
+     * New social media uploads require
+     * a verified student account.
      */
+
     let universityId:
       | string
       | null;
@@ -492,24 +546,29 @@ Deno.serve(async (req) => {
       );
     }
 
+    /*
+     * ========================================================
+     * ORGANIZATION AUTHORIZATION
+     * ========================================================
+     */
+
     let organizationRole:
       | OrganizationRole
       | null = null;
 
-    /*
-     * Organization-scoped uploads
-     * must use a valid UUID.
-     */
-    if (
+    const isOrganizationScoped =
       body.kind ===
         "organization-avatar" ||
       body.kind ===
         "event-image" ||
       (
         body.kind === "post" &&
-        body.organizationId
-      )
-    ) {
+        Boolean(
+          body.organizationId
+        )
+      );
+
+    if (isOrganizationScoped) {
       if (
         !isUuid(
           body.organizationId
@@ -562,35 +621,39 @@ Deno.serve(async (req) => {
     }
 
     /*
-     * Organization avatar:
+     * ========================================================
+     * ORGANIZATION AVATAR
+     * ========================================================
+     *
      * owner/admin only.
      */
+
     if (
       body.kind ===
-        "organization-avatar" &&
-      organizationRole !==
-        "owner" &&
-      organizationRole !==
-        "admin"
+        "organization-avatar"
     ) {
-      return json(
-        {
-          error:
-            "You cannot edit this organization avatar.",
-        },
-        403
-      );
+      if (
+        organizationRole !==
+          "owner" &&
+        organizationRole !==
+          "admin"
+      ) {
+        return json(
+          {
+            error:
+              "You cannot edit this organization avatar.",
+          },
+          403
+        );
+      }
     }
 
     /*
-     * Event image:
-     *
-     * owner/admin:
-     * any event belonging to org
-     *
-     * editor:
-     * only event they created
+     * ========================================================
+     * EVENT IMAGE
+     * ========================================================
      */
+
     if (
       body.kind ===
         "event-image"
@@ -649,6 +712,12 @@ Deno.serve(async (req) => {
       }
     }
 
+    /*
+     * ========================================================
+     * R2 CLIENT
+     * ========================================================
+     */
+
     const accessKeyId =
       getRequiredEnv(
         "R2_ACCESS_KEY_ID"
@@ -682,6 +751,12 @@ Deno.serve(async (req) => {
         },
       });
 
+    /*
+     * ========================================================
+     * OBJECT KEY
+     * ========================================================
+     */
+
     const objectId =
       crypto.randomUUID();
 
@@ -714,6 +789,22 @@ Deno.serve(async (req) => {
         `posts/users/${userId}/${objectId}.${extension}`;
     }
 
+    /*
+     * ========================================================
+     * PRESIGNED PUT
+     * ========================================================
+     *
+     * The signature is tied to:
+     *
+     * - object key
+     * - content type
+     * - exact content length
+     *
+     * so a client cannot ask permission
+     * for a small JPEG and then upload an
+     * arbitrary larger object instead.
+     */
+
     const command =
       new PutObjectCommand({
         Bucket:
@@ -722,12 +813,6 @@ Deno.serve(async (req) => {
           objectKey,
         ContentType:
           contentType,
-
-        /*
-         * Bind the signed request to
-         * the exact number of bytes
-         * reported by the client.
-         */
         ContentLength:
           body.fileSize,
       });
@@ -739,14 +824,6 @@ Deno.serve(async (req) => {
         {
           expiresIn: 300,
 
-          /*
-           * Force these headers into
-           * the SigV4 signature.
-           *
-           * The actual PUT must then
-           * match both the approved
-           * MIME type and byte length.
-           */
           signableHeaders:
             new Set([
               "content-length",

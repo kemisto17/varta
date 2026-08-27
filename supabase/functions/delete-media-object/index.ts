@@ -1,6 +1,8 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
 import {
-    DeleteObjectCommand,
-    S3Client,
+  DeleteObjectCommand,
+  S3Client,
 } from "npm:@aws-sdk/client-s3";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -15,7 +17,20 @@ type DeleteMediaRequest = {
   eventId?: string;
 };
 
-function getRequiredEnv(name: string) {
+type OrganizationRole =
+  | "owner"
+  | "admin"
+  | "editor";
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const MEDIA_FILENAME_PATTERN =
+  /^[a-z0-9-]+\.(jpg|jpeg|png|webp|heic|heif)$/i;
+
+function getRequiredEnv(
+  name: string
+) {
   const value =
     Deno.env.get(name)?.trim();
 
@@ -67,18 +82,45 @@ function normalizeR2Endpoint(
   return normalized;
 }
 
+function isUuid(
+  value: string | null | undefined
+) {
+  return Boolean(
+    value &&
+      UUID_PATTERN.test(value)
+  );
+}
+
+function isMediaFilename(
+  value: string | null | undefined
+) {
+  return Boolean(
+    value &&
+      MEDIA_FILENAME_PATTERN.test(
+        value
+      )
+  );
+}
+
 function parsePostObjectKey(
   objectKey: string
 ) {
   const parts =
     objectKey.split("/");
 
+  /*
+   * Student:
+   *
+   * posts/users/
+   * <user-id>/
+   * <uuid>.<ext>
+   */
   if (
     parts.length === 4 &&
     parts[0] === "posts" &&
     parts[1] === "users" &&
-    parts[2] &&
-    parts[3]
+    isUuid(parts[2]) &&
+    isMediaFilename(parts[3])
   ) {
     return {
       type:
@@ -88,14 +130,22 @@ function parsePostObjectKey(
     };
   }
 
+  /*
+   * Organization:
+   *
+   * posts/organizations/
+   * <organization-id>/
+   * <uploader-id>/
+   * <uuid>.<ext>
+   */
   if (
     parts.length === 5 &&
     parts[0] === "posts" &&
     parts[1] ===
       "organizations" &&
-    parts[2] &&
-    parts[3] &&
-    parts[4]
+    isUuid(parts[2]) &&
+    isUuid(parts[3]) &&
+    isMediaFilename(parts[4])
   ) {
     return {
       type:
@@ -116,12 +166,17 @@ function parseAvatarObjectKey(
   const parts =
     objectKey.split("/");
 
+  /*
+   * avatars/users/
+   * <user-id>/
+   * <uuid>.<ext>
+   */
   if (
     parts.length === 4 &&
     parts[0] === "avatars" &&
     parts[1] === "users" &&
-    parts[2] &&
-    parts[3]
+    isUuid(parts[2]) &&
+    isMediaFilename(parts[3])
   ) {
     return {
       userId:
@@ -138,13 +193,18 @@ function parseOrganizationAvatarObjectKey(
   const parts =
     objectKey.split("/");
 
+  /*
+   * avatars/organizations/
+   * <organization-id>/
+   * <uuid>.<ext>
+   */
   if (
     parts.length === 4 &&
     parts[0] === "avatars" &&
     parts[1] ===
       "organizations" &&
-    parts[2] &&
-    parts[3]
+    isUuid(parts[2]) &&
+    isMediaFilename(parts[3])
   ) {
     return {
       organizationId:
@@ -161,14 +221,20 @@ function parseEventImageObjectKey(
   const parts =
     objectKey.split("/");
 
+  /*
+   * events/organizations/
+   * <organization-id>/
+   * <event-id>/
+   * <uuid>.<ext>
+   */
   if (
     parts.length === 5 &&
     parts[0] === "events" &&
     parts[1] ===
       "organizations" &&
-    parts[2] &&
-    parts[3] &&
-    parts[4]
+    isUuid(parts[2]) &&
+    isUuid(parts[3]) &&
+    isMediaFilename(parts[4])
   ) {
     return {
       organizationId:
@@ -181,11 +247,10 @@ function parseEventImageObjectKey(
   return null;
 }
 
-async function getOrganizationRole(
+async function getVerifiedUniversityId(
   supabase: ReturnType<
     typeof createClient
   >,
-  organizationId: string,
   userId: string
 ) {
   const {
@@ -193,6 +258,62 @@ async function getOrganizationRole(
     error,
   } =
     await supabase
+      .from("profiles")
+      .select(`
+        is_verified,
+        institute:institutes!profiles_institute_id_fkey (
+          university_id
+        )
+      `)
+      .eq(
+        "id",
+        userId
+      )
+      .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (
+    !data ||
+    data.is_verified !== true
+  ) {
+    return null;
+  }
+
+  const institute =
+    Array.isArray(
+      data.institute
+    )
+      ? data.institute[0]
+      : data.institute;
+
+  return (
+    institute?.university_id ??
+    null
+  );
+}
+
+async function getOrganizationAccess(
+  supabase: ReturnType<
+    typeof createClient
+  >,
+  {
+    organizationId,
+    universityId,
+    userId,
+  }: {
+    organizationId: string;
+    universityId: string;
+    userId: string;
+  }
+): Promise<OrganizationRole | null> {
+  const [
+    membershipResult,
+    organizationResult,
+  ] = await Promise.all([
+    supabase
       .from(
         "organization_members"
       )
@@ -205,13 +326,64 @@ async function getOrganizationRole(
         "user_id",
         userId
       )
-      .maybeSingle();
+      .maybeSingle(),
 
-  if (error) {
-    throw error;
+    supabase
+      .from("organizations")
+      .select(
+        "id, university_id, is_active"
+      )
+      .eq(
+        "id",
+        organizationId
+      )
+      .maybeSingle(),
+  ]);
+
+  if (
+    membershipResult.error
+  ) {
+    throw membershipResult.error;
   }
 
-  return data?.role ?? null;
+  if (
+    organizationResult.error
+  ) {
+    throw organizationResult.error;
+  }
+
+  const organization =
+    organizationResult.data;
+
+  const role =
+    membershipResult.data
+      ?.role ?? null;
+
+  /*
+   * Organization operations must
+   * remain inside the verified
+   * student's university and only
+   * work for active organizations.
+   */
+  if (
+    !organization ||
+    organization.is_active !==
+      true ||
+    organization.university_id !==
+      universityId
+  ) {
+    return null;
+  }
+
+  if (
+    role !== "owner" &&
+    role !== "admin" &&
+    role !== "editor"
+  ) {
+    return null;
+  }
+
+  return role;
 }
 
 async function canManageEvent(
@@ -221,24 +393,20 @@ async function canManageEvent(
   {
     eventId,
     organizationId,
+    role,
     userId,
   }: {
     eventId: string;
     organizationId: string;
+    role: OrganizationRole;
     userId: string;
   }
 ) {
-  const [
-    role,
-    eventResult,
-  ] = await Promise.all([
-    getOrganizationRole(
-      supabase,
-      organizationId,
-      userId
-    ),
-
-    supabase
+  const {
+    data: event,
+    error,
+  } =
+    await supabase
       .from("events")
       .select(
         "id, organization_id, created_by"
@@ -247,17 +415,11 @@ async function canManageEvent(
         "id",
         eventId
       )
-      .maybeSingle(),
-  ]);
+      .maybeSingle();
 
-  if (
-    eventResult.error
-  ) {
-    throw eventResult.error;
+  if (error) {
+    throw error;
   }
-
-  const event =
-    eventResult.data;
 
   if (
     !event ||
@@ -267,6 +429,10 @@ async function canManageEvent(
     return false;
   }
 
+  /*
+   * Owner/admin:
+   * any event in the organization.
+   */
   if (
     role === "owner" ||
     role === "admin"
@@ -274,15 +440,47 @@ async function canManageEvent(
     return true;
   }
 
-  if (
+  /*
+   * Editor:
+   * only event they created.
+   */
+  return (
     role === "editor" &&
     event.created_by ===
       userId
-  ) {
-    return true;
+  );
+}
+
+async function getVerifiedOrganizationRole(
+  supabase: ReturnType<
+    typeof createClient
+  >,
+  {
+    organizationId,
+    userId,
+  }: {
+    organizationId: string;
+    userId: string;
+  }
+) {
+  const universityId =
+    await getVerifiedUniversityId(
+      supabase,
+      userId
+    );
+
+  if (!universityId) {
+    return null;
   }
 
-  return false;
+  return getOrganizationAccess(
+    supabase,
+    {
+      organizationId,
+      universityId,
+      userId,
+    }
+  );
 }
 
 Deno.serve(async (req) => {
@@ -359,6 +557,11 @@ Deno.serve(async (req) => {
       userError ||
       !userData.user
     ) {
+      console.warn(
+        "[delete-media-object] Invalid user token.",
+        userError
+      );
+
       return json(
         {
           error:
@@ -405,7 +608,16 @@ Deno.serve(async (req) => {
     }
 
     /*
-     * Student avatar
+     * ========================================================
+     * STUDENT AVATAR
+     * ========================================================
+     *
+     * Verification is intentionally
+     * not required for deleting an
+     * object from your own namespace.
+     *
+     * This allows cleanup even if the
+     * profile later loses verification.
      */
     if (
       body.kind === "avatar"
@@ -440,7 +652,101 @@ Deno.serve(async (req) => {
     }
 
     /*
-     * Organization avatar
+     * ========================================================
+     * POST MEDIA
+     * ========================================================
+     */
+    if (
+      body.kind === "post"
+    ) {
+      const parsed =
+        parsePostObjectKey(
+          objectKey
+        );
+
+      if (!parsed) {
+        return json(
+          {
+            error:
+              "Invalid post media path.",
+          },
+          400
+        );
+      }
+
+      /*
+       * Student post:
+       * own namespace only.
+       */
+      if (
+        parsed.type ===
+          "student"
+      ) {
+        if (
+          parsed.userId !==
+          currentUserId
+        ) {
+          return json(
+            {
+              error:
+                "You cannot delete this media.",
+            },
+            403
+          );
+        }
+      } else {
+        /*
+         * Organization post:
+         *
+         * verified student
+         * + active organization
+         * + same university
+         * + owner/admin/editor
+         */
+        try {
+          const role =
+            await getVerifiedOrganizationRole(
+              supabase,
+              {
+                organizationId:
+                  parsed.organizationId,
+                userId:
+                  currentUserId,
+              }
+            );
+
+          if (!role) {
+            return json(
+              {
+                error:
+                  "You cannot delete this organization media.",
+              },
+              403
+            );
+          }
+        } catch (error) {
+          console.error(
+            "[delete-media-object] Organization post permission check failed.",
+            error
+          );
+
+          return json(
+            {
+              error:
+                "Could not verify organization permissions.",
+            },
+            500
+          );
+        }
+      }
+    }
+
+    /*
+     * ========================================================
+     * ORGANIZATION AVATAR
+     * ========================================================
+     *
+     * owner/admin only.
      */
     if (
       body.kind ===
@@ -477,10 +783,14 @@ Deno.serve(async (req) => {
 
       try {
         const role =
-          await getOrganizationRole(
+          await getVerifiedOrganizationRole(
             supabase,
-            avatar.organizationId,
-            currentUserId
+            {
+              organizationId:
+                avatar.organizationId,
+              userId:
+                currentUserId,
+            }
           );
 
         if (
@@ -512,7 +822,15 @@ Deno.serve(async (req) => {
     }
 
     /*
-     * Event image
+     * ========================================================
+     * EVENT IMAGE
+     * ========================================================
+     *
+     * owner/admin:
+     * any event in organization.
+     *
+     * editor:
+     * only event they created.
      */
     if (
       body.kind ===
@@ -533,6 +851,11 @@ Deno.serve(async (req) => {
         );
       }
 
+      /*
+       * Optional body metadata must
+       * agree with the immutable R2
+       * object key.
+       */
       if (
         body.organizationId &&
         body.organizationId !==
@@ -562,6 +885,27 @@ Deno.serve(async (req) => {
       }
 
       try {
+        const role =
+          await getVerifiedOrganizationRole(
+            supabase,
+            {
+              organizationId:
+                parsed.organizationId,
+              userId:
+                currentUserId,
+            }
+          );
+
+        if (!role) {
+          return json(
+            {
+              error:
+                "You cannot manage media for this organization.",
+            },
+            403
+          );
+        }
+
         const allowed =
           await canManageEvent(
             supabase,
@@ -570,6 +914,7 @@ Deno.serve(async (req) => {
                 parsed.eventId,
               organizationId:
                 parsed.organizationId,
+              role,
               userId:
                 currentUserId,
             }
@@ -601,80 +946,10 @@ Deno.serve(async (req) => {
     }
 
     /*
-     * Post media
+     * ========================================================
+     * R2 DELETE
+     * ========================================================
      */
-    if (
-      body.kind === "post"
-    ) {
-      const parsed =
-        parsePostObjectKey(
-          objectKey
-        );
-
-      if (!parsed) {
-        return json(
-          {
-            error:
-              "Invalid post media path.",
-          },
-          400
-        );
-      }
-
-      if (
-        parsed.type ===
-          "student"
-      ) {
-        if (
-          parsed.userId !==
-          currentUserId
-        ) {
-          return json(
-            {
-              error:
-                "You cannot delete this media.",
-            },
-            403
-          );
-        }
-      } else {
-        try {
-          const role =
-            await getOrganizationRole(
-              supabase,
-              parsed.organizationId,
-              currentUserId
-            );
-
-          if (
-            role !== "owner" &&
-            role !== "admin" &&
-            role !== "editor"
-          ) {
-            return json(
-              {
-                error:
-                  "You cannot delete this organization media.",
-              },
-              403
-            );
-          }
-        } catch (error) {
-          console.error(
-            "[delete-media-object] Organization post permission check failed.",
-            error
-          );
-
-          return json(
-            {
-              error:
-                "Could not verify organization permissions.",
-            },
-            500
-          );
-        }
-      }
-    }
 
     const bucket =
       getRequiredEnv(
