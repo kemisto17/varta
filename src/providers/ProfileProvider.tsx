@@ -10,6 +10,8 @@ export function ProfileProvider({ children }: PropsWithChildren) {
   const { session } = useAuth();
   const userId = session?.user.id ?? null;
   const requestId = useRef(0);
+  const resolvedUserId = useRef<string | null>(null);
+  const statusRef = useRef<ProfileStatus>('idle');
   const [refreshIndex, setRefreshIndex] = useState(0);
   const [status, setStatus] = useState<ProfileStatus>('idle');
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -20,13 +22,25 @@ export function ProfileProvider({ children }: PropsWithChildren) {
     requestId.current = activeRequestId;
 
     if (!userId) {
+      resolvedUserId.current = null;
+      statusRef.current = 'idle';
       setProfile(null);
       setStatus('idle');
       setErrorMessage(null);
       return;
     }
 
-    setStatus('loading');
+    const isBackgroundRefresh =
+      resolvedUserId.current === userId &&
+      statusRef.current !== 'idle' &&
+      statusRef.current !== 'loading' &&
+      statusRef.current !== 'error';
+
+    if (!isBackgroundRefresh) {
+      statusRef.current = 'loading';
+      setStatus('loading');
+    }
+
     setErrorMessage(null);
 
     const loadProfile = async () => {
@@ -37,15 +51,24 @@ export function ProfileProvider({ children }: PropsWithChildren) {
           return;
         }
 
+        const nextStatus = nextProfile ? 'ready' : 'missing';
+
+        resolvedUserId.current = userId;
+        statusRef.current = nextStatus;
         setProfile(nextProfile);
-        setStatus(nextProfile ? 'ready' : 'missing');
+        setStatus(nextStatus);
       } catch {
         if (requestId.current !== activeRequestId) {
           return;
         }
 
-        setProfile(null);
-        setStatus('error');
+        if (!isBackgroundRefresh) {
+          resolvedUserId.current = null;
+          statusRef.current = 'error';
+          setProfile(null);
+          setStatus('error');
+        }
+
         setErrorMessage(
           'We could not check your profile. Check your connection and try again.'
         );
@@ -61,6 +84,8 @@ export function ProfileProvider({ children }: PropsWithChildren) {
 
   const markProfileCreated = useCallback((nextProfile: Profile) => {
     requestId.current += 1;
+    resolvedUserId.current = nextProfile.id;
+    statusRef.current = 'ready';
     setProfile(nextProfile);
     setStatus('ready');
     setErrorMessage(null);

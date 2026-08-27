@@ -50,6 +50,7 @@ export default function HomeScreen() {
     updatePostLike,
   } = useFeed();
   const likeRequestsRef = useRef(new Set<string>());
+  const campusNowLoadedRef = useRef(false);
   const [campusNowError, setCampusNowError] = useState<string | null>(null);
   const [campusNowEvents, setCampusNowEvents] = useState<CampusEvent[]>([]);
   const [campusNowLoading, setCampusNowLoading] = useState(true);
@@ -103,7 +104,10 @@ export default function HomeScreen() {
     }
 
     setCampusNowError(null);
-    setCampusNowLoading(true);
+
+    if (!campusNowLoadedRef.current) {
+      setCampusNowLoading(true);
+    }
 
     try {
       setCampusNowEvents(await getCampusNowEvents(userId));
@@ -111,6 +115,7 @@ export default function HomeScreen() {
       console.warn('[campus-now] Could not load campus events.', error);
       setCampusNowError('Check your connection and try again.');
     } finally {
+      campusNowLoadedRef.current = true;
       setCampusNowLoading(false);
     }
   }, [session?.user.id]);
@@ -421,7 +426,7 @@ export default function HomeScreen() {
           <RefreshControl
             colors={[colors.textPrimary]}
             onRefresh={() =>
-              void Promise.all([refreshFeed(), refreshCampusNow()])
+              void Promise.all([refreshFeed(true), refreshCampusNow()])
             }
             progressBackgroundColor={colors.surfaceElevated}
             refreshing={isRefreshing}

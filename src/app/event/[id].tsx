@@ -29,6 +29,7 @@ export default function EventDetailScreen() {
   const eventId = Array.isArray(params.id) ? params.id[0] : params.id;
   const { session } = useAuth();
   const requestIdRef = useRef(0);
+  const eventRef = useRef<EventDetail | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -46,8 +47,12 @@ export default function EventDetailScreen() {
 
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
+    const hasExistingEvent = eventRef.current?.id === eventId;
     setErrorMessage(null);
-    setStatus('loading');
+
+    if (!hasExistingEvent) {
+      setStatus('loading');
+    }
 
     try {
       const nextEvent = await getEventById(eventId, userId);
@@ -56,6 +61,7 @@ export default function EventDetailScreen() {
         return;
       }
 
+      eventRef.current = nextEvent;
       setEvent(nextEvent);
       setStatus(nextEvent ? 'ready' : 'unavailable');
     } catch (error) {
@@ -65,7 +71,7 @@ export default function EventDetailScreen() {
 
       console.warn('[event-detail] Could not load event.', error);
       setErrorMessage('We could not load this event. Check your connection and try again.');
-      setStatus('error');
+      setStatus(hasExistingEvent ? 'ready' : 'error');
     }
   }, [eventId, session?.user.id]);
 

@@ -135,7 +135,7 @@ export default function CreateScreen() {
       });
       setContent('');
       setImageAsset(null);
-      router.replace('/');
+      router.navigate('/');
     } catch (error) {
       console.warn('[create-post] Publish failed.', error);
       setErrorMessage(getPostErrorMessage(error));

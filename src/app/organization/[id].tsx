@@ -55,6 +55,8 @@ export default function OrganizationScreen() {
   const organizationId = Array.isArray(params.id) ? params.id[0] : params.id;
   const { session } = useAuth();
   const likeRequests = useRef(new Set<string>());
+  const organizationRef = useRef<CampusOrganization | null>(null);
+  const requestIdRef = useRef(0);
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [events, setEvents] = useState<CampusEvent[]>([]);
@@ -84,9 +86,14 @@ export default function OrganizationScreen() {
       return;
     }
 
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    const hasExistingOrganization =
+      organizationRef.current?.id === organizationId;
+
     if (refreshing) {
       setIsRefreshing(true);
-    } else {
+    } else if (!hasExistingOrganization) {
       setStatus('loading');
     }
 
@@ -100,7 +107,12 @@ export default function OrganizationScreen() {
         getOrganizationLinks(organizationId),
       ]);
 
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
+
       if (!nextOrganization) {
+        organizationRef.current = null;
         setOrganization(null);
         setEvents([]);
         setPosts([]);
@@ -109,17 +121,24 @@ export default function OrganizationScreen() {
         return;
       }
 
+      organizationRef.current = nextOrganization;
       setOrganization(nextOrganization);
       setEvents(nextEvents);
       setPosts(postPage.posts);
       setLinks(nextLinks);
       setStatus('ready');
     } catch (error) {
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
+
       console.warn('[organization] Could not load page.', error);
       setErrorMessage(getOrganizationErrorMessage());
-      setStatus('error');
+      setStatus(hasExistingOrganization ? 'ready' : 'error');
     } finally {
-      setIsRefreshing(false);
+      if (requestIdRef.current === requestId) {
+        setIsRefreshing(false);
+      }
     }
   }, [organizationId, session?.user.id]);
 

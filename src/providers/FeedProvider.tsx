@@ -14,6 +14,7 @@ export function FeedProvider({ children }: PropsWithChildren) {
   const postsRef = useRef<FeedPost[]>([]);
   const cursorRef = useRef<FeedCursor | null>(null);
   const hasMoreRef = useRef(true);
+  const hasLoadedRef = useRef(false);
   const loadingMoreRef = useRef(false);
   const removedPostIdsRef = useRef(new Set<string>());
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -23,18 +24,18 @@ export function FeedProvider({ children }: PropsWithChildren) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  const refreshFeed = useCallback(async () => {
+  const refreshFeed = useCallback(async (showRefreshState = false) => {
     if (!userId) {
       return;
     }
 
     const activeRequestId = requestId.current + 1;
     requestId.current = activeRequestId;
-    const hasExistingPosts = postsRef.current.length > 0;
+    const hasLoaded = hasLoadedRef.current;
 
-    if (hasExistingPosts) {
+    if (hasLoaded && showRefreshState) {
       setIsRefreshing(true);
-    } else {
+    } else if (!hasLoaded) {
       setStatus('loading');
     }
 
@@ -54,6 +55,7 @@ export function FeedProvider({ children }: PropsWithChildren) {
       postsRef.current = visiblePosts;
       cursorRef.current = page.cursor;
       hasMoreRef.current = page.hasMore;
+      hasLoadedRef.current = true;
       setPosts(visiblePosts);
       setHasMore(page.hasMore);
       setStatus('ready');
@@ -64,7 +66,7 @@ export function FeedProvider({ children }: PropsWithChildren) {
 
       console.warn('[feed] Could not load campus posts.', error);
       setErrorMessage('We could not load the campus feed. Pull down or try again.');
-      setStatus(hasExistingPosts ? 'ready' : 'error');
+      setStatus(hasLoaded ? 'ready' : 'error');
     } finally {
       if (requestId.current === activeRequestId) {
         setIsRefreshing(false);

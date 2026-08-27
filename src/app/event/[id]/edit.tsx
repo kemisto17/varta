@@ -47,7 +47,7 @@ export default function EditEventScreen() {
     }
 
     await updateOrganizationEvent({ event, values });
-    router.replace({ pathname: '/event/[id]', params: { id: event.id } });
+    router.back();
   };
 
   if (isLoading) {

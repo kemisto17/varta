@@ -18,6 +18,8 @@ export function VerificationProvider({ children }: PropsWithChildren) {
   const { status: profileStatus } = useProfile();
   const userId = session?.user.id ?? null;
   const requestId = useRef(0);
+  const resolvedUserId = useRef<string | null>(null);
+  const statusRef = useRef<VerificationStatus>('idle');
   const [refreshIndex, setRefreshIndex] = useState(0);
   const [status, setStatus] = useState<VerificationStatus>('idle');
   const [verification, setVerification] =
@@ -29,13 +31,25 @@ export function VerificationProvider({ children }: PropsWithChildren) {
     requestId.current = activeRequestId;
 
     if (!userId || profileStatus !== 'ready') {
+      resolvedUserId.current = null;
+      statusRef.current = 'idle';
       setVerification(null);
       setStatus('idle');
       setErrorMessage(null);
       return;
     }
 
-    setStatus('loading');
+    const isBackgroundRefresh =
+      resolvedUserId.current === userId &&
+      statusRef.current !== 'idle' &&
+      statusRef.current !== 'loading' &&
+      statusRef.current !== 'error';
+
+    if (!isBackgroundRefresh) {
+      statusRef.current = 'loading';
+      setStatus('loading');
+    }
+
     setErrorMessage(null);
 
     const loadVerification = async () => {
@@ -46,15 +60,24 @@ export function VerificationProvider({ children }: PropsWithChildren) {
           return;
         }
 
+        const nextStatus = getVerificationStatus(nextVerification);
+
+        resolvedUserId.current = userId;
+        statusRef.current = nextStatus;
         setVerification(nextVerification);
-        setStatus(getVerificationStatus(nextVerification));
+        setStatus(nextStatus);
       } catch {
         if (requestId.current !== activeRequestId) {
           return;
         }
 
-        setVerification(null);
-        setStatus('error');
+        if (!isBackgroundRefresh) {
+          resolvedUserId.current = null;
+          statusRef.current = 'error';
+          setVerification(null);
+          setStatus('error');
+        }
+
         setErrorMessage(
           'We could not check your verification status. Check your connection and try again.'
         );
@@ -71,8 +94,10 @@ export function VerificationProvider({ children }: PropsWithChildren) {
   const markVerificationSubmitted = useCallback(
     (nextVerification: StudentVerification) => {
       requestId.current += 1;
+      resolvedUserId.current = nextVerification.user_id;
+      statusRef.current = getVerificationStatus(nextVerification);
       setVerification(nextVerification);
-      setStatus(getVerificationStatus(nextVerification));
+      setStatus(statusRef.current);
       setErrorMessage(null);
     },
     []
@@ -80,6 +105,7 @@ export function VerificationProvider({ children }: PropsWithChildren) {
 
   const markVerificationDeleted = useCallback(() => {
     requestId.current += 1;
+    statusRef.current = 'missing';
     setVerification(null);
     setStatus('missing');
     setErrorMessage(null);

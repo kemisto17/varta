@@ -52,6 +52,7 @@ export function StudentProfileScreen({
   const viewerUserId = session?.user.id ?? null;
   const isOwnProfile = viewerUserId === profileId;
   const requestId = useRef(0);
+  const profileRef = useRef<UserProfile | null>(null);
   const likeRequests = useRef(new Set<string>());
   const loadMoreRequest = useRef(false);
   const [blockTarget, setBlockTarget] = useState<ModerationUser | null>(null);
@@ -83,10 +84,11 @@ export function StudentProfileScreen({
 
       const activeRequestId = requestId.current + 1;
       requestId.current = activeRequestId;
+      const hasExistingProfile = profileRef.current?.id === profileId;
 
       if (refreshing) {
         setIsRefreshing(true);
-      } else {
+      } else if (!hasExistingProfile) {
         setStatus('loading');
       }
 
@@ -107,6 +109,7 @@ export function StudentProfileScreen({
         }
 
         if (!nextProfile) {
+          profileRef.current = null;
           setProfile(null);
           setPosts([]);
           setLinks([]);
@@ -115,6 +118,7 @@ export function StudentProfileScreen({
           return;
         }
 
+        profileRef.current = nextProfile;
         setProfile(nextProfile);
         setPosts(page.posts);
         setLinks(nextLinks);
@@ -131,7 +135,7 @@ export function StudentProfileScreen({
         setErrorMessage(
           'We could not load this profile. Check your connection and try again.'
         );
-        setStatus('error');
+        setStatus(hasExistingProfile ? 'ready' : 'error');
       } finally {
         if (requestId.current === activeRequestId) {
           setIsRefreshing(false);

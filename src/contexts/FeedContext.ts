@@ -16,7 +16,7 @@ export type FeedContextValue = {
   isRefreshing: boolean;
   loadMore: () => Promise<void>;
   posts: FeedPost[];
-  refreshFeed: () => Promise<void>;
+  refreshFeed: (showRefreshState?: boolean) => Promise<void>;
   removePost: (postId: string) => void;
   status: FeedStatus;
   updatePostLike: (postId: string, state: PostLikeState) => void;

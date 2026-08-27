@@ -50,8 +50,8 @@ export default function CreateEventScreen() {
       throw new Error('Event creation is unavailable.');
     }
 
-    const event = await createOrganizationEvent({ organization, userId, values });
-    router.replace({ pathname: '/event/[id]', params: { id: event.id } });
+    await createOrganizationEvent({ organization, userId, values });
+    router.back();
   };
 
   if (isLoading) {
