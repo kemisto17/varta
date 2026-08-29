@@ -5,6 +5,8 @@ node_modules/
 
 # Expo
 .expo/
+.expo-shared/
+.eas/
 dist/
 web-build/
 expo-env.d.ts
@@ -13,10 +15,23 @@ expo-env.d.ts
 .kotlin/
 *.orig.*
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
 *.mobileprovision
+*.apk
+*.aab
+*.apks
+*.ipa
+
+# service and signing credentials
+credentials/
+secrets/
+credentials*.json
+service-account*.json
+google-services.json
+GoogleService-Info.plist
 
 # Metro
 .metro-health-check*
@@ -36,10 +51,8 @@ yarn-error.*
 .env.*
 !.env.example
 
-# typescript
+# TypeScript
 *.tsbuildinfo
-
-example
 
 # generated native folders
 /ios

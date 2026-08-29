@@ -1,22 +1,30 @@
 # Varta
 
-Varta is a university-only community app built with Expo, React Native, TypeScript, and Supabase. The current internal alpha includes authenticated student onboarding and verification, a campus feed, profiles, reporting and blocking, notifications, badges, organizations, official events, university-scoped Search/Explore, and persisted light/dark appearance settings.
+Varta is a campus community app for verified university students.
 
-## Current alpha scope
+## Why Varta
+
+Campus conversations, organization updates, and events are often scattered across unrelated channels. Varta brings them into a university-scoped community where student access can be verified.
+
+Varta is an independent student project. It is not an official application of, endorsed by, or operated by any university.
+
+## V1 features
 
 - Email/password authentication with persisted sessions
 - Profile onboarding backed by live institute records
 - Private student-ID verification with trusted admin approval
 - Verified, same-university feed with posts, photos, likes, and comments
 - Student profiles, badges, reporting, and blocking
-- In-app and push-ready notifications
+- In-app and push notifications
 - Official organizations, follows, events, and event interest
 - Search for students, organizations, and upcoming events
 - Device-local recent searches and server-backed private feedback
 - System, Light, and Dark appearance modes with device-local persistence
 - Settings with real notification controls and blocked-user management
 
-Post full-text search, public organization management, direct messaging, and production analytics are intentionally outside this milestone.
+## Screenshots
+
+Screenshots are not yet included in the repository. Release screenshots can be added here after the Google Play testing assets are finalized.
 
 ## Requirements
 
@@ -33,21 +41,24 @@ Post full-text search, public organization management, direct messaging, and pro
    npm install
    ~~~
 
-2. Copy .env.example to .env and set the hosted Supabase URL and publishable key:
+2. Copy `.env.example` to `.env` and set the client configuration:
 
    ~~~dotenv
-   EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-   EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
+   EXPO_PUBLIC_SUPABASE_URL=
+   EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+   EXPO_PUBLIC_MEDIA_BASE_URL=
    ~~~
 
-   Only a publishable client key belongs in the mobile app. Never add a Supabase secret or service-role key.
+   Only a Supabase publishable client key belongs in the mobile app. Never add a Supabase secret/service-role key, R2 credential, signing key, or Play credential.
 
-3. Apply the committed migrations to the linked Supabase project:
+3. For a separate development Supabase project, review the committed migrations before linking and applying them:
 
    ~~~bash
    npx supabase link --project-ref your-project-ref
    npx supabase db push
    ~~~
+
+   Do not run schema commands against production without reviewing the migration plan and target project.
 
 4. Start Expo:
 
@@ -67,27 +78,28 @@ target that matches the test:
 | --- | --- | --- |
 | Expo Go | Fast local UI and Supabase work with Expo Go limitations | `npx expo start --clear` |
 | Development build | Varta's native shell plus developer tools | `npx eas-cli@latest build --platform android --profile development`, then `npx expo start --dev-client` |
-| Preview APK | Production-like, directly installable internal alpha | `npx eas-cli@latest build --platform android --profile preview` |
-| Production AAB | Future Google Play upload; not directly installable | `npx eas-cli@latest build --platform android --profile production` |
+| Preview APK | Production-like, directly installable testing build | `npx eas-cli@latest build --platform android --profile preview` |
+| Production AAB | Google Play upload; not directly installable | `npx eas-cli@latest build --platform android --profile production` |
 
-Before the first cloud build, sign in and link the repository to the correct EAS
-project:
+Before a cloud build, sign in and confirm that the repository is linked to the
+intended EAS project:
 
 ~~~bash
 npx eas-cli@latest login
-npx eas-cli@latest init
+npx eas-cli@latest project:info
 ~~~
 
-`eas init` writes the real EAS project ID; do not invent one. Configure both
-`EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in the EAS
-`preview` environment before running the preview command. They are public
-mobile-client configuration, not secrets. Never add a database password,
-service-role key, or admin credential. The exact setup and real-device gate are
-in [docs/preview-build.md](docs/preview-build.md).
+Only run `eas init` when intentionally linking or re-linking the project. Configure
+`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and
+`EXPO_PUBLIC_MEDIA_BASE_URL` in the appropriate EAS environment before building.
+These are public mobile-client configuration, not server credentials. Never add
+a database password, service-role key, R2 credential, signing key, or admin
+credential. Build artifacts must not be committed. The exact setup and
+real-device gate are in [docs/preview-build.md](docs/preview-build.md).
 
 ## Development checks
 
-Run these before each alpha checkpoint:
+Run these before each release checkpoint:
 
 ~~~bash
 npm run typecheck
@@ -101,17 +113,21 @@ For a production-style bundle check:
 npx expo export --platform web
 ~~~
 
-## Database and security model
+## Architecture and tech stack
 
-All application tables use Row Level Security. Verified content is scoped to the signed-in student's university, with institute scoping where events require it. Media buckets are private; the app stores object paths and renders short-lived signed URLs. Verification documents are visible only to their owner, and the mobile role cannot approve a student.
+Varta uses Expo SDK 57, Expo Router, React Native, and TypeScript for the mobile client. Supabase provides Auth, Postgres, Row Level Security, private Storage, and Edge Functions. Expo Notifications handles push delivery, and EAS Build produces Android testing and production artifacts.
+
+All application tables use Row Level Security. Verified content is scoped to the signed-in student's university, with institute scoping where events require it. Verification documents remain in private Supabase Storage and are not public profile content.
+
+Ordinary social media—including post images, student and organization avatars, and event covers—is stored as object keys and delivered through Cloudflare R2. R2 upload and deletion credentials stay server-side; authenticated Edge Functions authorize media mutations. Legacy Supabase media paths remain supported while media is migrated.
 
 Search runs in PostgreSQL through explicitly granted SECURITY INVOKER functions. It returns only public profile fields, respects the existing block visibility rule, and uses trigram indexes for contains matching. Feedback is insert-only for verified students: clients cannot read the queue. Notification preferences are self-owned RLS rows; trusted notification triggers check them before creating optional activity.
 
 The generated database contract lives at src/types/database.ts. Regenerate it after public schema changes.
 
-## Internal alpha operations
+## Project documentation
 
-Use [docs/internal-alpha.md](docs/internal-alpha.md) for the release gate, tester walkthrough, RLS/storage audit, feedback review, and known constraints.
+Use [docs/internal-alpha.md](docs/internal-alpha.md) for the tester walkthrough, RLS/storage audit, feedback review, and known constraints.
 
 Trusted admin workflows are documented separately:
 
@@ -131,10 +147,24 @@ Trusted admin workflows are documented separately:
 - src/types — application and generated database types
 - supabase/migrations — reviewed schema, RLS, grants, indexes, and storage policies
 - supabase/functions — trusted server-side functions
+- docs — GitHub Pages legal documents and operational notes
 
-## Alpha auth note
+## Legal and safety
 
-Email confirmation is currently disabled in the hosted development project so Expo Go testers do not land on localhost. Before a broader external alpha, configure the production mobile callback, re-enable email confirmation, and enable leaked-password protection in Supabase Auth.
+- [Privacy Policy](https://kemisto17.github.io/varta/privacy-policy/)
+- [Account Deletion](https://kemisto17.github.io/varta/account-deletion/)
+- [Child Safety Standards](https://kemisto17.github.io/varta/child-safety/)
+
+## Release status
+
+- Product release: V1.0.0
+- Expo/package version: `1.0.0`
+- Android package: `com.kemisto17.varta`
+- Android version code: `1`
+- Distribution status: Google Play testing
+- Production build format: AAB
+
+This repository does not include Play Store binaries or signing credentials. A GitHub release is created separately when needed.
 
 ## License
 
