@@ -1,44 +1,205 @@
 Varta Source Available License
-Version 1.0
+Version 1.1
 
-Copyright (c) 2026 Varta
+Copyright (c) 2026 Pranav Bhagwat
+All rights reserved.
 
-Permission is granted to view, inspect, and study the source code of this
-repository for personal, educational, and non-commercial purposes only.
+1. Purpose
 
-You may:
-- View and study the source code.
-- Use portions of the code for personal learning and experimentation.
-- Modify the code privately for personal or educational purposes.
+This license allows limited access to the source code of Varta for viewing,
+learning, evaluation, and private experimentation.
 
-You may NOT, without prior written permission:
-- Use this software or substantial portions of it for commercial purposes.
-- Sell, license, sublicense, or monetize this software.
-- Redistribute the source code or modified versions of the software.
-- Publish a fork or substantially similar copy intended to reproduce Varta.
-- Operate a public or commercial service substantially based on this software.
-- Rebrand, clone, or launch a competing product derived substantially from
-  this software.
-- Use the Varta or VĀRTĀ name, logos, wordmarks, visual identity, or other
-  branding assets.
+This software is source-available, not open source.
 
-This license does not grant any trademark rights.
+Except for the permissions expressly granted below, no rights are granted
+to use, copy, modify, distribute, sublicense, commercialize, or create
+derivative works from the software.
 
-The names "Varta" and "VĀRTĀ", associated logos, wordmarks, branding,
-design assets, and product identity are proprietary and may not be used
-without explicit written permission.
+2. Permitted Uses
 
-Contributions submitted to this repository do not automatically grant the
-contributor ownership or licensing rights over the Varta product or brand.
+Subject to the terms of this license, you may:
+
+- View and inspect the source code.
+- Study the source code for educational or research purposes.
+- Use limited portions of the code for personal, non-commercial learning.
+- Modify the software privately for personal or educational experimentation.
+- Run the software privately for evaluation or development purposes.
+
+These permissions do not include any right to publish, redistribute,
+commercialize, or operate the software as a public service.
+
+3. Prohibited Uses
+
+Without prior written permission from the copyright holder, you may not:
+
+- Use the software, or a material portion of it, for commercial purposes.
+- Sell, rent, license, sublicense, monetize, or commercially exploit the software.
+- Redistribute, republish, mirror, or otherwise provide copies of the source code.
+- Publish modified versions, forks, or derivative versions of the software.
+- Make a public fork intended to reproduce, replace, imitate, or compete with Varta.
+- Use the software to operate a public-facing application, platform, website,
+  API, SaaS product, hosted service, or other publicly accessible service.
+- Rebrand the software or release it under another product, organization, or
+  application name.
+- Create or launch a product substantially derived from Varta's source code,
+  architecture, user interface implementation, or proprietary components.
+- Remove, obscure, or alter copyright notices, attribution notices,
+  licensing notices, or proprietary notices.
+- Circumvent technical restrictions or access controls intended to protect
+  proprietary components of the software.
+
+4. Commercial and Competitive Use
+
+Commercial use requires prior written permission.
+
+For the purposes of this license, commercial use includes use intended to
+generate revenue, support a revenue-generating activity, provide services
+to paying customers, support a business operation, or provide commercial
+advantage to an individual or organization.
+
+You may not use substantial portions of the software to create or operate
+a product or service whose primary purpose substantially overlaps with
+Varta's functionality as a private campus community platform.
+
+Independent products created without copying or deriving from Varta's
+source code are not restricted by this license.
+
+5. Redistribution
+
+Redistribution of the software, whether modified or unmodified, is not
+permitted without prior written permission.
+
+This includes redistribution through:
+
+- Public source repositories
+- Package registries
+- Download websites
+- Application stores
+- Mirrors
+- Archives
+- Containers
+- Binary distributions
+
+You may maintain a private copy solely for a permitted use under this license.
+
+6. Derivative Works
+
+You may create private modifications solely for permitted personal,
+educational, research, or evaluation purposes.
+
+You may not publicly distribute, publish, sublicense, commercialize, or
+operate derivative works without prior written permission.
+
+A derivative work includes a modified, adapted, translated, extended,
+restructured, or substantially reused version of the software.
+
+7. Branding and Trademarks
+
+This license grants no trademark, trade name, branding, or publicity rights.
+
+The names:
+
+"Varta"
+"VĀRTĀ"
+
+and all associated:
+
+- Logos
+- Icons
+- Wordmarks
+- Product names
+- Visual identity
+- Brand assets
+- Marketing materials
+- Design assets
+
+are proprietary and may not be used without explicit written permission.
+
+You may not imply sponsorship, affiliation, endorsement, or authorization
+by Varta or the copyright holder.
+
+8. User Interface and Design Assets
+
+Unless explicitly stated otherwise, Varta's original design assets,
+illustrations, icons, branding elements, screenshots, product identity,
+and proprietary visual materials are not licensed for reuse.
+
+Viewing these materials as part of the repository does not grant permission
+to reproduce or redistribute them.
+
+9. Contributions
+
+Submitting a contribution, pull request, patch, suggestion, or other material
+does not grant the contributor ownership of Varta, the Varta brand, or any
+other existing Varta intellectual property.
+
+Unless a separate written agreement applies, the contributor retains
+copyright in their original contribution.
+
+By intentionally submitting a contribution for inclusion in the Varta
+repository, the contributor grants the copyright holder a worldwide,
+perpetual, irrevocable, royalty-free, non-exclusive license to use, reproduce,
+modify, distribute, sublicense, and incorporate that contribution into Varta
+and related versions of the product.
+
+Contributors represent that they have the necessary rights to submit their
+contributions.
+
+10. Third-Party Components
+
+This license applies only to original Varta software and materials owned by
+the copyright holder.
+
+Third-party libraries, packages, frameworks, fonts, assets, and other
+components remain subject to their respective licenses.
+
+Nothing in this license overrides the license terms of third-party software.
+
+11. No Patent Grant
+
+No patent rights are granted under this license except where expressly
+provided in a separate written agreement.
+
+12. Termination
+
+Your rights under this license terminate automatically if you violate any
+of its terms.
+
+Upon termination, you must stop using the software in any manner not
+otherwise permitted by applicable law and remove unauthorized copies under
+your control.
+
+Termination does not limit any other rights or remedies available to the
+copyright holder.
+
+13. No Warranty
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NONINFRINGEMENT.
 
-IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES,
-OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+USE OF THE SOFTWARE IS AT YOUR OWN RISK.
 
-For commercial licensing, redistribution, partnership, or other permissions,
-contact the copyright holder.
+14. Limitation of Liability
 
-All rights not expressly granted under this license are reserved.
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE COPYRIGHT HOLDER SHALL NOT BE
+LIABLE FOR ANY CLAIM, LOSS, DAMAGE, LIABILITY, OR OTHER CONSEQUENCE ARISING
+FROM THE SOFTWARE OR ITS USE, WHETHER IN CONTRACT, TORT, OR OTHERWISE.
+
+15. No Implied Rights
+
+No rights are granted by implication, estoppel, or otherwise.
+
+All rights not expressly granted under this license are reserved by the
+copyright holder.
+
+16. Additional Permission
+
+The copyright holder may grant additional permissions, including commercial
+licenses, redistribution rights, partnership rights, or deployment rights,
+through a separate written agreement.
+
+17. Contact
+
+For commercial licensing, redistribution, partnerships, deployment rights,
+or other permissions, contact the copyright holder.
