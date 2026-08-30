@@ -1312,6 +1312,15 @@ export default function OrganizationScreen() {
                       onDelete={
                         handleDeletePost
                       }
+                      onEdit={(item) =>
+                        router.push({
+                          pathname:
+                            '/post/[id]/edit',
+                          params: {
+                            id: item.id,
+                          },
+                        })
+                      }
                       onOpenPost={
                         openPost
                       }

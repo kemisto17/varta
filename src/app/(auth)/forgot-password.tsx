@@ -1,4 +1,3 @@
-import { useThemedStyles } from '../../hooks/useTheme';
 import { Link } from 'expo-router';
 import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -7,22 +6,21 @@ import { AuthField } from '../../components/auth/AuthField';
 import { AuthScaffold } from '../../components/auth/AuthScaffold';
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
 import { spacing, type ThemeColors } from '../../constants/theme';
-import {
-  getAuthErrorMessage,
-  isValidEmail,
-  normalizeEmail,
-} from '../../lib/auth';
+import { useThemedStyles } from '../../hooks/useTheme';
+import { isValidEmail, normalizeEmail } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 
-export default function LoginScreen() {
+const RESET_PASSWORD_REDIRECT_URL = 'varta://reset-password';
+
+export default function ForgotPasswordScreen() {
   const { styles } = useThemedStyles(createStyles);
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [sentToEmail, setSentToEmail] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitPendingRef = useRef(false);
 
-  const handleLogin = async () => {
+  const handleSendResetLink = async () => {
     if (submitPendingRef.current) {
       return;
     }
@@ -34,39 +32,60 @@ export default function LoginScreen() {
       return;
     }
 
-    if (!password) {
-      setErrorMessage('Enter your password.');
-      return;
-    }
+    const normalizedEmail = normalizeEmail(email);
 
     submitPendingRef.current = true;
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: normalizeEmail(email),
-        password,
-      });
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        normalizedEmail,
+        { redirectTo: RESET_PASSWORD_REDIRECT_URL }
+      );
 
-      if (!error) {
+      if (error) {
+        submitPendingRef.current = false;
+        setErrorMessage(
+          'We could not send a reset link. Please wait a moment and try again.'
+        );
+        setIsSubmitting(false);
         return;
       }
 
-      submitPendingRef.current = false;
-      setErrorMessage(getAuthErrorMessage(error.message));
+      setSentToEmail(normalizedEmail);
       setIsSubmitting(false);
     } catch {
       submitPendingRef.current = false;
-      setErrorMessage('We could not sign you in. Check your connection and try again.');
+      setErrorMessage(
+        'We could not send a reset link. Check your connection and try again.'
+      );
       setIsSubmitting(false);
     }
   };
 
+  if (sentToEmail) {
+    return (
+      <AuthScaffold>
+        <Text style={styles.successEyebrow}>CHECK YOUR EMAIL</Text>
+        <Text style={styles.title}>Your reset link is on its way.</Text>
+        <Text style={styles.subtitle}>
+          If an account exists for {sentToEmail}, you will receive a password
+          reset email. Open its link on this device to continue in Varta.
+        </Text>
+
+        <Link href="/(auth)/login" replace style={styles.returnLink}>
+          Back to sign in
+        </Link>
+      </AuthScaffold>
+    );
+  }
+
   return (
     <AuthScaffold>
-      <Text style={styles.title}>Welcome back.</Text>
+      <Text style={styles.title}>Reset your password.</Text>
       <Text style={styles.subtitle}>
-        Sign in to return to your campus conversation.
+        Enter the email for your Varta account and we will send you a secure
+        reset link.
       </Text>
 
       <View style={styles.form}>
@@ -77,31 +96,12 @@ export default function LoginScreen() {
           keyboardType="email-address"
           label="Email"
           onChangeText={setEmail}
+          onSubmitEditing={handleSendResetLink}
           placeholder="you@example.com"
-          returnKeyType="next"
+          returnKeyType="send"
           textContentType="emailAddress"
           value={email}
         />
-
-        <AuthField
-          autoCapitalize="none"
-          autoComplete="current-password"
-          label="Password"
-          onChangeText={setPassword}
-          onSubmitEditing={handleLogin}
-          placeholder="Your password"
-          returnKeyType="done"
-          secureTextEntry
-          textContentType="password"
-          value={password}
-        />
-
-        <Link
-          href="/(auth)/forgot-password"
-          style={styles.forgotPasswordLink}
-        >
-          Forgot password?
-        </Link>
 
         {errorMessage ? (
           <Text accessibilityRole="alert" style={styles.errorMessage}>
@@ -111,15 +111,15 @@ export default function LoginScreen() {
 
         <PrimaryButton
           isLoading={isSubmitting}
-          label="Sign in"
-          onPress={handleLogin}
+          label="Send reset link"
+          onPress={handleSendResetLink}
         />
       </View>
 
       <Text style={styles.accountPrompt}>
-        New to Varta?{' '}
-        <Link href="/(auth)/register" replace style={styles.accountLink}>
-          Create an account
+        Remembered your password?{' '}
+        <Link href="/(auth)/login" replace style={styles.accountLink}>
+          Sign in
         </Link>
       </Text>
     </AuthScaffold>
@@ -127,7 +127,16 @@ export default function LoginScreen() {
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  successEyebrow: {
+    marginBottom: spacing.md,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    color: colors.success,
+  },
+
   title: {
+    maxWidth: 340,
     fontSize: 36,
     lineHeight: 42,
     fontWeight: '700',
@@ -136,7 +145,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
 
   subtitle: {
-    maxWidth: 320,
+    maxWidth: 340,
     marginTop: spacing.sm,
     fontSize: 15,
     lineHeight: 22,
@@ -155,10 +164,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.danger,
   },
 
-  forgotPasswordLink: {
-    marginTop: -spacing.sm,
-    alignSelf: 'flex-end',
-    fontSize: 14,
+  returnLink: {
+    marginTop: spacing.xl,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.textPrimary,
   },

@@ -18,6 +18,7 @@ export type CampusEvent = {
   location: EventRow['location'];
   organization: {
     avatarPath: string | null;
+    avatarUrl: string | null;
     id: string;
     isVerified: boolean;
     name: string;

@@ -1,6 +1,8 @@
 # Varta
 
-Varta is a campus community app for verified university students.
+Varta is a campus community app for verified university students. The Android
+app is currently distributed through Google Play testing; it is not presented
+as generally available.
 
 ## Why Varta
 
@@ -8,12 +10,14 @@ Campus conversations, organization updates, and events are often scattered acros
 
 Varta is an independent student project. It is not an official application of, endorsed by, or operated by any university.
 
-## V1 features
+## Current features
 
-- Email/password authentication with persisted sessions
+- Email/password authentication, persisted sessions, and password recovery
 - Profile onboarding backed by live institute records
 - Private student-ID verification with trusted admin approval
-- Verified, same-university feed with posts, photos, likes, and comments
+- Verified, same-university feed with editable posts, photos, likes, and comments
+- Lost & Found posts with an open-item feed, campus location, and resolution state
+- Post image cropping with original, square, portrait, and landscape options
 - Student profiles, badges, reporting, and blocking
 - In-app and push notifications
 - Official organizations, follows, events, and event interest
@@ -49,7 +53,7 @@ Screenshots are not yet included in the repository. Release screenshots can be a
    EXPO_PUBLIC_MEDIA_BASE_URL=
    ~~~
 
-   Only a Supabase publishable client key belongs in the mobile app. Never add a Supabase secret/service-role key, R2 credential, signing key, or Play credential.
+   Only a Supabase publishable client key belongs in the mobile app. Never add a Supabase secret/service-role key, R2 credential, signing key, or Play credential. The committed `google-services.json` contains Android Firebase client configuration only; Firebase Admin credentials must never be added.
 
 3. For a separate development Supabase project, review the committed migrations before linking and applying them:
 
@@ -115,7 +119,7 @@ npx expo export --platform web
 
 ## Architecture and tech stack
 
-Varta uses Expo SDK 57, Expo Router, React Native, and TypeScript for the mobile client. Supabase provides Auth, Postgres, Row Level Security, private Storage, and Edge Functions. Expo Notifications handles push delivery, and EAS Build produces Android testing and production artifacts.
+Varta uses Expo SDK 57, Expo Router, React Native 0.86, React 19, and TypeScript 6 for the mobile client. Supabase provides Auth, Postgres, Row Level Security, private Storage, and Edge Functions. Expo Notifications uses Firebase client configuration on Android, and EAS Build produces APK testing builds and AAB Google Play builds.
 
 All application tables use Row Level Security. Verified content is scoped to the signed-in student's university, with institute scoping where events require it. Verification documents remain in private Supabase Storage and are not public profile content.
 
@@ -157,14 +161,14 @@ Trusted admin workflows are documented separately:
 
 ## Release status
 
-- Product release: V1.0.0
-- Expo/package version: `1.0.0`
+- Current source release: V1.0.1
+- Expo/package version: `1.0.1`
 - Android package: `com.kemisto17.varta`
-- Android version code: `1`
-- Distribution status: Google Play testing
+- Android version code: `2`
+- Distribution status: Google Play testing; not generally available
 - Production build format: AAB
 
-This repository does not include Play Store binaries or signing credentials. A GitHub release is created separately when needed.
+This repository does not include Play Store binaries or signing credentials. GitHub releases and Play uploads are created separately.
 
 ## License
 

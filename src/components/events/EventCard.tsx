@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { formatEventStart, isEventHappeningNow } from '../../lib/time';
 import type { CampusEvent } from '../../types/event';
+import { OrganizationAvatar } from '../organizations/OrganizationAvatar';
 
 type EventCardProps = {
   event: CampusEvent;
@@ -44,6 +45,11 @@ export function EventCard({
 
         <View style={styles.copy}>
           <View style={styles.organizationRow}>
+            <OrganizationAvatar
+              name={event.organization.name}
+              size={28}
+              uri={event.organization.avatarUrl}
+            />
             <Text numberOfLines={1} style={styles.organization}>
               {event.organization.name}
             </Text>

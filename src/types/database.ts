@@ -684,7 +684,10 @@ export type Database = {
           created_at: string
           id: string
           image_path: string | null
+          lost_found_location: string | null
+          lost_found_resolved_at: string | null
           organization_author_id: string | null
+          post_kind: string
           updated_at: string
         }
         Insert: {
@@ -693,7 +696,10 @@ export type Database = {
           created_at?: string
           id?: string
           image_path?: string | null
+          lost_found_location?: string | null
+          lost_found_resolved_at?: string | null
           organization_author_id?: string | null
+          post_kind?: string
           updated_at?: string
         }
         Update: {
@@ -702,7 +708,10 @@ export type Database = {
           created_at?: string
           id?: string
           image_path?: string | null
+          lost_found_location?: string | null
+          lost_found_resolved_at?: string | null
           organization_author_id?: string | null
+          post_kind?: string
           updated_at?: string
         }
         Relationships: [

@@ -9,6 +9,7 @@ import {
 import { FullscreenImageViewer } from '../../components/FullscreenImageViewer';
 import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { ScreenHeader } from '../../components/ScreenHeader';
+import { OrganizationAvatar } from '../../components/organizations/OrganizationAvatar';
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import {
@@ -269,11 +270,11 @@ export default function EventDetailScreen() {
               }
               style={({ pressed }) => [styles.organizationRow, pressed && styles.pressed]}
             >
-              <View style={styles.organizationAvatar}>
-                <Text style={styles.organizationInitial}>
-                  {event.organization.name.slice(0, 1).toUpperCase()}
-                </Text>
-              </View>
+              <OrganizationAvatar
+                name={event.organization.name}
+                size={34}
+                uri={event.organization.avatarUrl}
+              />
               <Text style={styles.organizationName}>{event.organization.name}</Text>
               {event.organization.isVerified ? (
                 <SymbolView
@@ -403,8 +404,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   title: { fontSize: 31, lineHeight: 38, fontWeight: '700', color: colors.textPrimary },
   cancelledTitle: { color: colors.textSecondary, textDecorationLine: 'line-through' },
   organizationRow: { marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  organizationAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.textPrimary },
-  organizationInitial: { fontSize: 12, fontWeight: '700', color: colors.white },
   organizationName: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   factBlock: { marginTop: spacing.xl, gap: spacing.md },
   fact: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

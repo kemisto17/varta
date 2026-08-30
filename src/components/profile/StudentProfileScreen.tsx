@@ -1545,6 +1545,18 @@ export function StudentProfileScreen({
                 ? handleDeletePost
                 : undefined
             }
+            onEdit={
+              isOwnProfile
+                ? (post) =>
+                    router.push({
+                      pathname:
+                        '/post/[id]/edit',
+                      params: {
+                        id: post.id,
+                      },
+                    })
+                : undefined
+            }
             onOpenPost={
               openPost
             }

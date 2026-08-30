@@ -3,6 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
 import { AuthContext } from '../contexts/AuthContext';
+import {
+  clearPendingPasswordRecoverySession,
+  hasPendingPasswordRecoverySession,
+} from '../lib/auth';
 import { supabase } from '../lib/supabase';
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -16,6 +20,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (hasPendingPasswordRecoverySession()) {
+        if (isMounted) {
+          setSession(null);
+          setIsLoading(false);
+        }
+
+        return;
+      }
+
       authEventVersion += 1;
 
       if (!isMounted) {
@@ -32,6 +45,32 @@ export function AuthProvider({ children }: PropsWithChildren) {
         data: { session: storedSession },
         error,
       } = await supabase.auth.getSession();
+
+      if (hasPendingPasswordRecoverySession()) {
+        let recoverySessionWasCleared = false;
+
+        try {
+          const { error: signOutError } = await supabase.auth.signOut({
+            scope: 'local',
+          });
+
+          recoverySessionWasCleared = !signOutError;
+        } catch {
+          // Keep the recovery session out of app state even if cleanup fails.
+        }
+
+        if (recoverySessionWasCleared) {
+          clearPendingPasswordRecoverySession();
+        }
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSession(null);
+        setIsLoading(false);
+        return;
+      }
 
       if (!isMounted || authEventVersion !== restoreVersion) {
         return;

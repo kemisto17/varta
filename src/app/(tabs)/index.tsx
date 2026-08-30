@@ -74,6 +74,7 @@ export default function HomeScreen() {
 
   const {
     errorMessage,
+    filter,
     hasMore,
     isLoadingMore,
     isRefreshing,
@@ -81,6 +82,7 @@ export default function HomeScreen() {
     posts,
     refreshFeed,
     removePost,
+    setFilter,
     status,
     updatePostLike,
   } = useFeed();
@@ -1016,14 +1018,29 @@ export default function HomeScreen() {
             />
           ) : (
             <FeedState
-              actionLabel="Create the first post"
-              message="Start a useful conversation with students across your university."
+              actionLabel={
+                filter ===
+                'lost-found'
+                  ? 'Create a lost or found post'
+                  : 'Create the first post'
+              }
+              message={
+                filter ===
+                'lost-found'
+                  ? 'There are no open lost or found items right now.'
+                  : 'Start a useful conversation with students across your university.'
+              }
               onAction={() =>
                 router.navigate(
                   '/(tabs)/create'
                 )
               }
-              title="Your campus feed is quiet"
+              title={
+                filter ===
+                'lost-found'
+                  ? 'Nothing open in Lost & Found'
+                  : 'Your campus feed is quiet'
+              }
             />
           )
         }
@@ -1241,8 +1258,63 @@ export default function HomeScreen() {
                   styles.sectionTitle
                 }
               >
-                Latest
+                {filter ===
+                'lost-found'
+                  ? 'Lost & Found'
+                  : 'Latest'}
               </Text>
+
+              <View
+                style={
+                  styles.feedFilters
+                }
+              >
+                {(
+                  [
+                    ['all', 'Campus'],
+                    [
+                      'lost-found',
+                      'Lost & Found',
+                    ],
+                  ] as const
+                ).map(
+                  ([value, label]) => {
+                    const selected =
+                      filter === value;
+
+                    return (
+                      <Pressable
+                        accessibilityRole="button"
+                        key={
+                          value
+                        }
+                        onPress={() =>
+                          setFilter(
+                            value
+                          )
+                        }
+                        style={(event) => [
+                          styles.feedFilter,
+                          selected &&
+                            styles.feedFilterSelected,
+                          event.pressed &&
+                            styles.pressed,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.feedFilterText,
+                            selected &&
+                              styles.feedFilterTextSelected,
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                      </Pressable>
+                    );
+                  }
+                )}
+              </View>
             </View>
 
             {errorMessage &&
@@ -1387,6 +1459,15 @@ export default function HomeScreen() {
             }
             onDelete={
               handleDeletePost
+            }
+            onEdit={(post) =>
+              router.push({
+                pathname:
+                  '/post/[id]/edit',
+                params: {
+                  id: post.id,
+                },
+              })
             }
             onOpenPost={
               openPost
@@ -1746,6 +1827,50 @@ const createStyles = (
       fontWeight: '700',
       color:
         colors.textPrimary,
+    },
+
+    feedFilters: {
+      marginTop:
+        spacing.md,
+      flexDirection:
+        'row',
+      gap:
+        spacing.sm,
+    },
+
+    feedFilter: {
+      minHeight: 36,
+      paddingHorizontal:
+        spacing.md,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      borderWidth: 1,
+      borderColor:
+        colors.border,
+      borderRadius:
+        radius.full,
+    },
+
+    feedFilterSelected: {
+      borderColor:
+        colors.textPrimary,
+      backgroundColor:
+        colors.textPrimary,
+    },
+
+    feedFilterText: {
+      fontSize: 12,
+      fontWeight:
+        '600',
+      color:
+        colors.textSecondary,
+    },
+
+    feedFilterTextSelected: {
+      color:
+        colors.background,
     },
 
     inlineError: {

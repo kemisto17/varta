@@ -82,7 +82,8 @@ export function ReportSheet({
       visible={target !== null}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
         style={[styles.overlay, { paddingTop: insets.top }]}
       >
         <Pressable
@@ -147,6 +148,7 @@ export function ReportSheet({
                   paddingRight: spacing.lg + insets.right,
                 },
               ]}
+              keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "466713331440",
+    "project_id": "varta-8d1e1",
+    "storage_bucket": "varta-8d1e1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:466713331440:android:40d100d1b3dfe348c96435",
+        "android_client_info": {
+          "package_name": "com.kemisto17.varta"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAROzrB8u7EXwkjbhSEjgviXF04uNz17AA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -3,6 +3,7 @@ import {
   DefaultTheme,
   ThemeProvider as NavigationThemeProvider,
   Stack,
+  usePathname,
 } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -34,6 +35,13 @@ import { VerificationProvider } from '../providers/VerificationProvider';
 void SplashScreen.preventAutoHideAsync();
 
 function AppNavigator() {
+  const pathname =
+    usePathname();
+
+  const isResetPasswordRoute =
+    pathname ===
+      '/reset-password';
+
   const {
     colors,
     resolvedTheme,
@@ -87,9 +95,12 @@ function AppNavigator() {
     );
 
   if (
-    isLoading ||
-    isProfileLoading ||
-    isVerificationLoading
+    !isResetPasswordRoute &&
+    (
+      isLoading ||
+      isProfileLoading ||
+      isVerificationLoading
+    )
   ) {
     return (
       <SafeAreaScreen
@@ -118,6 +129,7 @@ function AppNavigator() {
   }
 
   if (
+    !isResetPasswordRoute &&
     isAuthenticated &&
     profileStatus ===
       'error'
@@ -173,6 +185,7 @@ function AppNavigator() {
   }
 
   if (
+    !isResetPasswordRoute &&
     isAuthenticated &&
     profileStatus ===
       'ready' &&
@@ -371,6 +384,10 @@ function AppNavigator() {
           />
 
           <Stack.Screen
+            name="post/[id]/edit"
+          />
+
+          <Stack.Screen
             name="user/[id]"
           />
 
@@ -402,6 +419,10 @@ function AppNavigator() {
             name="organization/[id]/create-event"
           />
         </Stack.Protected>
+
+        <Stack.Screen
+          name="reset-password"
+        />
       </Stack>
     </NavigationThemeProvider>
   );

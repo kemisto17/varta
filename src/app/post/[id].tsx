@@ -1,6 +1,6 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -321,14 +321,16 @@ export default function PostDetailScreen() {
       ]
     );
 
-  useEffect(() => {
-    void loadDetail();
+  useFocusEffect(
+    useCallback(() => {
+      void loadDetail();
 
-    return () => {
-      detailRequestId.current +=
-        1;
-    };
-  }, [loadDetail]);
+      return () => {
+        detailRequestId.current +=
+          1;
+      };
+    }, [loadDetail])
+  );
 
   const loadMoreComments =
     useCallback(
@@ -1051,6 +1053,15 @@ export default function PostDetailScreen() {
                   }
                   onDelete={
                     handleDeletePost
+                  }
+                  onEdit={(currentPost) =>
+                    router.push({
+                      pathname:
+                        '/post/[id]/edit',
+                      params: {
+                        id: currentPost.id,
+                      },
+                    })
                   }
                   onReport={(
                     currentPost

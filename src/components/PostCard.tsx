@@ -19,6 +19,9 @@ import { BadgePill } from './badges/BadgePill';
 import { LinkifiedText } from './links/LinkifiedText';
 import { ActionSheet } from './moderation/ActionSheet';
 
+const DEFAULT_FEED_IMAGE_ASPECT_RATIO = 4 / 3;
+const MIN_FEED_IMAGE_ASPECT_RATIO = 2 / 3;
+
 type PostCardProps = {
   currentUserId: string | null;
   isDeleting?: boolean;
@@ -27,6 +30,7 @@ type PostCardProps = {
   onBlockUser?: (post: FeedPost) => void;
   onCommentPress?: (post: FeedPost) => void;
   onDelete?: (post: FeedPost) => void;
+  onEdit?: (post: FeedPost) => void;
   onOpenPost?: (post: FeedPost) => void;
   onReport?: (post: FeedPost) => void;
   onToggleLike?: (post: FeedPost) => void;
@@ -41,6 +45,7 @@ export function PostCard({
   onBlockUser,
   onCommentPress,
   onDelete,
+  onEdit,
   onOpenPost,
   onReport,
   onToggleLike,
@@ -51,6 +56,10 @@ export function PostCard({
   const canDelete =
     post.canDeleteByCurrentUser &&
     onDelete !== undefined;
+
+  const canEdit =
+    post.canEditByCurrentUser &&
+    onEdit !== undefined;
 
   const canReport =
     currentUserId !== null &&
@@ -65,10 +74,14 @@ export function PostCard({
 
   const hasOptions =
     canDelete ||
+    canEdit ||
     canReport ||
     canBlock;
 
   const [imageFailed, setImageFailed] = useState(false);
+  const [imageAspectRatio, setImageAspectRatio] = useState(
+    DEFAULT_FEED_IMAGE_ASPECT_RATIO
+  );
   const [isImageViewerVisible, setIsImageViewerVisible] =
     useState(false);
   const [isOptionsVisible, setIsOptionsVisible] =
@@ -76,6 +89,7 @@ export function PostCard({
 
   useEffect(() => {
     setImageFailed(false);
+    setImageAspectRatio(DEFAULT_FEED_IMAGE_ASPECT_RATIO);
     setIsImageViewerVisible(false);
     setIsOptionsVisible(false);
   }, [post.id, post.imageUrl]);
@@ -133,6 +147,10 @@ export function PostCard({
                   {post.author.branch} ·{' '}
                   {formatYear(post.author.year)} ·{' '}
                   {formatRelativeTimestamp(post.createdAt)}
+                  {post.updatedAt !==
+                  post.createdAt
+                    ? ' · Edited'
+                    : ''}
                 </Text>
               </>
             ) : (
@@ -150,6 +168,10 @@ export function PostCard({
                   style={styles.meta}
                 >
                   {formatRelativeTimestamp(post.createdAt)}
+                  {post.updatedAt !==
+                  post.createdAt
+                    ? ' · Edited'
+                    : ''}
                 </Text>
               </>
             )}
@@ -188,6 +210,59 @@ export function PostCard({
         ) : null}
       </View>
 
+      {post.postKind !==
+      'general' ? (
+        <View
+          style={
+            styles.lostFoundMeta
+          }
+        >
+          <View
+            style={[
+              styles.postKindBadge,
+              post.postKind ===
+              'lost'
+                ? styles.lostBadge
+                : styles.foundBadge,
+            ]}
+          >
+            <Text
+              style={
+                styles.postKindBadgeText
+              }
+            >
+              {post.postKind ===
+              'lost'
+                ? 'LOST'
+                : 'FOUND'}
+            </Text>
+          </View>
+
+          <Text
+            style={
+              styles.lostFoundStatus
+            }
+          >
+            {post.lostFoundResolvedAt
+              ? 'Resolved'
+              : 'Open'}
+          </Text>
+
+          {post.lostFoundLocation ? (
+            <Text
+              numberOfLines={
+                1
+              }
+              style={
+                styles.lostFoundLocation
+              }
+            >
+              · {post.lostFoundLocation}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
       {post.content ? (
         <Pressable
           accessibilityRole={onOpenPost ? 'button' : undefined}
@@ -214,17 +289,32 @@ export function PostCard({
             pressed && styles.imagePressed
           }
         >
-          <View style={styles.imageFrame}>
+          <View
+            style={[
+              styles.imageFrame,
+              { aspectRatio: imageAspectRatio },
+            ]}
+          >
             <Image
               accessibilityLabel={`Photo posted by ${post.author.fullName}`}
               cachePolicy="memory-disk"
-              contentFit="cover"
+              contentFit="contain"
               recyclingKey={post.imageUrl}
               source={post.imageUrl}
               style={styles.image}
               transition={180}
               onError={() => {
                 setImageFailed(true);
+              }}
+              onLoad={({ source }) => {
+                if (source.width > 0 && source.height > 0) {
+                  setImageAspectRatio(
+                    Math.max(
+                      source.width / source.height,
+                      MIN_FEED_IMAGE_ASPECT_RATIO
+                    )
+                  );
+                }
               }}
             />
           </View>
@@ -332,13 +422,26 @@ export function PostCard({
 
       <ActionSheet
         actions={
-          canDelete
+          canDelete || canEdit
             ? [
+                ...(canEdit
+                  ? [
+                      {
+                        label: 'Edit post',
+                        onPress: () => onEdit?.(post),
+                      },
+                    ]
+                  : []),
+
+                ...(canDelete
+                  ? [
                 {
                   label: 'Delete post',
                   onPress: () => onDelete?.(post),
                   tone: 'danger' as const,
                 },
+                    ]
+                  : []),
               ]
             : [
                 ...(canReport
@@ -362,14 +465,14 @@ export function PostCard({
               ]
         }
         message={
-          canDelete
-            ? 'This removes the post and its photo from the campus feed. This cannot be undone.'
+          canDelete || canEdit
+            ? 'Choose what you want to do with this post.'
             : null
         }
         onClose={() => setIsOptionsVisible(false)}
         title={
-          canDelete
-            ? 'Delete this post?'
+          canDelete || canEdit
+            ? 'Post options'
             : 'Post options'
         }
         visible={isOptionsVisible}
@@ -449,6 +552,59 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
     },
 
+    lostFoundMeta: {
+      marginTop:
+        spacing.md,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      gap:
+        spacing.sm,
+    },
+
+    postKindBadge: {
+      paddingVertical: 4,
+      paddingHorizontal:
+        spacing.sm,
+      borderRadius:
+        radius.full,
+    },
+
+    lostBadge: {
+      backgroundColor:
+        colors.dangerSoft,
+    },
+
+    foundBadge: {
+      backgroundColor:
+        colors.successSoft,
+    },
+
+    postKindBadgeText: {
+      fontSize: 10,
+      fontWeight:
+        '800',
+      letterSpacing: 0.7,
+      color:
+        colors.textPrimary,
+    },
+
+    lostFoundStatus: {
+      fontSize: 12,
+      fontWeight:
+        '600',
+      color:
+        colors.textSecondary,
+    },
+
+    lostFoundLocation: {
+      flex: 1,
+      fontSize: 12,
+      color:
+        colors.textMuted,
+    },
+
     content: {
       marginTop: spacing.md,
       fontSize: 16,
@@ -459,7 +615,6 @@ const createStyles = (colors: ThemeColors) =>
     imageFrame: {
       width: '100%',
       marginTop: spacing.md,
-      aspectRatio: 4 / 3,
       overflow: 'hidden',
       borderRadius: radius.lg,
       backgroundColor: colors.borderSubtle,

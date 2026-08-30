@@ -22,6 +22,7 @@ import { optimizeEventCoverAsset } from './imageOptimization';
 import {
   canEditOrganizationEvent,
   getFollowedOrganizationIds,
+  getOrganizationAvatarUrls,
 } from './organizations';
 import {
   deleteEventImageFromR2,
@@ -1378,13 +1379,33 @@ async function mapEventRows(
         row.id
     );
 
+  const organizationAvatarPaths =
+    rows
+      .map(
+        (row) =>
+          row.organization
+            ?.avatar_path ??
+          null
+      )
+      .filter(
+        (
+          path
+        ): path is string =>
+          path !== null
+      );
+
   const [
     coverUrls,
+    organizationAvatarUrls,
     interestedIds,
   ] =
     await Promise.all([
       getEventCoverUrls(
         paths
+      ),
+
+      getSafeEventOrganizationAvatarUrls(
+        organizationAvatarPaths
       ),
 
       getInterestedEventIds(
@@ -1445,6 +1466,15 @@ async function mapEventRows(
               row.organization
                 .avatar_path,
 
+            avatarUrl:
+              row.organization
+                .avatar_path
+                ? organizationAvatarUrls.get(
+                    row.organization
+                      .avatar_path
+                  ) ?? null
+                : null,
+
             id:
               row.organization
                 .id,
@@ -1476,6 +1506,26 @@ async function mapEventRows(
       ];
     }
   );
+}
+
+async function getSafeEventOrganizationAvatarUrls(
+  paths: string[]
+) {
+  try {
+    return await getOrganizationAvatarUrls(
+      paths
+    );
+  } catch (error) {
+    console.warn(
+      '[events] Could not load organization avatars.',
+      error
+    );
+
+    return new Map<
+      string,
+      string
+    >();
+  }
 }
 
 async function getEventCoverUrls(

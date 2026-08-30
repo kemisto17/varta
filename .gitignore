@@ -30,7 +30,7 @@ credentials/
 secrets/
 credentials*.json
 service-account*.json
-google-services.json
+*-firebase-adminsdk-*.json
 GoogleService-Info.plist
 
 # Metro
@@ -44,6 +44,9 @@ yarn-error.*
 # macOS
 .DS_Store
 *.pem
+
+# local IDE settings
+.idea/
 
 # local env files
 .env*.local

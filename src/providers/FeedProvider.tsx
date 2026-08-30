@@ -13,6 +13,7 @@ import { useAuth } from '../hooks/useAuth';
 import { getFeedPage } from '../lib/posts';
 import type {
   FeedCursor,
+  FeedFilter,
   FeedPost,
 } from '../types/post';
 
@@ -51,6 +52,13 @@ export function FeedProvider({
     useRef(
       new Set<string>()
     );
+
+  const [
+    filter,
+    setFilter,
+  ] = useState<FeedFilter>(
+    'all'
+  );
 
   const [
     posts,
@@ -134,7 +142,7 @@ export function FeedProvider({
     setIsLoadingMore(false);
     setErrorMessage(null);
     setStatus('idle');
-  }, [userId]);
+  }, [filter, userId]);
 
   const refreshFeed =
     useCallback(
@@ -198,7 +206,9 @@ export function FeedProvider({
         try {
           const page =
             await getFeedPage(
-              userId
+              userId,
+              null,
+              filter
             );
 
           if (
@@ -279,7 +289,7 @@ export function FeedProvider({
           }
         }
       },
-      [userId]
+      [filter, userId]
     );
 
   const loadMore =
@@ -315,7 +325,8 @@ export function FeedProvider({
           const page =
             await getFeedPage(
               userId,
-              cursorRef.current
+              cursorRef.current,
+              filter
             );
 
           if (
@@ -396,7 +407,7 @@ export function FeedProvider({
           }
         }
       },
-      [userId]
+      [filter, userId]
     );
 
   /*
@@ -408,6 +419,19 @@ export function FeedProvider({
       (
         post: FeedPost
       ) => {
+        if (
+          filter ===
+            'lost-found' &&
+          (
+            post.postKind ===
+              'general' ||
+            post.lostFoundResolvedAt !==
+              null
+          )
+        ) {
+          return;
+        }
+
         removedPostIdsRef.current.delete(
           post.id
         );
@@ -443,7 +467,43 @@ export function FeedProvider({
           null
         );
       },
-      []
+      [filter]
+    );
+
+  const replacePost =
+    useCallback(
+      (
+        post: FeedPost
+      ) => {
+        const shouldRemainVisible =
+          filter === 'all' ||
+          (
+            post.postKind !==
+              'general' &&
+            post.lostFoundResolvedAt ===
+              null
+          );
+
+        const nextPosts =
+          shouldRemainVisible
+            ? postsRef.current.map(
+                (existingPost) =>
+                  existingPost.id ===
+                  post.id
+                    ? post
+                    : existingPost
+              )
+            : postsRef.current.filter(
+                (existingPost) =>
+                  existingPost.id !==
+                  post.id
+              );
+
+        postsRef.current =
+          nextPosts;
+        setPosts(nextPosts);
+      },
+      [filter]
     );
 
   const removePost =
@@ -552,6 +612,8 @@ export function FeedProvider({
             ? errorMessage
             : null,
 
+        filter,
+
         hasMore:
           isCurrentUserState &&
           hasMore,
@@ -574,6 +636,8 @@ export function FeedProvider({
         prependPost,
         refreshFeed,
         removePost,
+        replacePost,
+        setFilter,
 
         status:
           isCurrentUserState
@@ -585,6 +649,7 @@ export function FeedProvider({
       }),
       [
         errorMessage,
+        filter,
         hasMore,
         isCurrentUserState,
         isLoadingMore,
@@ -594,6 +659,7 @@ export function FeedProvider({
         prependPost,
         refreshFeed,
         removePost,
+        replacePost,
         status,
         updatePostCommentCount,
         updatePostLike,

@@ -6,6 +6,15 @@ type CommentRow = Tables<'comments'>;
 type PostRow = Tables<'posts'>;
 type ProfileRow = Tables<'profiles'>;
 
+export type PostKind =
+  | 'general'
+  | 'lost'
+  | 'found';
+
+export type FeedFilter =
+  | 'all'
+  | 'lost-found';
+
 export type FeedPostStudentAuthor = {
   avatarPath: ProfileRow['avatar_path'];
   avatarUrl: string | null;
@@ -43,6 +52,7 @@ export type FeedPost = {
   author: FeedPostAuthor;
   authorId: PostRow['author_id'];
   canDeleteByCurrentUser: boolean;
+  canEditByCurrentUser: boolean;
   commentCount: number;
   content: PostRow['content'];
   createdAt: PostRow['created_at'];
@@ -51,7 +61,11 @@ export type FeedPost = {
   imageUrl: string | null;
   isLikedByCurrentUser: boolean;
   likeCount: number;
+  lostFoundLocation: PostRow['lost_found_location'];
+  lostFoundResolvedAt: PostRow['lost_found_resolved_at'];
   organizationAuthorId: PostRow['organization_author_id'];
+  postKind: PostKind;
+  updatedAt: PostRow['updated_at'];
 };
 
 export type FeedCursor = Pick<FeedPost, 'createdAt' | 'id'>;

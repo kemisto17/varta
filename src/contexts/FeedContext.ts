@@ -1,6 +1,9 @@
 import { createContext } from 'react';
 
-import type { FeedPost } from '../types/post';
+import type {
+  FeedFilter,
+  FeedPost,
+} from '../types/post';
 
 export type FeedStatus =
   | 'idle'
@@ -15,6 +18,7 @@ export type PostLikeState = Pick<
 
 export type FeedContextValue = {
   errorMessage: string | null;
+  filter: FeedFilter;
   hasMore: boolean;
   isLoadingMore: boolean;
   isRefreshing: boolean;
@@ -33,6 +37,14 @@ export type FeedContextValue = {
 
   removePost: (
     postId: string
+  ) => void;
+
+  replacePost: (
+    post: FeedPost
+  ) => void;
+
+  setFilter: (
+    filter: FeedFilter
   ) => void;
 
   status: FeedStatus;

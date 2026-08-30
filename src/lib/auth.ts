@@ -1,3 +1,41 @@
+const PASSWORD_RECOVERY_SESSION_KEY =
+  'varta.auth.password-recovery-session-pending';
+
+function getAuthStorage() {
+  return typeof localStorage === 'undefined' ? null : localStorage;
+}
+
+export function beginPasswordRecoverySession() {
+  try {
+    const storage = getAuthStorage();
+
+    if (!storage) {
+      return false;
+    }
+
+    storage.setItem(PASSWORD_RECOVERY_SESSION_KEY, 'true');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function clearPendingPasswordRecoverySession() {
+  try {
+    getAuthStorage()?.removeItem(PASSWORD_RECOVERY_SESSION_KEY);
+  } catch {
+    // A failed removal keeps the recovery session hidden on the next launch.
+  }
+}
+
+export function hasPendingPasswordRecoverySession() {
+  try {
+    return getAuthStorage()?.getItem(PASSWORD_RECOVERY_SESSION_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
 export function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }

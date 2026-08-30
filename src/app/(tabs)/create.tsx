@@ -1,5 +1,4 @@
 import type { ImagePickerAsset } from 'expo-image-picker';
-import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import {
@@ -9,7 +8,6 @@ import {
 } from 'react';
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -23,6 +21,7 @@ import {
 import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { ActionSheet } from '../../components/moderation/ActionSheet';
 import { OrganizationAvatar } from '../../components/organizations/OrganizationAvatar';
+import { PostImageField } from '../../components/posts/PostImageField';
 import {
   radius,
   spacing,
@@ -32,17 +31,17 @@ import { useAuth } from '../../hooks/useAuth';
 import { useFeed } from '../../hooks/useFeed';
 import { useProfile } from '../../hooks/useProfile';
 import { useThemedStyles } from '../../hooks/useTheme';
-import { requestImageLibraryAccess } from '../../lib/imagePicker';
 import { getManageableOrganizationsForPosting } from '../../lib/organizations';
 import {
   getPostById,
   getPostErrorMessage,
+  MAX_LOST_FOUND_LOCATION_CHARACTERS,
   MAX_POST_CHARACTERS,
-  MAX_POST_IMAGE_SIZE,
   publishPost,
 } from '../../lib/posts';
 import { getInitials } from '../../lib/text';
 import type { ManageableOrganization } from '../../types/organization';
+import type { PostKind } from '../../types/post';
 
 export default function CreateScreen() {
   const { colors, styles } =
@@ -93,10 +92,16 @@ export default function CreateScreen() {
     );
 
   const [
-    isPicking,
-    setIsPicking,
-  ] =
-    useState(false);
+    postKind,
+    setPostKind,
+  ] = useState<PostKind>(
+    'general'
+  );
+
+  const [
+    lostFoundLocation,
+    setLostFoundLocation,
+  ] = useState('');
 
   const [
     isPublishing,
@@ -216,96 +221,16 @@ export default function CreateScreen() {
     content.length;
 
   const hasPostContent =
-    content.trim().length >
-      0 ||
-    imageAsset !== null;
+    postKind === 'general'
+      ? content.trim().length >
+          0 ||
+        imageAsset !== null
+      : content.trim().length >
+        0;
 
   const canPublish =
     hasPostContent &&
     !isPublishing;
-
-  const pickImage =
-    async () => {
-      if (
-        isPicking ||
-        isPublishing
-      ) {
-        return;
-      }
-
-      setIsPicking(
-        true
-      );
-
-      setErrorMessage(
-        null
-      );
-
-      try {
-        if (
-          !(await requestImageLibraryAccess())
-        ) {
-          setErrorMessage(
-            'Allow photo access to add an image to your post.'
-          );
-
-          return;
-        }
-
-        const result =
-          await ImagePicker.launchImageLibraryAsync(
-            {
-              allowsEditing:
-                false,
-
-              allowsMultipleSelection:
-                false,
-
-              mediaTypes: [
-                'images',
-              ],
-
-              quality:
-                0.78,
-            }
-          );
-
-        if (
-          result.canceled ||
-          result.assets.length ===
-            0
-        ) {
-          return;
-        }
-
-        const nextAsset =
-          result.assets[0];
-
-        if (
-          nextAsset.fileSize &&
-          nextAsset.fileSize >
-            MAX_POST_IMAGE_SIZE
-        ) {
-          setErrorMessage(
-            'Choose an image smaller than 8 MB.'
-          );
-
-          return;
-        }
-
-        setImageAsset(
-          nextAsset
-        );
-      } catch {
-        setErrorMessage(
-          'We could not open your photo library. Please try again.'
-        );
-      } finally {
-        setIsPicking(
-          false
-        );
-      }
-    };
 
   const handlePublish =
     async () => {
@@ -346,8 +271,12 @@ export default function CreateScreen() {
 
             content,
 
+            lostFoundLocation,
+
             organizationId:
               effectiveOrganizationId,
+
+            postKind,
 
             userId,
           });
@@ -395,6 +324,14 @@ export default function CreateScreen() {
 
         setImageAsset(
           null
+        );
+
+        setLostFoundLocation(
+          ''
+        );
+
+        setPostKind(
+          'general'
         );
 
         router.navigate(
@@ -624,6 +561,59 @@ export default function CreateScreen() {
             ) : null}
           </Pressable>
 
+          <View
+            style={
+              styles.postKindPicker
+            }
+          >
+            {(
+              [
+                ['general', 'Regular'],
+                ['lost', 'Lost'],
+                ['found', 'Found'],
+              ] as const
+            ).map(
+              ([value, label]) => {
+                const isSelected =
+                  postKind === value;
+
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={
+                      isPublishing
+                    }
+                    key={
+                      value
+                    }
+                    onPress={() =>
+                      setPostKind(
+                        value
+                      )
+                    }
+                    style={(event) => [
+                      styles.postKindButton,
+                      isSelected &&
+                        styles.postKindButtonSelected,
+                      event.pressed &&
+                        styles.pressed,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.postKindText,
+                        isSelected &&
+                          styles.postKindTextSelected,
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              }
+            )}
+          </View>
+
           <TextInput
             editable={
               !isPublishing
@@ -635,7 +625,13 @@ export default function CreateScreen() {
             onChangeText={
               setContent
             }
-            placeholder="What's happening on campus?"
+            placeholder={
+              postKind === 'lost'
+                ? 'What did you lose? Add identifying details without sharing private information.'
+                : postKind === 'found'
+                  ? 'What did you find? Avoid details only the owner would know.'
+                  : "What's happening on campus?"
+            }
             placeholderTextColor={
               colors.textMuted
             }
@@ -672,65 +668,63 @@ export default function CreateScreen() {
             </Text>
           </View>
 
-          {imageAsset ? (
+          {postKind !==
+          'general' ? (
             <View
               style={
-                styles.imageContainer
+                styles.locationField
               }
             >
-              <Image
-                accessibilityLabel="Selected post photo"
-                resizeMode="cover"
-                source={{
-                  uri:
-                    imageAsset.uri,
-                }}
+              <Text
                 style={
-                  styles.imagePreview
+                  styles.locationLabel
+                }
+              >
+                Campus location
+                (optional)
+              </Text>
+
+              <TextInput
+                editable={
+                  !isPublishing
+                }
+                maxLength={
+                  MAX_LOST_FOUND_LOCATION_CHARACTERS
+                }
+                onChangeText={
+                  setLostFoundLocation
+                }
+                placeholder="e.g. Main library, second floor"
+                placeholderTextColor={
+                  colors.textMuted
+                }
+                style={
+                  styles.locationInput
+                }
+                value={
+                  lostFoundLocation
                 }
               />
-
-              <Pressable
-                accessibilityLabel="Remove selected photo"
-                accessibilityRole="button"
-                disabled={
-                  isPublishing
-                }
-                onPress={() =>
-                  setImageAsset(
-                    null
-                  )
-                }
-                style={({
-                  pressed,
-                }) => [
-                  styles.removeImageButton,
-
-                  pressed &&
-                    styles.pressed,
-                ]}
-              >
-                <SymbolView
-                  name={{
-                    android:
-                      'close',
-
-                    ios:
-                      'xmark',
-
-                    web:
-                      'close',
-                  }}
-                  size={
-                    18
-                  }
-                  tintColor={
-                    colors.viewerForeground
-                  }
-                />
-              </Pressable>
             </View>
           ) : null}
+
+          <PostImageField
+            asset={
+              imageAsset
+            }
+            disabled={
+              isPublishing
+            }
+            existingImageUrl={
+              null
+            }
+            onChange={
+              setImageAsset
+            }
+            onError={
+              setErrorMessage
+            }
+          />
 
           {errorMessage ? (
             <Text
@@ -745,78 +739,6 @@ export default function CreateScreen() {
             </Text>
           ) : null}
 
-          <View
-            style={
-              styles.footer
-            }
-          >
-            <Pressable
-              accessibilityRole="button"
-              disabled={
-                isPicking ||
-                isPublishing
-              }
-              onPress={() =>
-                void pickImage()
-              }
-              style={({
-                pressed,
-              }) => [
-                styles.mediaButton,
-
-                pressed &&
-                  styles.pressed,
-              ]}
-            >
-              {isPicking ? (
-                <ActivityIndicator
-                  color={
-                    colors.textPrimary
-                  }
-                  size="small"
-                />
-              ) : (
-                <SymbolView
-                  name={{
-                    android:
-                      'image',
-
-                    ios:
-                      'photo',
-
-                    web:
-                      'image',
-                  }}
-                  size={
-                    21
-                  }
-                  tintColor={
-                    colors.textPrimary
-                  }
-                />
-              )}
-
-              <Text
-                style={
-                  styles.mediaButtonText
-                }
-              >
-                {imageAsset
-                  ? 'Change photo'
-                  : 'Add photo'}
-              </Text>
-            </Pressable>
-          </View>
-
-          <Text
-            style={
-              styles.mediaHint
-            }
-          >
-            JPG, PNG, WebP,
-            HEIC, or HEIF · up
-            to 8 MB
-          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -1001,6 +923,48 @@ const createStyles = (
         colors.textSecondary,
     },
 
+    postKindPicker: {
+      marginTop:
+        spacing.xl,
+      padding: 4,
+      flexDirection:
+        'row',
+      gap: 4,
+      borderRadius:
+        radius.full,
+      backgroundColor:
+        colors.borderSubtle,
+    },
+
+    postKindButton: {
+      minHeight: 38,
+      flex: 1,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      borderRadius:
+        radius.full,
+    },
+
+    postKindButtonSelected: {
+      backgroundColor:
+        colors.surfaceElevated,
+    },
+
+    postKindText: {
+      fontSize: 13,
+      fontWeight:
+        '600',
+      color:
+        colors.textSecondary,
+    },
+
+    postKindTextSelected: {
+      color:
+        colors.textPrimary,
+    },
+
     input: {
       minHeight: 180,
       maxHeight: 260,
@@ -1107,6 +1071,35 @@ const createStyles = (
         colors.textSecondary,
       fontWeight:
         '600',
+    },
+
+    locationField: {
+      marginTop:
+        spacing.md,
+    },
+
+    locationLabel: {
+      marginBottom:
+        spacing.sm,
+      fontSize: 12,
+      fontWeight:
+        '600',
+      color:
+        colors.textSecondary,
+    },
+
+    locationInput: {
+      minHeight: 46,
+      paddingHorizontal:
+        spacing.md,
+      borderWidth: 1,
+      borderColor:
+        colors.border,
+      borderRadius:
+        radius.md,
+      fontSize: 14,
+      color:
+        colors.textPrimary,
     },
 
     mediaHint: {

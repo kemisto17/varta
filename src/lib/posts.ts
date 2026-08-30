@@ -2,8 +2,13 @@ import type { QueryData } from '@supabase/supabase-js';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
 import type { ProfileBadge } from '../types/badge';
-import type { TablesInsert } from '../types/database';
-import type { FeedCursor, FeedPost } from '../types/post';
+import type { TablesInsert, TablesUpdate } from '../types/database';
+import type {
+  FeedCursor,
+  FeedFilter,
+  FeedPost,
+  PostKind,
+} from '../types/post';
 import { getAvatarUrls } from './avatars';
 import { getPublicPrimaryBadges } from './badges';
 import { optimizePostImageAsset } from './imageOptimization';
@@ -22,6 +27,7 @@ import { supabase } from './supabase';
 
 export const MAX_POST_CHARACTERS = 500;
 export const MAX_POST_IMAGE_SIZE = 8 * 1024 * 1024;
+export const MAX_LOST_FOUND_LOCATION_CHARACTERS = 160;
 export const POST_MEDIA_BUCKET = 'post-media';
 export const POSTS_PAGE_SIZE = 20;
 
@@ -37,7 +43,11 @@ const FEED_SELECT = `
   organization_author_id,
   content,
   image_path,
+  lost_found_location,
+  lost_found_resolved_at,
+  post_kind,
   created_at,
+  updated_at,
   author:profiles!posts_author_id_fkey (
     id,
     full_name,
@@ -78,8 +88,27 @@ type PostQueryRow =
 type PublishPostInput = {
   asset: ImagePickerAsset | null;
   content: string;
+  lostFoundLocation?: string;
   organizationId?: string | null;
+  postKind?: PostKind;
   userId: string;
+};
+
+type UpdatePostInput = {
+  asset: ImagePickerAsset | null;
+  content: string;
+  lostFoundLocation?: string;
+  post: Pick<
+    FeedPost,
+    | 'canEditByCurrentUser'
+    | 'id'
+    | 'imagePath'
+    | 'lostFoundResolvedAt'
+    | 'organizationAuthorId'
+  >;
+  postKind: PostKind;
+  removeImage: boolean;
+  resolved: boolean;
 };
 
 export type FeedPage = {
@@ -90,9 +119,16 @@ export type FeedPage = {
 
 export async function getFeedPage(
   userId: string,
-  cursor: FeedCursor | null = null
+  cursor: FeedCursor | null = null,
+  filter: FeedFilter = 'all'
 ): Promise<FeedPage> {
-  return getPostsPage(userId, cursor);
+  return getPostsPage(
+    userId,
+    cursor,
+    null,
+    null,
+    filter
+  );
 }
 
 export async function getUserPostsPage(
@@ -124,7 +160,8 @@ async function getPostsPage(
   viewerUserId: string,
   cursor: FeedCursor | null,
   authorId: string | null = null,
-  organizationAuthorId: string | null = null
+  organizationAuthorId: string | null = null,
+  filter: FeedFilter = 'all'
 ): Promise<FeedPage> {
   let query = selectPosts()
     .order('created_at', { ascending: false })
@@ -140,6 +177,12 @@ async function getPostsPage(
       'organization_author_id',
       organizationAuthorId
     );
+  }
+
+  if (filter === 'lost-found') {
+    query = query
+      .in('post_kind', ['lost', 'found'])
+      .is('lost_found_resolved_at', null);
   }
 
   if (cursor) {
@@ -353,30 +396,26 @@ export async function getPostById(
 export async function publishPost({
   asset,
   content,
+  lostFoundLocation = '',
   organizationId = null,
+  postKind = 'general',
   userId,
 }: PublishPostInput) {
   const normalizedContent =
     content.trim();
 
-  if (!normalizedContent && !asset) {
-    throw new Error(
-      'Write something or add a photo before publishing.'
+  const normalizedLocation =
+    normalizeLostFoundLocation(
+      postKind,
+      lostFoundLocation
     );
-  }
 
-  if (
-    normalizedContent.length >
-    MAX_POST_CHARACTERS
-  ) {
-    throw new Error(
-      `Posts can be up to ${MAX_POST_CHARACTERS} characters.`
-    );
-  }
-
-  if (asset?.fileSize && asset.fileSize > MAX_POST_IMAGE_SIZE) {
-    throw new Error('Choose an image smaller than 8 MB.');
-  }
+  validatePostDraft(
+    normalizedContent,
+    asset !== null,
+    postKind,
+    asset
+  );
 
   let imagePath: string | null =
     null;
@@ -400,8 +439,11 @@ export async function publishPost({
         : userId,
     content: normalizedContent,
     image_path: imagePath,
+    lost_found_location:
+      normalizedLocation,
     organization_author_id:
       organizationId,
+    post_kind: postKind,
   };
 
   const { data, error } =
@@ -432,6 +474,121 @@ export async function publishPost({
     }
 
     throw error;
+  }
+
+  return data;
+}
+
+export async function updatePost({
+  asset,
+  content,
+  lostFoundLocation = '',
+  post,
+  postKind,
+  removeImage,
+  resolved,
+}: UpdatePostInput) {
+  if (!post.canEditByCurrentUser) {
+    throw new Error(
+      'You are not allowed to edit this post.'
+    );
+  }
+
+  const normalizedContent =
+    content.trim();
+  const normalizedLocation =
+    normalizeLostFoundLocation(
+      postKind,
+      lostFoundLocation
+    );
+  const keepsExistingImage =
+    !asset &&
+    !removeImage &&
+    post.imagePath !== null;
+
+  validatePostDraft(
+    normalizedContent,
+    asset !== null ||
+      keepsExistingImage,
+    postKind,
+    asset
+  );
+
+  let uploadedImagePath: string | null =
+    null;
+  let nextImagePath =
+    removeImage
+      ? null
+      : post.imagePath;
+
+  if (asset) {
+    const optimizedAsset =
+      await optimizePostImageAsset(
+        asset
+      );
+    const upload =
+      await uploadPostImageToR2({
+        asset: optimizedAsset,
+        organizationId:
+          post.organizationAuthorId,
+      });
+
+    uploadedImagePath =
+      upload.objectKey.trim();
+    nextImagePath =
+      uploadedImagePath;
+  }
+
+  const changes: TablesUpdate<'posts'> = {
+    content: normalizedContent,
+    image_path: nextImagePath,
+    lost_found_location:
+      normalizedLocation,
+    lost_found_resolved_at:
+      postKind === 'general' ||
+      !resolved
+        ? null
+        : post.lostFoundResolvedAt ??
+          new Date().toISOString(),
+    post_kind: postKind,
+  };
+
+  const { data, error } =
+    await supabase
+      .from('posts')
+      .update(changes)
+      .eq('id', post.id)
+      .select('id')
+      .maybeSingle();
+
+  if (error || !data) {
+    if (uploadedImagePath) {
+      await cleanUpPostImage(
+        uploadedImagePath,
+        'post update failure'
+      );
+    }
+
+    if (error) {
+      throw error;
+    }
+
+    throw new Error(
+      'This post could not be found or is no longer available.'
+    );
+  }
+
+  const oldImagePath =
+    post.imagePath;
+  const oldImageWasReplaced =
+    oldImagePath !== null &&
+    oldImagePath !== nextImagePath;
+
+  if (oldImageWasReplaced) {
+    await cleanUpPostImage(
+      oldImagePath,
+      'post update'
+    );
   }
 
   return data;
@@ -518,6 +675,100 @@ export async function deletePost(
   };
 }
 
+function validatePostDraft(
+  normalizedContent: string,
+  hasImage: boolean,
+  postKind: PostKind,
+  asset: ImagePickerAsset | null
+) {
+  if (
+    postKind !== 'general' &&
+    !normalizedContent
+  ) {
+    throw new Error(
+      'Describe the lost or found item before publishing.'
+    );
+  }
+
+  if (!normalizedContent && !hasImage) {
+    throw new Error(
+      'Write something or add a photo before publishing.'
+    );
+  }
+
+  if (
+    normalizedContent.length >
+    MAX_POST_CHARACTERS
+  ) {
+    throw new Error(
+      `Posts can be up to ${MAX_POST_CHARACTERS} characters.`
+    );
+  }
+
+  if (
+    asset?.fileSize &&
+    asset.fileSize >
+      MAX_POST_IMAGE_SIZE
+  ) {
+    throw new Error(
+      'Choose an image smaller than 8 MB.'
+    );
+  }
+}
+
+function normalizeLostFoundLocation(
+  postKind: PostKind,
+  location: string
+) {
+  if (postKind === 'general') {
+    return null;
+  }
+
+  const normalizedLocation =
+    location.trim();
+
+  if (
+    normalizedLocation.length >
+    MAX_LOST_FOUND_LOCATION_CHARACTERS
+  ) {
+    throw new Error(
+      `Campus location can be up to ${MAX_LOST_FOUND_LOCATION_CHARACTERS} characters.`
+    );
+  }
+
+  return normalizedLocation ||
+    null;
+}
+
+async function cleanUpPostImage(
+  imagePath: string,
+  reason: string
+) {
+  try {
+    if (isR2PostPath(imagePath)) {
+      await deletePostImageFromR2(
+        imagePath
+      );
+    } else {
+      const { error } =
+        await supabase.storage
+          .from(
+            POST_MEDIA_BUCKET
+          )
+          .remove([imagePath]);
+
+      if (error) {
+        throw error;
+      }
+    }
+  } catch (cleanupError) {
+    console.warn(
+      `[posts] Failed to clean up media after ${reason}.`,
+      cleanupError
+    );
+  }
+}
+
 export function getPostErrorMessage(
   error: unknown
 ) {
@@ -535,6 +786,12 @@ export function getPostErrorMessage(
       ) ||
       error.message.startsWith(
         'Write something'
+      ) ||
+      error.message.startsWith(
+        'Describe the lost'
+      ) ||
+      error.message.startsWith(
+        'Campus location'
       ) ||
       error.message.startsWith(
         'You are not allowed'
@@ -872,20 +1129,25 @@ function mapPostRow(
     return null;
   }
 
+  const canManageByCurrentUser =
+    row.author_id ===
+      viewerUserId ||
+    (
+      row.organization_author_id !==
+        null &&
+      manageableOrganizationIds.has(
+        row.organization_author_id
+      )
+    );
+
   return {
     author,
     authorId:
       row.author_id,
     canDeleteByCurrentUser:
-      row.author_id ===
-        viewerUserId ||
-      (
-        row.organization_author_id !==
-          null &&
-        manageableOrganizationIds.has(
-          row.organization_author_id
-        )
-      ),
+      canManageByCurrentUser,
+    canEditByCurrentUser:
+      canManageByCurrentUser,
     commentCount:
       row.comments[0]?.count ??
       0,
@@ -910,7 +1172,26 @@ function mapPostRow(
     likeCount:
       row.post_likes[0]
         ?.count ?? 0,
+    lostFoundLocation:
+      row.lost_found_location,
+    lostFoundResolvedAt:
+      row.lost_found_resolved_at,
     organizationAuthorId:
       row.organization_author_id,
+    postKind:
+      normalizePostKind(
+        row.post_kind
+      ),
+    updatedAt:
+      row.updated_at,
   };
+}
+
+function normalizePostKind(
+  value: string
+): PostKind {
+  return value === 'lost' ||
+    value === 'found'
+    ? value
+    : 'general';
 }
