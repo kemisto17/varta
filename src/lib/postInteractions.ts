@@ -21,6 +21,7 @@ export type CommentPage = {
 
 const COMMENT_SELECT = `
   id,
+  parent_comment_id,
   post_id,
   author_id,
   content,
@@ -144,10 +145,12 @@ export async function getPostCommentsPage(
 
 export async function createPostComment({
   content,
+  parentCommentId = null,
   postId,
   userId,
 }: {
   content: string;
+  parentCommentId?: string | null;
   postId: string;
   userId: string;
 }) {
@@ -166,6 +169,7 @@ export async function createPostComment({
   const comment: TablesInsert<'comments'> = {
     author_id: userId,
     content: normalizedContent,
+    parent_comment_id: parentCommentId,
     post_id: postId,
   };
   const { data, error } = await supabase
@@ -255,6 +259,7 @@ function mapCommentRow(
     content: row.content,
     createdAt: row.created_at,
     id: row.id,
+    parentCommentId: row.parent_comment_id,
     postId: row.post_id,
   };
 }

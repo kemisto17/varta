@@ -76,8 +76,6 @@ check (
     )
   )
 );
-
-
 comment on constraint post_image_path_matches_author
 on public.posts
 is

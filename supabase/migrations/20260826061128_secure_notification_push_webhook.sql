@@ -5,19 +5,15 @@
 -- The unique owner/position constraints already provide these two indexes.
 drop index if exists public.profile_links_profile_id_idx;
 drop index if exists public.organization_links_organization_id_idx;
-
 -- Postgres does not add indexes for foreign keys automatically. These support
 -- receipt cleanup cascades and comment-notification joins.
 create index push_delivery_receipts_notification_id_idx
 on public.push_delivery_receipts(notification_id);
-
 create index push_delivery_receipts_push_token_id_idx
 on public.push_delivery_receipts(push_token_id);
-
 create index notifications_comment_id_idx
 on public.notifications(comment_id)
 where comment_id is not null;
-
 create or replace function private.enqueue_notification_push()
 returns trigger
 language plpgsql
@@ -50,11 +46,9 @@ begin
   return new;
 end;
 $$;
-
 revoke all
 on function private.enqueue_notification_push()
 from public, anon, authenticated;
-
 do $$
 declare
   existing_job_id bigint;

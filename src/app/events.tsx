@@ -5,6 +5,7 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -48,6 +49,10 @@ const FILTERS: {
   {
     label: 'Following',
     value: 'following',
+  },
+  {
+    label: 'Interested',
+    value: 'interested',
   },
 ];
 
@@ -699,6 +704,15 @@ export default function EventsScreen() {
                   ? {
                       ...item,
 
+                      interestedCount:
+                        Math.max(
+                          0,
+                          item.interestedCount +
+                            (nextInterested
+                              ? 1
+                              : -1)
+                        ),
+
                       isInterested:
                         nextInterested,
                     }
@@ -750,6 +764,9 @@ export default function EventsScreen() {
                     nextInterested
                     ? {
                         ...item,
+
+                        interestedCount:
+                          event.interestedCount,
 
                         isInterested:
                           event.isInterested,
@@ -876,9 +893,13 @@ export default function EventsScreen() {
               Official events across your campus.
             </Text>
 
-            <View
-              style={
+            <ScrollView
+              contentContainerStyle={
                 styles.filters
+              }
+              horizontal
+              showsHorizontalScrollIndicator={
+                false
               }
             >
               {FILTERS.map(
@@ -887,6 +908,11 @@ export default function EventsScreen() {
                 ) => (
                   <Pressable
                     accessibilityRole="button"
+                    accessibilityState={{
+                      selected:
+                        filter ===
+                        item.value,
+                    }}
                     key={
                       item.value
                     }
@@ -924,7 +950,7 @@ export default function EventsScreen() {
                   </Pressable>
                 )
               )}
-            </View>
+            </ScrollView>
 
             {displayedErrorMessage &&
             displayedEvents.length >
@@ -967,7 +993,10 @@ export default function EventsScreen() {
                 {displayedStatus ===
                 'error'
                   ? "Couldn't load campus events."
-                  : 'Nothing happening yet.'}
+                  : filter ===
+                      'interested'
+                    ? 'No interested events yet.'
+                    : 'Nothing happening yet.'}
               </Text>
 
               <Text
@@ -982,6 +1011,9 @@ export default function EventsScreen() {
                   : filter ===
                       'following'
                     ? 'Follow an organization to see its upcoming events here.'
+                    : filter ===
+                        'interested'
+                      ? 'Events you mark Interested will appear here.'
                     : 'New campus events will appear here.'}
               </Text>
 

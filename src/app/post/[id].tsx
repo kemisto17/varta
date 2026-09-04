@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,8 @@ import {
 import { useThemedStyles } from '../../hooks/useTheme';
 
 import { Avatar } from '../../components/Avatar';
+import { MentionInput } from '../../components/MentionInput';
+import { LinkifiedText } from '../../components/links/LinkifiedText';
 import { PostCard } from '../../components/PostCard';
 import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import { ActionSheet } from '../../components/moderation/ActionSheet';
@@ -25,6 +27,7 @@ import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useFeed } from '../../hooks/useFeed';
 import type { ModerationUser, ReportTarget } from '../../lib/moderation';
+import { getMentionedProfileId } from '../../lib/mentions';
 import {
   createPostComment,
   deletePostComment,
@@ -113,6 +116,14 @@ export default function PostDetailScreen() {
     setComments,
   ] =
     useState<PostComment[]>([]);
+
+  const [
+    replyingTo,
+    setReplyingTo,
+  ] =
+    useState<PostComment | null>(
+      null
+    );
 
   const [
     commentCursor,
@@ -274,6 +285,14 @@ export default function PostDetailScreen() {
             return;
           }
 
+          if (nextPost.postKind !== 'general') {
+            router.replace({
+              pathname: '/lost-found/[id]',
+              params: { id: nextPost.id },
+            });
+            return;
+          }
+
           setPost(
             nextPost
           );
@@ -317,6 +336,7 @@ export default function PostDetailScreen() {
       },
       [
         postId,
+        router,
         userId,
       ]
     );
@@ -455,6 +475,43 @@ export default function PostDetailScreen() {
         router,
         userId,
       ]
+    );
+
+  const openMention =
+    useCallback(
+      async (
+        username: string
+      ) => {
+        try {
+          const profileId =
+            await getMentionedProfileId(
+              username
+            );
+
+          if (!profileId) {
+            return;
+          }
+
+          openAuthor(
+            profileId
+          );
+        } catch (error) {
+          console.warn(
+            '[mentions] Could not open mentioned profile.',
+            error
+          );
+        }
+      },
+      [openAuthor]
+    );
+
+  const displayedComments =
+    useMemo(
+      () =>
+        flattenCommentThread(
+          comments
+        ),
+      [comments]
     );
 
   const handleToggleLike =
@@ -604,6 +661,9 @@ export default function PostDetailScreen() {
               content:
                 commentText,
 
+              parentCommentId:
+                replyingTo?.id ?? null,
+
               postId,
 
               userId,
@@ -640,6 +700,10 @@ export default function PostDetailScreen() {
           setCommentText(
             ''
           );
+
+          setReplyingTo(
+            null
+          );
         } catch (error) {
           console.warn(
             '[post-detail] Could not create comment.',
@@ -664,6 +728,7 @@ export default function PostDetailScreen() {
         commentText,
         post,
         postId,
+        replyingTo?.id,
         updatePostCommentCount,
         userId,
       ]
@@ -710,19 +775,35 @@ export default function PostDetailScreen() {
             userId
           );
 
+          const removedCommentIds =
+            new Set([
+              comment.id,
+              ...comments
+                .filter(
+                  (item) =>
+                    item.parentCommentId ===
+                    comment.id
+                )
+                .map(
+                  (item) =>
+                    item.id
+                ),
+            ]);
+
           const nextCommentCount =
             Math.max(
               0,
               post.commentCount -
-                1
+                removedCommentIds.size
             );
 
           setComments(
             (current) =>
               current.filter(
                 (item) =>
-                  item.id !==
-                  comment.id
+                  !removedCommentIds.has(
+                    item.id
+                  )
               )
           );
 
@@ -775,6 +856,7 @@ export default function PostDetailScreen() {
         }
       },
       [
+        comments,
         post,
         updatePostCommentCount,
         userId,
@@ -954,7 +1036,7 @@ export default function PostDetailScreen() {
               styles.listContent
             }
             data={
-              comments
+              displayedComments
             }
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
@@ -1050,6 +1132,9 @@ export default function PostDetailScreen() {
                   }
                   onCommentPress={() =>
                     commentInputRef.current?.focus()
+                  }
+                  onMentionPress={
+                    openMention
                   }
                   onDelete={
                     handleDeletePost
@@ -1163,6 +1248,9 @@ export default function PostDetailScreen() {
                 onDelete={
                   handleDeleteComment
                 }
+                onMentionPress={
+                  openMention
+                }
                 onReport={(
                   comment
                 ) =>
@@ -1179,6 +1267,16 @@ export default function PostDetailScreen() {
                     }
                   )
                 }
+                onReply={(
+                  comment
+                ) => {
+                  setReplyingTo(
+                    comment
+                  );
+                  commentInputRef
+                    .current
+                    ?.focus();
+                }}
               />
             )}
             showsVerticalScrollIndicator={
@@ -1191,7 +1289,62 @@ export default function PostDetailScreen() {
               styles.composer
             }
           >
-            <TextInput
+            {replyingTo ? (
+              <View
+                style={
+                  styles.replyBanner
+                }
+              >
+                <Text
+                  numberOfLines={1}
+                  style={
+                    styles.replyBannerText
+                  }
+                >
+                  Replying to{' '}
+                  {
+                    replyingTo.author
+                      .fullName
+                  }
+                </Text>
+
+                <Pressable
+                  accessibilityLabel="Cancel reply"
+                  accessibilityRole="button"
+                  hitSlop={10}
+                  onPress={() =>
+                    setReplyingTo(
+                      null
+                    )
+                  }
+                  style={({
+                    pressed,
+                  }) =>
+                    pressed &&
+                    styles.pressed
+                  }
+                >
+                  <SymbolView
+                    name={{
+                      android:
+                        'close',
+                      ios:
+                        'xmark',
+                      web:
+                        'close',
+                    }}
+                    size={16}
+                    tintColor={
+                      colors.textSecondary
+                    }
+                  />
+                </Pressable>
+              </View>
+            ) : null}
+
+            <MentionInput
+              containerStyle={styles.commentField}
+              suggestionsAbove
               accessibilityLabel="Add a comment"
               editable={
                 !isSendingComment
@@ -1203,7 +1356,11 @@ export default function PostDetailScreen() {
               onChangeText={
                 setCommentText
               }
-              placeholder="Add a comment..."
+              placeholder={
+                replyingTo
+                  ? 'Write a reply...'
+                  : 'Add a comment...'
+              }
               placeholderTextColor={
                 colors.textMuted
               }
@@ -1310,7 +1467,9 @@ function CommentRow({
   isDeleting,
   onAuthorPress,
   onDelete,
+  onMentionPress,
   onReport,
+  onReply,
 }: {
   comment: PostComment;
 
@@ -1328,7 +1487,15 @@ function CommentRow({
     comment: PostComment
   ) => void;
 
+  onMentionPress: (
+    username: string
+  ) => void;
+
   onReport: (
+    comment: PostComment
+  ) => void;
+
+  onReply: (
     comment: PostComment
   ) => void;
 }) {
@@ -1344,6 +1511,10 @@ function CommentRow({
     comment.authorId ===
     currentUserId;
 
+  const isReply =
+    comment.parentCommentId !==
+    null;
+
   const [
     isOptionsVisible,
     setIsOptionsVisible,
@@ -1353,7 +1524,11 @@ function CommentRow({
   return (
     <View
       style={
-        styles.commentRow
+        [
+          styles.commentRow,
+          isReply &&
+            styles.commentReplyRow,
+        ]
       }
     >
       <Pressable
@@ -1506,7 +1681,10 @@ function CommentRow({
           ) : null}
         </View>
 
-        <Text
+        <LinkifiedText
+          onMentionPress={
+            onMentionPress
+          }
           style={
             styles.commentContent
           }
@@ -1514,7 +1692,34 @@ function CommentRow({
           {
             comment.content
           }
-        </Text>
+        </LinkifiedText>
+
+        {!isReply ? (
+          <Pressable
+            accessibilityLabel={`Reply to ${comment.author.fullName}`}
+            accessibilityRole="button"
+            onPress={() =>
+              onReply(
+                comment
+              )
+            }
+            style={({
+              pressed,
+            }) => [
+              styles.replyButton,
+              pressed &&
+                styles.pressed,
+            ]}
+          >
+            <Text
+              style={
+                styles.replyButtonText
+              }
+            >
+              Reply
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <ActionSheet
@@ -1569,6 +1774,49 @@ function CommentRow({
         }
       />
     </View>
+  );
+}
+
+function flattenCommentThread(
+  comments: PostComment[]
+) {
+  const repliesByParent =
+    new Map<
+      string,
+      PostComment[]
+    >();
+
+  const topLevelComments:
+    PostComment[] = [];
+
+  for (const comment of comments) {
+    if (
+      comment.parentCommentId
+    ) {
+      const replies =
+        repliesByParent.get(
+          comment.parentCommentId
+        ) ?? [];
+
+      replies.push(comment);
+      repliesByParent.set(
+        comment.parentCommentId,
+        replies
+      );
+    } else {
+      topLevelComments.push(
+        comment
+      );
+    }
+  }
+
+  return topLevelComments.flatMap(
+    (comment) => [
+      comment,
+      ...(repliesByParent.get(
+        comment.id
+      ) ?? []),
+    ]
   );
 }
 
@@ -1896,6 +2144,15 @@ const createStyles = (
         'flex-start',
     },
 
+    commentReplyRow: {
+      marginLeft: 48,
+      paddingLeft:
+        spacing.md,
+      borderLeftWidth: 2,
+      borderLeftColor:
+        colors.borderSubtle,
+    },
+
     commentBody: {
       flex: 1,
       marginLeft:
@@ -1949,6 +2206,24 @@ const createStyles = (
         colors.textPrimary,
     },
 
+    replyButton: {
+      alignSelf:
+        'flex-start',
+      marginTop:
+        spacing.sm,
+      paddingVertical: 4,
+      paddingRight:
+        spacing.sm,
+    },
+
+    replyButtonText: {
+      fontSize: 12,
+      fontWeight:
+        '700',
+      color:
+        colors.textSecondary,
+    },
+
     composer: {
       paddingHorizontal:
         spacing.md,
@@ -1959,6 +2234,8 @@ const createStyles = (
         colors.borderSubtle,
       flexDirection:
         'row',
+      flexWrap:
+        'wrap',
       alignItems:
         'flex-end',
       gap:
@@ -1967,8 +2244,37 @@ const createStyles = (
         colors.surface,
     },
 
-    commentInput: {
+    replyBanner: {
+      width: '100%',
+      minHeight: 28,
+      paddingHorizontal:
+        spacing.sm,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'space-between',
+      borderRadius:
+        radius.md,
+      backgroundColor:
+        colors.surfaceMuted,
+    },
+
+    replyBannerText: {
       flex: 1,
+      marginRight:
+        spacing.sm,
+      fontSize: 12,
+      fontWeight:
+        '600',
+      color:
+        colors.textSecondary,
+    },
+
+    commentField: { flex: 1, minWidth: 0 },
+
+    commentInput: {
       maxHeight: 112,
       minHeight: 44,
       paddingHorizontal:

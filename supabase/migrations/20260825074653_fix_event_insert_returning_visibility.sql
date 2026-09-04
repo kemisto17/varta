@@ -22,4 +22,4 @@ using (
       or institute_id = (select private.current_institute_id())
     )
   )
-);
+);;

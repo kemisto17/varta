@@ -11,10 +11,6 @@ export type PostKind =
   | 'lost'
   | 'found';
 
-export type FeedFilter =
-  | 'all'
-  | 'lost-found';
-
 export type FeedPostStudentAuthor = {
   avatarPath: ProfileRow['avatar_path'];
   avatarUrl: string | null;
@@ -85,5 +81,6 @@ export type PostComment = {
   content: CommentRow['content'];
   createdAt: CommentRow['created_at'];
   id: CommentRow['id'];
+  parentCommentId: CommentRow['parent_comment_id'];
   postId: CommentRow['post_id'];
 };

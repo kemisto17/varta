@@ -30,22 +30,17 @@ as $$
         )
     );
 $$;
-
 revoke all
 on function private.can_manage_organization_avatar(text)
 from public, anon, authenticated;
-
 grant execute
 on function private.can_manage_organization_avatar(text)
 to authenticated;
-
 grant update (name, description, avatar_path)
 on public.organizations
 to authenticated;
-
 drop policy if exists "Organization admins can update organization profile"
 on public.organizations;
-
 create policy "Organization admins can update organization profile"
 on public.organizations
 for update
@@ -68,10 +63,8 @@ with check (
     array['owner', 'admin']::text[]
   ))
 );
-
 drop policy if exists "Organization admins can upload organization avatars"
 on storage.objects;
-
 create policy "Organization admins can upload organization avatars"
 on storage.objects
 for insert
@@ -85,10 +78,8 @@ with check (
   and storage.filename(name) ~
     '^[a-z0-9-]{8,}[.](jpg|jpeg|png|webp|heic|heif)$'
 );
-
 drop policy if exists "Organization admins can delete organization avatars"
 on storage.objects;
-
 create policy "Organization admins can delete organization avatars"
 on storage.objects
 for delete
@@ -100,3 +91,5 @@ using (
     (storage.foldername(name))[1]
   ))
 );
+comment on function private.can_manage_organization_avatar(text) is
+  'Allows verified organization owners and admins to manage avatar objects for active same-university organizations.';

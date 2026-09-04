@@ -22,8 +22,6 @@
 drop policy if exists
   "Users can view visible profile links"
 on public.profile_links;
-
-
 create policy
   "Users can view visible profile links"
 on public.profile_links
@@ -52,15 +50,11 @@ using (
     )
   )
 );
-
-
 comment on policy
   "Users can view visible profile links"
 on public.profile_links
 is
   'Users may read their own links during onboarding. Other profile links require a verified viewer, verified target, and same-university membership.';
-
-
 -- ============================================================
 -- ORGANIZATION LINKS
 --
@@ -71,16 +65,12 @@ is
 drop policy if exists
   "Owners and admins can create organization links"
 on public.organization_links;
-
 drop policy if exists
   "Owners and admins can update organization links"
 on public.organization_links;
-
 drop policy if exists
   "Owners and admins can delete organization links"
 on public.organization_links;
-
-
 create policy
   "Owners and admins can create organization links"
 on public.organization_links
@@ -102,8 +92,6 @@ with check (
     )
   )
 );
-
-
 create policy
   "Owners and admins can update organization links"
 on public.organization_links
@@ -141,8 +129,6 @@ with check (
     )
   )
 );
-
-
 create policy
   "Owners and admins can delete organization links"
 on public.organization_links
@@ -164,22 +150,16 @@ using (
     )
   )
 );
-
-
 comment on policy
   "Owners and admins can create organization links"
 on public.organization_links
 is
   'Only verified owner/admin members of active same-university organizations may create organization links.';
-
-
 comment on policy
   "Owners and admins can update organization links"
 on public.organization_links
 is
   'Only verified owner/admin members of active same-university organizations may update organization links.';
-
-
 comment on policy
   "Owners and admins can delete organization links"
 on public.organization_links

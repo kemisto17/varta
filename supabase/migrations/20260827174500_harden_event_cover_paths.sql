@@ -13,8 +13,6 @@
 
 alter table public.events
 drop constraint if exists events_cover_path_check;
-
-
 alter table public.events
 add constraint events_cover_path_check
 check (
@@ -46,8 +44,6 @@ check (
     )
   )
 );
-
-
 comment on constraint events_cover_path_check
 on public.events
 is

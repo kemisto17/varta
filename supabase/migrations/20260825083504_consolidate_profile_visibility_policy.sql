@@ -19,3 +19,5 @@ using (
 comment on policy "Users can view own or university profiles"
 on public.profiles is
   'Keeps onboarding self-read access and verified same-university discovery in one policy.';
+
+;

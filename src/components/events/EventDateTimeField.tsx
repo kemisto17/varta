@@ -1,4 +1,6 @@
-import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import DateTimePicker, {
+  type DateTimePickerChangeEvent,
+} from '@react-native-community/datetimepicker';
 import { useThemedStyles } from '../../hooks/useTheme';
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -8,22 +10,36 @@ import { formatDateInput, formatTimeInput } from '../../lib/time';
 
 type EventDateTimeFieldProps = {
   label: string;
+  maximumDate?: Date;
   mode: 'date' | 'time';
   onChange: (date: Date) => void;
   value: Date;
 };
 
-export function EventDateTimeField({ label, mode, onChange, value }: EventDateTimeFieldProps) {
+export function EventDateTimeField({
+  label,
+  maximumDate,
+  mode,
+  onChange,
+  value,
+}: EventDateTimeFieldProps) {
   const { colors, resolvedTheme, styles } = useThemedStyles(createStyles);
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleChange = (event: DateTimePickerEvent, selected?: Date) => {
+  const handleValueChange = (
+    _event: DateTimePickerChangeEvent,
+    selected: Date
+  ) => {
     if (Platform.OS !== 'ios') {
       setIsOpen(false);
     }
 
-    if (event.type !== 'dismissed' && selected) {
-      onChange(selected);
+    onChange(selected);
+  };
+
+  const handleDismiss = () => {
+    if (Platform.OS !== 'ios') {
+      setIsOpen(false);
     }
   };
 
@@ -44,8 +60,10 @@ export function EventDateTimeField({ label, mode, onChange, value }: EventDateTi
           <DateTimePicker
             accentColor={colors.textPrimary}
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            maximumDate={maximumDate}
             mode={mode}
-            onChange={handleChange}
+            onDismiss={handleDismiss}
+            onValueChange={handleValueChange}
             textColor={colors.textPrimary}
             themeVariant={resolvedTheme}
             value={value}

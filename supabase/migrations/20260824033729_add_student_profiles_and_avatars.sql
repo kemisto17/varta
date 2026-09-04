@@ -228,3 +228,5 @@ using (
   (storage.foldername(name))[1] =
     (select auth.uid())::text
 );
+
+;

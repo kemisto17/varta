@@ -17,8 +17,6 @@
 drop policy if exists
   "Verified users can block university profiles"
 on public.user_blocks;
-
-
 create policy
   "Verified users can block visible university profiles"
 on public.user_blocks
@@ -44,8 +42,6 @@ with check (
     )
   )
 );
-
-
 -- ------------------------------------------------------------
 -- REPORT TARGET VALIDATION
 -- ------------------------------------------------------------
@@ -180,8 +176,6 @@ as $$
 
     end;
 $$;
-
-
 revoke all
 on function private.can_report_target(
   uuid,
@@ -191,8 +185,6 @@ on function private.can_report_target(
   uuid
 )
 from public, anon, authenticated;
-
-
 grant execute
 on function private.can_report_target(
   uuid,
@@ -202,8 +194,6 @@ on function private.can_report_target(
   uuid
 )
 to authenticated;
-
-
 comment on function private.can_report_target(
   uuid,
   public.report_target_type,

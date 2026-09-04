@@ -11,7 +11,6 @@
 -- Keep the additive migration reproducible for fresh local databases too.
 alter table public.organizations
 add column if not exists is_active boolean not null default true;
-
 create table public.profile_links (
   id uuid primary key default gen_random_uuid(),
   profile_id uuid not null
@@ -29,10 +28,8 @@ create table public.profile_links (
   updated_at timestamptz not null default now(),
   unique (profile_id, position)
 );
-
 create index profile_links_profile_id_idx
 on public.profile_links(profile_id, position);
-
 create table public.organization_links (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null
@@ -50,34 +47,26 @@ create table public.organization_links (
   updated_at timestamptz not null default now(),
   unique (organization_id, position)
 );
-
 create index organization_links_organization_id_idx
 on public.organization_links(organization_id, position);
-
 create trigger profile_links_set_updated_at
 before update on public.profile_links
 for each row
 execute function private.set_updated_at();
-
 create trigger organization_links_set_updated_at
 before update on public.organization_links
 for each row
 execute function private.set_updated_at();
-
 alter table public.profile_links enable row level security;
 alter table public.organization_links enable row level security;
-
 revoke all on table public.profile_links from anon, authenticated;
 revoke all on table public.organization_links from anon, authenticated;
-
 grant select, insert, update, delete
 on public.profile_links
 to authenticated;
-
 grant select, insert, update, delete
 on public.organization_links
 to authenticated;
-
 create policy "Users can view visible profile links"
 on public.profile_links
 for select
@@ -89,32 +78,27 @@ using (
     and (select private.profile_is_in_current_university(profile_id))
   )
 );
-
 create policy "Users can create own profile links"
 on public.profile_links
 for insert
 to authenticated
 with check (profile_id = (select auth.uid()));
-
 create policy "Users can update own profile links"
 on public.profile_links
 for update
 to authenticated
 using (profile_id = (select auth.uid()))
 with check (profile_id = (select auth.uid()));
-
 create policy "Users can delete own profile links"
 on public.profile_links
 for delete
 to authenticated
 using (profile_id = (select auth.uid()));
-
 create policy "Users can view visible organization links"
 on public.organization_links
 for select
 to authenticated
 using ((select private.can_view_organization(organization_id)));
-
 create policy "Owners and admins can create organization links"
 on public.organization_links
 for insert
@@ -123,7 +107,6 @@ with check ((select private.has_organization_role(
   organization_id,
   array['owner', 'admin']::text[]
 )));
-
 create policy "Owners and admins can update organization links"
 on public.organization_links
 for update
@@ -136,7 +119,6 @@ with check ((select private.has_organization_role(
   organization_id,
   array['owner', 'admin']::text[]
 )));
-
 create policy "Owners and admins can delete organization links"
 on public.organization_links
 for delete
@@ -145,26 +127,21 @@ using ((select private.has_organization_role(
   organization_id,
   array['owner', 'admin']::text[]
 )));
-
 -- --------------------------------------------------------------------------
 -- Organization-authored posts
 -- --------------------------------------------------------------------------
 
 alter table public.posts
 alter column author_id drop not null;
-
 alter table public.posts
 add column organization_author_id uuid
   references public.organizations(id) on delete cascade;
-
 alter table public.posts
 add constraint posts_exactly_one_author_check
 check (num_nonnulls(author_id, organization_author_id) = 1);
-
 create index posts_organization_author_created_at_idx
 on public.posts(organization_author_id, created_at desc, id desc)
 where organization_author_id is not null;
-
 create or replace function private.post_is_in_current_university(
   target_post_id uuid
 )
@@ -201,7 +178,6 @@ as $$
       )
   );
 $$;
-
 create or replace function private.can_publish_for_organization(
   target_organization_id uuid
 )
@@ -226,7 +202,6 @@ as $$
         )
     );
 $$;
-
 create or replace function private.can_manage_post(target_post_id uuid)
 returns boolean
 language sql
@@ -249,7 +224,6 @@ as $$
       )
   );
 $$;
-
 create or replace function private.preserve_post_author_identity()
 returns trigger
 language plpgsql
@@ -267,36 +241,27 @@ begin
   return new;
 end;
 $$;
-
 revoke all
 on function private.can_publish_for_organization(uuid)
 from public, anon, authenticated;
-
 revoke all
 on function private.can_manage_post(uuid)
 from public, anon, authenticated;
-
 revoke all
 on function private.preserve_post_author_identity()
 from public, anon, authenticated;
-
 create trigger posts_preserve_author_identity
 before update on public.posts
 for each row
 execute function private.preserve_post_author_identity();
-
 drop policy "Verified students can view university posts"
 on public.posts;
-
 drop policy "Verified students can create posts"
 on public.posts;
-
 drop policy "Verified students can update own posts"
 on public.posts;
-
 drop policy "Users can delete own posts"
 on public.posts;
-
 create policy "Verified users can view university posts"
 on public.posts
 for select
@@ -309,7 +274,6 @@ using (
     or not (select private.current_user_has_blocked(author_id))
   )
 );
-
 create policy "Verified users can create authorized posts"
 on public.posts
 for insert
@@ -328,20 +292,17 @@ with check (
     ))
   )
 );
-
 create policy "Authorized authors can update posts"
 on public.posts
 for update
 to authenticated
 using ((select private.can_manage_post(id)))
 with check ((select private.can_manage_post(id)));
-
 create policy "Authorized authors can delete posts"
 on public.posts
 for delete
 to authenticated
 using ((select private.can_manage_post(id)));
-
 grant insert (
   author_id,
   organization_author_id,
@@ -350,16 +311,12 @@ grant insert (
 )
 on public.posts
 to authenticated;
-
 drop policy "Verified users can upload own post media"
 on storage.objects;
-
 drop policy "Verified users can view university post media"
 on storage.objects;
-
 drop policy "Users can delete own post media"
 on storage.objects;
-
 create policy "Authorized authors can upload post media"
 on storage.objects
 for insert
@@ -388,7 +345,6 @@ with check (
     )
   )
 );
-
 create policy "Verified users can view scoped post media"
 on storage.objects
 for select
@@ -407,7 +363,6 @@ using (
       )
   )
 );
-
 create policy "Authorized authors can delete post media"
 on storage.objects
 for delete
@@ -433,10 +388,8 @@ using (
     )
   )
 );
-
 -- Add an official-post count without exposing post rows through the summary.
 drop function public.get_organization_profile_summary(uuid);
-
 create function public.get_organization_profile_summary(
   target_organization_id uuid
 )
@@ -469,15 +422,12 @@ as $$
     )
   where (select private.can_view_organization(target_organization_id));
 $$;
-
 revoke all
 on function public.get_organization_profile_summary(uuid)
 from public, anon;
-
 grant execute
 on function public.get_organization_profile_summary(uuid)
 to authenticated;
-
 -- --------------------------------------------------------------------------
 -- Notification expansion and preference-aware trusted producers
 -- --------------------------------------------------------------------------
@@ -485,22 +435,17 @@ to authenticated;
 alter table public.notifications
 add column organization_id uuid
   references public.organizations(id) on delete cascade;
-
 alter table public.notifications
 add column push_claimed_at timestamptz,
 add column push_sent_at timestamptz;
-
 create index notifications_organization_id_idx
 on public.notifications(organization_id)
 where organization_id is not null;
-
 drop index notifications_unique_post_comment_idx;
-
 create unique index notifications_unique_post_comment_idx
 on public.notifications(recipient_id, comment_id)
 where type = 'post_comment'
   and comment_id is not null;
-
 create or replace function private.notification_preference_enabled(
   recipient_profile_id uuid,
   notification_kind public.notification_type
@@ -527,7 +472,6 @@ as $$
     true
   );
 $$;
-
 create or replace function private.create_post_like_notification()
 returns trigger
 language plpgsql
@@ -608,7 +552,6 @@ begin
   return new;
 end;
 $$;
-
 create or replace function private.create_post_comment_notification()
 returns trigger
 language plpgsql
@@ -704,7 +647,6 @@ begin
   return new;
 end;
 $$;
-
 create or replace function private.create_event_update_notifications()
 returns trigger
 language plpgsql
@@ -756,7 +698,6 @@ begin
   return new;
 end;
 $$;
-
 create or replace function private.create_organization_role_notification()
 returns trigger
 language plpgsql
@@ -803,34 +744,28 @@ begin
   return new;
 end;
 $$;
-
 revoke all
 on function private.create_event_update_notifications()
 from public, anon, authenticated;
-
 revoke all
 on function private.create_organization_role_notification()
 from public, anon, authenticated;
-
 create trigger events_create_update_notifications
 after update of title, starts_at, ends_at, location, registration_url, status
 on public.events
 for each row
 execute function private.create_event_update_notifications();
-
 create trigger organization_members_create_role_notification
 after insert or update of role
 on public.organization_members
 for each row
 execute function private.create_organization_role_notification();
-
 -- --------------------------------------------------------------------------
 -- Replay-safe asynchronous push dispatch and device-token ownership
 -- --------------------------------------------------------------------------
 
 create extension if not exists pg_net with schema extensions;
 create extension if not exists pg_cron with schema pg_catalog;
-
 create table public.push_delivery_receipts (
   id uuid primary key default gen_random_uuid(),
   notification_id uuid not null
@@ -842,16 +777,12 @@ create table public.push_delivery_receipts (
   next_check_at timestamptz not null default (now() + interval '15 minutes'),
   created_at timestamptz not null default now()
 );
-
 create index push_delivery_receipts_due_idx
 on public.push_delivery_receipts(next_check_at, id);
-
 alter table public.push_delivery_receipts enable row level security;
-
 revoke all
 on table public.push_delivery_receipts
 from anon, authenticated;
-
 create or replace function public.register_push_token(
   expo_token text,
   device_platform text
@@ -884,19 +815,15 @@ begin
       updated_at = now();
 end;
 $$;
-
 revoke all
 on function public.register_push_token(text, text)
 from public, anon;
-
 grant execute
 on function public.register_push_token(text, text)
 to authenticated;
-
 revoke insert, update
 on public.push_tokens
 from authenticated;
-
 create or replace function private.enqueue_notification_push()
 returns trigger
 language plpgsql
@@ -914,16 +841,13 @@ begin
   return new;
 end;
 $$;
-
 revoke all
 on function private.enqueue_notification_push()
 from public, anon, authenticated;
-
 create trigger notifications_enqueue_push
 after insert on public.notifications
 for each row
 execute function private.enqueue_notification_push();
-
 do $$
 begin
   if not exists (
@@ -946,15 +870,11 @@ begin
   end if;
 end;
 $$;
-
 comment on table public.profile_links is
   'Up to five HTTPS links displayed through a compact student profile entry.';
-
 comment on table public.organization_links is
   'Up to five HTTPS links managed by organization owners and admins.';
-
 comment on column public.posts.organization_author_id is
   'Official organization identity; exactly one of this or author_id is set.';
-
 comment on function public.register_push_token(text, text) is
   'Atomically assigns one physical Expo token to the current authenticated user.';

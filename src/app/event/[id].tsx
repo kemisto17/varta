@@ -108,7 +108,11 @@ export default function EventDetailScreen() {
     interestPendingRef.current = true;
     setIsInterestPending(true);
     setErrorMessage(null);
-    const optimisticEvent = { ...event, isInterested: next };
+    const optimisticEvent = {
+      ...event,
+      interestedCount: Math.max(0, event.interestedCount + (next ? 1 : -1)),
+      isInterested: next,
+    };
     eventRef.current = optimisticEvent;
     setEvent(optimisticEvent);
 
@@ -125,7 +129,11 @@ export default function EventDetailScreen() {
           return current;
         }
 
-        const rolledBack = { ...current, isInterested: previous };
+        const rolledBack = {
+          ...current,
+          interestedCount: event.interestedCount,
+          isInterested: previous,
+        };
         eventRef.current = rolledBack;
         return rolledBack;
       });

@@ -63,20 +63,14 @@ as $$
         )
     );
 $$;
-
-
 revoke all
 on function
 private.profiles_have_block_relation(uuid, uuid)
 from public, anon, authenticated;
-
-
 comment on function
 private.profiles_have_block_relation(uuid, uuid)
 is
   'Trusted server-side helper returning true when either of two profiles has blocked the other.';
-
-
 -- ============================================================
 -- LIKE VISIBILITY
 --
@@ -90,8 +84,6 @@ is
 drop policy if exists
   "Verified students can view university likes"
 on public.post_likes;
-
-
 create policy
   "Verified students can view university likes"
 on public.post_likes
@@ -119,8 +111,6 @@ using (
     )
   )
 );
-
-
 -- ============================================================
 -- COMMENT NOTIFICATIONS
 --
@@ -303,14 +293,10 @@ begin
   return new;
 end;
 $$;
-
-
 revoke all
 on function
 private.create_post_comment_notification()
 from public, anon, authenticated;
-
-
 -- ============================================================
 -- LIKE NOTIFICATIONS
 --
@@ -472,8 +458,6 @@ begin
   return new;
 end;
 $$;
-
-
 revoke all
 on function
 private.create_post_like_notification()

@@ -1,6 +1,5 @@
 alter table public.organizations
 drop constraint if exists organizations_avatar_path_format_check;
-
 alter table public.organizations
 add constraint organizations_avatar_path_format_check
 check (

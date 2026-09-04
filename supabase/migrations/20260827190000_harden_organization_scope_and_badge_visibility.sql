@@ -77,26 +77,18 @@ as $$
         )
     );
 $$;
-
-
 revoke all
 on function
 private.can_view_organization(uuid)
 from public, anon;
-
-
 grant execute
 on function
 private.can_view_organization(uuid)
 to authenticated;
-
-
 comment on function
 private.can_view_organization(uuid)
 is
   'Allows active organizations only within the current user university. Members may view their organization during onboarding; non-members must be verified.';
-
-
 -- ============================================================
 -- PROFILE BADGE VISIBILITY
 -- ============================================================
@@ -104,8 +96,6 @@ is
 drop policy if exists
   "Users can view visible profile badge assignments"
 on public.profile_badges;
-
-
 create policy
   "Users can view visible profile badge assignments"
 on public.profile_badges
@@ -149,8 +139,6 @@ using (
     )
   )
 );
-
-
 comment on policy
   "Users can view visible profile badge assignments"
 on public.profile_badges

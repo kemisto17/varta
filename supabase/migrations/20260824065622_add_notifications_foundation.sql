@@ -473,3 +473,5 @@ comment on table public.push_tokens is
 
 comment on column public.notifications.body is
   'Safe in-app copy. Push delivery uses a stricter type-based content allowlist.';
+
+;

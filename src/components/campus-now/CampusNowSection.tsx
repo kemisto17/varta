@@ -1,5 +1,13 @@
 import { useThemedStyles } from '../../hooks/useTheme';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import type { CampusEvent } from '../../types/event';
@@ -27,6 +35,12 @@ export function CampusNowSection({
   onSeeAll,
 }: CampusNowSectionProps) {
   const { colors, styles } = useThemedStyles(createStyles);
+  const { width } = useWindowDimensions();
+  const availableWidth = Math.max(240, width - spacing.lg * 2);
+  const cardWidth =
+    events.length > 1 ? Math.max(240, availableWidth - 36) : availableWidth;
+  const snapInterval = cardWidth + spacing.md;
+
   return (
     <View style={styles.section}>
       <View style={styles.headingRow}>
@@ -39,7 +53,7 @@ export function CampusNowSection({
           onPress={onSeeAll}
           style={({ pressed }) => pressed && styles.pressed}
         >
-          <Text style={styles.seeAll}>See all</Text>
+          <Text style={styles.seeAll}>All events</Text>
         </Pressable>
       </View>
 
@@ -61,32 +75,37 @@ export function CampusNowSection({
           <Text style={styles.stateMessage}>New campus events will appear here.</Text>
         </View>
       ) : (
-        events.map((event) => (
-          <EventCard
-            event={event}
-            interestPending={interestPendingIds.has(event.id)}
-            key={event.id}
-            onInterestToggle={onInterestToggle}
-            onPress={onEventPress}
-          />
-        ))
+        <FlatList
+          data={events}
+          decelerationRate="fast"
+          disableIntervalMomentum
+          horizontal
+          ItemSeparatorComponent={EventSeparator}
+          keyExtractor={(event) => event.id}
+          renderItem={({ item }) => (
+            <EventCard
+              containerStyle={[styles.eventCard, { width: cardWidth }]}
+              event={item}
+              interestPending={interestPendingIds.has(item.id)}
+              onInterestToggle={onInterestToggle}
+              onPress={onEventPress}
+            />
+          )}
+          showsHorizontalScrollIndicator={false}
+          snapToAlignment="start"
+          snapToInterval={snapInterval}
+        />
       )}
-
-      {events.length > 0 ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onSeeAll}
-          style={({ pressed }) => [styles.allButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.allButtonText}>See all events</Text>
-        </Pressable>
-      ) : null}
     </View>
   );
 }
 
+function EventSeparator() {
+  return <View style={{ width: spacing.md }} />;
+}
+
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  section: { marginTop: spacing.xxl },
+  section: { marginTop: spacing.xl },
   headingRow: {
     marginBottom: spacing.md,
     flexDirection: 'row',
@@ -114,17 +133,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
   },
+  eventCard: { marginBottom: 0 },
   stateTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   stateMessage: { marginTop: spacing.xs, fontSize: 13, lineHeight: 19, color: colors.textSecondary },
   retry: { marginTop: spacing.md, fontSize: 13, fontWeight: '700', color: colors.textPrimary },
-  allButton: {
-    minHeight: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.full,
-  },
-  allButtonText: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
   pressed: { opacity: 0.55 },
 });

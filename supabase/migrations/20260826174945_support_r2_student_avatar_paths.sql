@@ -3,7 +3,6 @@
 
 alter table public.profiles
 drop constraint profile_avatar_path_format;
-
 alter table public.profiles
 add constraint profile_avatar_path_format
 check (

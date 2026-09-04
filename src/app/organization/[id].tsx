@@ -510,6 +510,14 @@ export default function OrganizationScreen() {
                 event.id
                   ? {
                       ...item,
+                      interestedCount:
+                        Math.max(
+                          0,
+                          item.interestedCount +
+                            (nextIsInterested
+                              ? 1
+                              : -1)
+                        ),
                       isInterested:
                         nextIsInterested,
                     }
@@ -552,6 +560,8 @@ export default function OrganizationScreen() {
                     nextIsInterested
                     ? {
                         ...item,
+                        interestedCount:
+                          event.interestedCount,
                         isInterested:
                           event.isInterested,
                       }

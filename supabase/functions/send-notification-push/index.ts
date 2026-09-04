@@ -1,6 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
-import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.112.3';
 
 type NotificationType =
   | 'badge_assigned'
@@ -9,6 +9,7 @@ type NotificationType =
   | 'organization_role_assigned'
   | 'post_comment'
   | 'post_like'
+  | 'mention'
   | 'verification_approved'
   | 'verification_rejected';
 
@@ -123,6 +124,17 @@ Deno.serve(async (request: Request) => {
 
     hasClaim = true;
     const notification = rawNotification;
+    if (notification.type === 'mention') {
+      const { data: canDeliver, error: visibilityError } = await supabase.rpc(
+        'can_deliver_mention_notification',
+        { target_notification_id: notification.id }
+      );
+      if (visibilityError) throw visibilityError;
+      if (canDeliver !== true) {
+        await markProcessed(supabase, notification.id, claimedAt);
+        return jsonResponse({ delivered: 0, skipped: 'mention_unavailable' });
+      }
+    }
     const staleTokenBefore = new Date(Date.now() - NINETY_DAYS).toISOString();
     const { error: pruneError } = await supabase
       .from('push_tokens')
@@ -263,7 +275,7 @@ Deno.serve(async (request: Request) => {
 });
 
 async function processPushReceipts(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   expoAccessToken: string | undefined
 ) {
   const expiredBefore = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
@@ -392,7 +404,7 @@ async function processPushReceipts(
 }
 
 async function markProcessed(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   notificationId: string,
   claimedAt: string
 ) {
@@ -410,6 +422,8 @@ async function markProcessed(
 
 function getSafePushBody(notification: NotificationRecord) {
   switch (notification.type) {
+    case 'mention':
+      return 'You were mentioned on Varta.';
     case 'post_like':
     case 'post_comment':
       return notification.title;
@@ -498,6 +512,7 @@ function isNotificationType(value: unknown): value is NotificationType {
     value === 'organization_role_assigned' ||
     value === 'post_comment' ||
     value === 'post_like' ||
+    value === 'mention' ||
     value === 'verification_approved' ||
     value === 'verification_rejected'
   );

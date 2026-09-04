@@ -16,6 +16,7 @@ type DeleteMediaResponse = {
 type MediaKind =
   | 'avatar'
   | 'event-image'
+  | 'lost-found'
   | 'organization-avatar'
   | 'post';
 
@@ -151,6 +152,15 @@ export async function uploadPostImageToR2({
     asset,
     kind: 'post',
     organizationId,
+  });
+}
+
+export async function uploadLostFoundImageToR2(
+  asset: ImagePickerAsset
+) {
+  return uploadImageToR2({
+    asset,
+    kind: 'lost-found',
   });
 }
 
@@ -504,6 +514,15 @@ export async function deletePostImageFromR2(
   );
 }
 
+export async function deleteLostFoundImageFromR2(
+  objectKey: string
+) {
+  return deleteMediaObjectFromR2(
+    'lost-found',
+    objectKey
+  );
+}
+
 export async function deleteAvatarFromR2(
   objectKey: string
 ) {
@@ -562,6 +581,8 @@ async function deleteMediaObjectFromR2(
   const requiredPrefix =
     kind === 'avatar'
       ? 'avatars/users/'
+      : kind === 'lost-found'
+        ? 'lost-found/users/'
       : kind ===
           'organization-avatar'
         ? 'avatars/organizations/'

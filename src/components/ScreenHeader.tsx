@@ -7,13 +7,15 @@ import { spacing, type ThemeColors } from '../constants/theme';
 
 type ScreenHeaderProps = {
   action?: React.ReactNode;
-  fallbackRoute?: '/' | '/events';
+  fallbackRoute?: '/' | '/events' | '/lost-found';
+  showBackButton?: boolean;
   title: string;
 };
 
 export function ScreenHeader({
   action = null,
   fallbackRoute = '/',
+  showBackButton = true,
   title,
 }: ScreenHeaderProps) {
   const { colors, styles } = useThemedStyles(createStyles);
@@ -28,21 +30,26 @@ export function ScreenHeader({
   };
 
   return (
-    <View style={styles.header}>
-      <Pressable
-        accessibilityLabel="Go back"
-        accessibilityRole="button"
-        hitSlop={10}
-        onPress={goBack}
-        style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+    <View style={[styles.header, !showBackButton && styles.headerWithoutBack]}>
+      {showBackButton ? (
+        <Pressable
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+          hitSlop={10}
+          onPress={goBack}
+          style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+        >
+          <SymbolView
+            name={{ android: 'arrow_back', ios: 'chevron.left', web: 'arrow_back' }}
+            size={22}
+            tintColor={colors.textPrimary}
+          />
+        </Pressable>
+      ) : null}
+      <Text
+        numberOfLines={1}
+        style={[styles.title, !showBackButton && styles.titleWithoutBack]}
       >
-        <SymbolView
-          name={{ android: 'arrow_back', ios: 'chevron.left', web: 'arrow_back' }}
-          size={22}
-          tintColor={colors.textPrimary}
-        />
-      </Pressable>
-      <Text numberOfLines={1} style={styles.title}>
         {title}
       </Text>
       <View style={styles.action}>{action}</View>
@@ -59,6 +66,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.borderSubtle,
   },
+  headerWithoutBack: {
+    minHeight: 64,
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: 0,
+  },
   button: {
     width: 44,
     height: 44,
@@ -71,6 +83,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontWeight: '700',
     color: colors.textPrimary,
   },
+  titleWithoutBack: { fontSize: 24 },
   action: {
     minWidth: 44,
     alignItems: 'flex-end',

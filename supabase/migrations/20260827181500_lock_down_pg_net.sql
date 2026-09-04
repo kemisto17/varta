@@ -21,8 +21,6 @@
 revoke usage
 on schema net
 from anon, authenticated;
-
-
 -- ------------------------------------------------------------
 -- REMOVE TABLE ACCESS
 -- ------------------------------------------------------------
@@ -30,8 +28,6 @@ from anon, authenticated;
 revoke all privileges
 on all tables in schema net
 from anon, authenticated;
-
-
 -- ------------------------------------------------------------
 -- REMOVE SEQUENCE ACCESS
 -- ------------------------------------------------------------
@@ -39,8 +35,6 @@ from anon, authenticated;
 revoke all privileges
 on all sequences in schema net
 from anon, authenticated;
-
-
 -- ------------------------------------------------------------
 -- REMOVE FUNCTION EXECUTION
 -- ------------------------------------------------------------
@@ -48,8 +42,6 @@ from anon, authenticated;
 revoke all privileges
 on all functions in schema net
 from anon, authenticated;
-
-
 -- ============================================================
 -- NOTES
 --
@@ -63,4 +55,4 @@ from anon, authenticated;
 --
 -- The scheduled receipt-processing job also runs server-side
 -- and does not depend on anon/authenticated privileges.
--- ============================================================
+-- ============================================================;

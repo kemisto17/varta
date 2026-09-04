@@ -11,6 +11,7 @@ export type NotificationPreferences =
     | 'comments_enabled'
     | 'events_enabled'
     | 'likes_enabled'
+    | 'mentions_enabled'
   >;
 
 export const DEFAULT_NOTIFICATION_PREFERENCES:
@@ -19,6 +20,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES:
     comments_enabled: true,
     events_enabled: true,
     likes_enabled: true,
+    mentions_enabled: true,
   };
 
 export async function getNotificationPreferences(
@@ -32,7 +34,7 @@ export async function getNotificationPreferences(
       'notification_preferences'
     )
     .select(
-      'likes_enabled, comments_enabled, badges_enabled, events_enabled'
+      'likes_enabled, comments_enabled, badges_enabled, events_enabled, mentions_enabled'
     )
     .eq(
       'user_id',
@@ -60,7 +62,7 @@ export async function saveNotificationPreferences(
    * We intentionally do not use upsert here.
    * The notification_preferences table gives
    * authenticated users UPDATE permission only
-   * on the four preference columns, not user_id.
+   * on preference columns, not user_id.
    *
    * Supabase upsert includes user_id in the
    * INSERT ... ON CONFLICT DO UPDATE statement,

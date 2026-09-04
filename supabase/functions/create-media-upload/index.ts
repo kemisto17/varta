@@ -27,6 +27,7 @@ const UUID_PATTERN =
 type MediaKind =
   | "avatar"
   | "event-image"
+  | "lost-found"
   | "organization-avatar"
   | "post";
 
@@ -438,6 +439,7 @@ Deno.serve(async (req) => {
     if (
       body.kind !== "post" &&
       body.kind !== "avatar" &&
+      body.kind !== "lost-found" &&
       body.kind !==
         "organization-avatar" &&
       body.kind !==
@@ -475,6 +477,7 @@ Deno.serve(async (req) => {
 
     const maxImageSize =
       body.kind === "post" ||
+      body.kind === "lost-found" ||
       body.kind ===
         "event-image"
         ? MAX_POST_IMAGE_SIZE
@@ -779,6 +782,12 @@ Deno.serve(async (req) => {
     ) {
       objectKey =
         `events/organizations/${body.organizationId}/${body.eventId}/${objectId}.${extension}`;
+    } else if (
+      body.kind ===
+        "lost-found"
+    ) {
+      objectKey =
+        `lost-found/users/${userId}/${objectId}.${extension}`;
     } else if (
       body.organizationId
     ) {

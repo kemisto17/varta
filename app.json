@@ -2,7 +2,7 @@
   "expo": {
     "name": "Varta",
     "slug": "varta",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/varta-icon-monogram.png",
     "scheme": "varta",
@@ -15,7 +15,7 @@
     "android": {
       "package": "com.kemisto17.varta",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#F8F7F4",
         "foregroundImage": "./assets/images/varta-adaptive-monogram.png",
@@ -53,7 +53,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Varta to select photos for posts, event covers, and student verification.",
+          "photosPermission": "Allow Varta to select photos for posts, Lost & Found, event covers, and student verification.",
           "cameraPermission": false,
           "microphonePermission": false
         }
@@ -67,7 +67,16 @@
       ],
       "expo-sqlite",
       "expo-system-ui",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

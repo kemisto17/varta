@@ -1,7 +1,14 @@
 import { useThemedStyles } from '../../hooks/useTheme';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  type StyleProp,
+  View,
+  type ViewStyle,
+} from 'react-native';
 
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { formatEventStart, isEventHappeningNow } from '../../lib/time';
@@ -9,6 +16,7 @@ import type { CampusEvent } from '../../types/event';
 import { OrganizationAvatar } from '../organizations/OrganizationAvatar';
 
 type EventCardProps = {
+  containerStyle?: StyleProp<ViewStyle>;
   event: CampusEvent;
   interestPending?: boolean;
   onInterestToggle?: (event: CampusEvent) => void;
@@ -16,6 +24,7 @@ type EventCardProps = {
 };
 
 export function EventCard({
+  containerStyle,
   event,
   interestPending = false,
   onInterestToggle,
@@ -26,7 +35,7 @@ export function EventCard({
   const happeningNow = isEventHappeningNow(event.startsAt, event.endsAt);
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, containerStyle]}>
       <Pressable
         accessibilityRole="button"
         onPress={() => onPress(event)}
@@ -41,7 +50,19 @@ export function EventCard({
             style={styles.cover}
             transition={140}
           />
-        ) : null}
+        ) : (
+          <View
+            accessibilityLabel={`${event.title} event cover`}
+            style={[styles.cover, styles.coverFallback]}
+          >
+            <SymbolView
+              name={{ android: 'event', ios: 'calendar', web: 'event' }}
+              size={30}
+              tintColor={colors.textMuted}
+            />
+            <Text style={styles.coverFallbackLabel}>CAMPUS EVENT</Text>
+          </View>
+        )}
 
         <View style={styles.copy}>
           <View style={styles.organizationRow}>
@@ -70,16 +91,15 @@ export function EventCard({
             {event.title}
           </Text>
           <Text style={styles.meta}>{formatEventStart(event.startsAt)}</Text>
-          {event.location ? (
-            <Text numberOfLines={1} style={styles.location}>
-              {event.location}
-            </Text>
-          ) : null}
+          <Text numberOfLines={1} style={styles.location}>
+            {event.location?.trim() || 'Location to be announced'}
+          </Text>
         </View>
       </Pressable>
 
       {onInterestToggle && !isCancelled ? (
         <Pressable
+          accessibilityLabel={`${event.isInterested ? 'Remove interest' : 'Save event'}. ${event.interestedCount} ${event.interestedCount === 1 ? 'person is' : 'people are'} interested.`}
           accessibilityRole="button"
           disabled={interestPending}
           onPress={() => onInterestToggle(event)}
@@ -105,7 +125,7 @@ export function EventCard({
               event.isInterested && styles.interestLabelActive,
             ]}
           >
-            {event.isInterested ? 'Interested' : 'Save event'}
+            {event.isInterested ? 'Interested' : 'Save event'} · {event.interestedCount}
           </Text>
         </Pressable>
       ) : null}
@@ -126,6 +146,18 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     width: '100%',
     aspectRatio: 16 / 8.5,
     backgroundColor: colors.borderSubtle,
+  },
+  coverFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceMuted,
+  },
+  coverFallbackLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    color: colors.textMuted,
   },
   copy: { padding: spacing.md },
   organizationRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
@@ -152,6 +184,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.danger,
   },
   title: {
+    minHeight: 48,
     marginTop: spacing.sm,
     fontSize: 18,
     lineHeight: 24,

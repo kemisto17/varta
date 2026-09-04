@@ -10,6 +10,7 @@ type DeleteMediaRequest = {
   kind?:
     | "avatar"
     | "event-image"
+    | "lost-found"
     | "organization-avatar"
     | "post";
   objectKey?: string;
@@ -154,6 +155,27 @@ function parsePostObjectKey(
         parts[2],
       uploaderId:
         parts[3],
+    };
+  }
+
+  return null;
+}
+
+function parseLostFoundObjectKey(
+  objectKey: string
+) {
+  const parts =
+    objectKey.split("/");
+
+  if (
+    parts.length === 4 &&
+    parts[0] === "lost-found" &&
+    parts[1] === "users" &&
+    isUuid(parts[2]) &&
+    isMediaFilename(parts[3])
+  ) {
+    return {
+      userId: parts[2],
     };
   }
 
@@ -580,6 +602,7 @@ Deno.serve(async (req) => {
     if (
       body.kind !== "post" &&
       body.kind !== "avatar" &&
+      body.kind !== "lost-found" &&
       body.kind !==
         "organization-avatar" &&
       body.kind !==
@@ -738,6 +761,38 @@ Deno.serve(async (req) => {
             500
           );
         }
+      }
+    }
+
+    if (
+      body.kind === "lost-found"
+    ) {
+      const parsed =
+        parseLostFoundObjectKey(
+          objectKey
+        );
+
+      if (!parsed) {
+        return json(
+          {
+            error:
+              "Invalid Lost & Found media path.",
+          },
+          400
+        );
+      }
+
+      if (
+        parsed.userId !==
+        currentUserId
+      ) {
+        return json(
+          {
+            error:
+              "You cannot delete this media.",
+          },
+          403
+        );
       }
     }
 

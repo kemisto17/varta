@@ -27,15 +27,12 @@ set
   public = false,
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
-
-
 -- A client-submitted verification must point to the authenticated
 -- user's private student ID document. Status and method continue to
 -- come exclusively from database defaults.
 
 drop policy if exists "Users can submit own verification"
 on public.student_verifications;
-
 create policy "Users can submit own verification"
 on public.student_verifications
 for insert
@@ -80,8 +77,6 @@ with check (
       and document.name = id_document_path
   )
 );
-
-
 -- Uploads are limited to one predictable file inside the user's own
 -- UUID folder. There is intentionally no UPDATE policy, so the client
 -- cannot overwrite a document that is already under review.
@@ -123,8 +118,6 @@ with check (
     where verification.user_id = (select auth.uid())
   )
 );
-
-
 -- Students can view only the object inside their own private folder.
 -- The bucket remains private, so there is no unauthenticated URL.
 
@@ -144,8 +137,6 @@ using (
   (storage.foldername(name))[1] =
     (select auth.uid())::text
 );
-
-
 -- A user may remove a document only when cleaning up an upload whose
 -- database insert failed, or when replacing a rejected submission.
 

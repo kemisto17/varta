@@ -198,5 +198,5 @@ Do not expose this query or a feedback-list screen to the mobile role. Treat mes
 - Product analytics are not added in this milestone; server table counts and the private feedback queue provide the minimum alpha signal without introducing a new data processor.
 - Native push delivery still depends on device permissions, Expo credentials, and the documented server function.
 - The full VĀRTĀ launcher alternative is retained but not configured because it becomes too small at common launcher sizes; the VĀ monogram is the production candidate.
-- Account deletion is not exposed because a privileged, session-revoking deletion flow is not implemented yet.
+- Account deletion requests are available through Settings and onboarding policy links. Support must fulfill requests using `account-deletion-operations.md`; automatic deletion is not implemented.
 - Device testing is required for camera/gallery behavior, keyboard layout, and deep links even when automated checks pass.

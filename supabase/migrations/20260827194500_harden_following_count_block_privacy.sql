@@ -88,20 +88,14 @@ as $$
       )
     );
 $$;
-
-
 revoke all
 on function
 public.get_profile_organization_following_count(uuid)
 from public, anon, authenticated;
-
-
 grant execute
 on function
 public.get_profile_organization_following_count(uuid)
 to authenticated;
-
-
 comment on function
 public.get_profile_organization_following_count(uuid)
 is

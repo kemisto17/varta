@@ -354,3 +354,5 @@ comment on table public.profile_badges is
 
 comment on column public.profile_badges.assigned_by is
   'Auth user that assigned the badge. NULL denotes a privileged SQL migration or manual SQL Editor action.';
+
+;

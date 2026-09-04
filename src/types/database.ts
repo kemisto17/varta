@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -113,6 +113,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          parent_comment_id: string | null
           post_id: string
           updated_at: string
         }
@@ -121,6 +122,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          parent_comment_id?: string | null
           post_id: string
           updated_at?: string
         }
@@ -129,6 +131,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          parent_comment_id?: string | null
           post_id?: string
           updated_at?: string
         }
@@ -138,6 +141,13 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
             referencedColumns: ["id"]
           },
           {
@@ -191,6 +201,7 @@ export type Database = {
           ends_at: string | null
           id: string
           institute_id: string | null
+          interested_count: number
           location: string
           organization_id: string | null
           registration_url: string | null
@@ -208,6 +219,7 @@ export type Database = {
           ends_at?: string | null
           id?: string
           institute_id?: string | null
+          interested_count?: number
           location?: string
           organization_id?: string | null
           registration_url?: string | null
@@ -225,6 +237,7 @@ export type Database = {
           ends_at?: string | null
           id?: string
           institute_id?: string | null
+          interested_count?: number
           location?: string
           organization_id?: string | null
           registration_url?: string | null
@@ -332,12 +345,99 @@ export type Database = {
           },
         ]
       }
+      lost_found_items: {
+        Row: {
+          campus_location: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          image_path: string | null
+          item_date: string
+          kind: string
+          legacy_post_id: string | null
+          organization_author_id: string | null
+          resolved_at: string | null
+          status: string
+          title: string
+          university_id: string
+          updated_at: string
+        }
+        Insert: {
+          campus_location?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          image_path?: string | null
+          item_date?: string
+          kind: string
+          legacy_post_id?: string | null
+          organization_author_id?: string | null
+          resolved_at?: string | null
+          status?: string
+          title: string
+          university_id?: string
+          updated_at?: string
+        }
+        Update: {
+          campus_location?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          image_path?: string | null
+          item_date?: string
+          kind?: string
+          legacy_post_id?: string | null
+          organization_author_id?: string | null
+          resolved_at?: string | null
+          status?: string
+          title?: string
+          university_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lost_found_items_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lost_found_items_legacy_post_id_fkey"
+            columns: ["legacy_post_id"]
+            isOneToOne: true
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lost_found_items_organization_author_id_fkey"
+            columns: ["organization_author_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lost_found_items_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           badges_enabled: boolean
           comments_enabled: boolean
           events_enabled: boolean
           likes_enabled: boolean
+          mentions_enabled: boolean
           updated_at: string
           user_id: string
         }
@@ -346,6 +446,7 @@ export type Database = {
           comments_enabled?: boolean
           events_enabled?: boolean
           likes_enabled?: boolean
+          mentions_enabled?: boolean
           updated_at?: string
           user_id: string
         }
@@ -354,6 +455,7 @@ export type Database = {
           comments_enabled?: boolean
           events_enabled?: boolean
           likes_enabled?: boolean
+          mentions_enabled?: boolean
           updated_at?: string
           user_id?: string
         }
@@ -1156,10 +1258,99 @@ export type Database = {
           organization_id: string
         }[]
       }
-      get_my_blocked_users: {
+      can_deliver_mention_notification: {
+        Args: { target_notification_id: string }
+        Returns: boolean
+      }
+      accept_current_terms: {
+        Args: { accepted_version: string }
+        Returns: undefined
+      }
+      has_accepted_current_terms: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      get_home_feed_page: {
+        Args: { feed_mode?: string; result_limit?: number; page_cursor?: Json }
+        Returns: Json
+      }
+      get_home_feed: {
+        Args: {
+          cursor_created_at?: string
+          cursor_id?: string
+          cursor_score?: number
+          feed_mode?: string
+          result_limit?: number
+        }
         Returns: {
-          avatar_path: string | null
+          event_cover_path: string
+          event_created_by: string
+          event_description: string
+          event_ends_at: string
+          event_id: string
+          event_institute_id: string
+          event_interested_count: number
+          event_is_interested_by_viewer: boolean
+          event_location: string
+          event_organization_id: string
+          event_registration_url: string
+          event_starts_at: string
+          event_status: string
+          event_title: string
+          event_university_id: string
+          item_id: string
+          item_type: string
+          lost_found_campus_location: string
+          lost_found_category: string
+          lost_found_created_at: string
+          lost_found_created_by: string
+          lost_found_description: string
+          lost_found_id: string
+          lost_found_image_path: string
+          lost_found_item_date: string
+          lost_found_kind: string
+          lost_found_organization_author_id: string
+          lost_found_resolved_at: string
+          lost_found_status: string
+          lost_found_title: string
+          lost_found_updated_at: string
+          organization_author_avatar_path: string
+          organization_author_id: string
+          organization_author_institute_short_name: string
+          organization_author_is_verified: boolean
+          organization_author_name: string
+          organization_author_university_short_name: string
+          organization_can_manage_by_viewer: boolean
+          organization_is_followed_by_viewer: boolean
+          post_author_id: string
+          post_comment_count: number
+          post_content: string
+          post_created_at: string
+          post_id: string
+          post_image_path: string
+          post_is_liked_by_viewer: boolean
+          post_kind: string
+          post_like_count: number
+          post_organization_author_id: string
+          post_updated_at: string
+          ranking_score: number
+          sort_created_at: string
+          student_author_avatar_path: string
+          student_author_branch: string
+          student_author_full_name: string
+          student_author_id: string
+          student_author_institute_id: string
+          student_author_institute_name: string
+          student_author_institute_short_name: string
+          student_author_is_verified: boolean
+          student_author_username: string
+          student_author_year: number
+        }[]
+      }
+      get_my_blocked_users: {
+        Args: never
+        Returns: {
+          avatar_path: string
           blocked_at: string
           full_name: string
           id: string
@@ -1229,6 +1420,7 @@ export type Database = {
     Enums: {
       admin_role: "super_admin" | "admin" | "moderator" | "reviewer"
       notification_type:
+        | "mention"
         | "post_like"
         | "post_comment"
         | "verification_approved"
@@ -1262,12 +1454,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1291,11 +1483,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1316,11 +1508,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1341,11 +1533,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1358,11 +1550,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1376,6 +1568,7 @@ export const Constants = {
     Enums: {
       admin_role: ["super_admin", "admin", "moderator", "reviewer"],
       notification_type: [
+        "mention",
         "post_like",
         "post_comment",
         "verification_approved",

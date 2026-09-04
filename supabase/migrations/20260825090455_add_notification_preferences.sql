@@ -290,3 +290,5 @@ $$;
 
 comment on table public.notification_preferences is
   'User-owned controls honored by trusted notification producer triggers.';
+
+;

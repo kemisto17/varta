@@ -4,7 +4,7 @@ import type { OrganizationRole } from './organization';
 type EventRow = Tables<'events'>;
 
 export type EventStatus = 'draft' | 'published' | 'cancelled' | 'completed';
-export type EventFilter = 'all' | 'institute' | 'following';
+export type EventFilter = 'all' | 'institute' | 'following' | 'interested';
 
 export type CampusEvent = {
   coverPath: EventRow['cover_path'];
@@ -14,6 +14,7 @@ export type CampusEvent = {
   endsAt: EventRow['ends_at'];
   id: EventRow['id'];
   instituteId: EventRow['institute_id'];
+  interestedCount: EventRow['interested_count'];
   isInterested: boolean;
   location: EventRow['location'];
   organization: {

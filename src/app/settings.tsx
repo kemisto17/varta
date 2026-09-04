@@ -12,6 +12,8 @@ import {
 
 import { SafeAreaScreen } from '../components/SafeAreaScreen';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { openPolicy } from '../components/PolicyLinks';
+import { POLICY_URLS } from '../constants/policies';
 import { SettingsRow } from '../components/settings/SettingsRow';
 import { SettingsSection } from '../components/settings/SettingsSection';
 import { SettingsToggleRow } from '../components/settings/SettingsToggleRow';
@@ -601,6 +603,15 @@ export default function SettingsScreen() {
                 disabled={
                   notificationsSaving
                 }
+                label="Mentions"
+                onValueChange={(enabled) =>
+                  void updateNotificationPreference('mentions_enabled', enabled)
+                }
+                value={notificationPreferences.mentions_enabled}
+              />
+
+              <SettingsToggleRow
+                disabled={notificationsSaving}
                 label="Badges"
                 onValueChange={(
                   enabled
@@ -674,6 +685,20 @@ export default function SettingsScreen() {
               )
             }
           />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Policies & Account"
+        >
+          <SettingsRow label="Privacy Policy" onPress={() => openPolicy(POLICY_URLS.privacy)} />
+          <SettingsRow label="Terms of Use" onPress={() => openPolicy(POLICY_URLS.terms)} />
+          <SettingsRow label="Child Safety Standards" onPress={() => openPolicy(POLICY_URLS.childSafety)} />
+          <SettingsRow isLast label="Request account deletion" tone="danger" onPress={() => {
+            Alert.alert('Request account deletion', 'Support will verify and process your request to delete your account and associated personal data. This opens the account-deletion page; your account will not be deleted immediately.', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open deletion page', onPress: () => openPolicy(POLICY_URLS.deletion) },
+            ]);
+          }} />
         </SettingsSection>
 
         <SettingsSection

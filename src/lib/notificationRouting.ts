@@ -15,7 +15,7 @@ export function getPushNotificationDestination(
   const organizationId = getIdentifier(data.organizationId);
   const userId = getIdentifier(data.userId);
 
-  if ((type === 'post_like' || type === 'post_comment') && postId) {
+  if ((type === 'post_like' || type === 'post_comment' || type === 'mention') && postId) {
     return { pathname: '/post/[id]', params: { id: postId } };
   }
 

@@ -60,7 +60,8 @@ export default function NotificationsScreen() {
 
       if (
         (notification.type === 'post_like' ||
-          notification.type === 'post_comment') &&
+          notification.type === 'post_comment' ||
+          notification.type === 'mention') &&
         notification.post_id
       ) {
         router.push({

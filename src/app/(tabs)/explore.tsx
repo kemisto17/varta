@@ -1177,30 +1177,62 @@ export default function ExploreScreen() {
               </View>
             ) : null}
 
-            {normalizedQuery.length ===
-            0 ? (
-              <View
-                style={
-                  styles.discoveryHeading
-                }
-              >
-                <Text
+            {normalizedQuery.length === 0 ? (
+              <>
+                <View
                   style={
-                    styles.eyebrow
+                    styles.discoveryHeading
                   }
                 >
-                  DISCOVER
-                </Text>
+                  <Text
+                    style={
+                      styles.eyebrow
+                    }
+                  >
+                    DISCOVER
+                  </Text>
 
-                <Text
-                  style={
-                    styles.discoveryTitle
-                  }
+                  <Text
+                    style={
+                      styles.discoveryTitle
+                    }
+                  >
+                    Around your
+                    university
+                  </Text>
+                </View>
+
+                <Pressable
+                  accessibilityLabel="Open Varta Lost & Found"
+                  accessibilityRole="button"
+                  onPress={() => router.push('/lost-found')}
+                  style={({ pressed }) => [
+                    styles.moduleCard,
+                    pressed && styles.rowPressed,
+                  ]}
                 >
-                  Around your
-                  university
-                </Text>
-              </View>
+                  <View style={styles.moduleIcon}>
+                    <SymbolView
+                      name={{
+                        android: 'inventory_2',
+                        ios: 'shippingbox.fill',
+                        web: 'inventory_2',
+                      }}
+                      size={18}
+                      tintColor={colors.white}
+                    />
+                  </View>
+
+                  <View style={styles.moduleCopy}>
+                    <Text style={styles.moduleTitle}>Lost & Found</Text>
+                    <Text style={styles.moduleMessage}>
+                      Browse reports or create one
+                    </Text>
+                  </View>
+
+                  <Chevron />
+                </Pressable>
+              </>
             ) : null}
           </View>
         }
@@ -1990,6 +2022,48 @@ const createStyles = (
     discoveryHeading: {
       marginTop:
         spacing.xl,
+    },
+
+    moduleCard: {
+      minHeight: 68,
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.lg,
+      backgroundColor: colors.surface,
+    },
+
+    moduleIcon: {
+      width: 38,
+      height: 38,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radius.full,
+      backgroundColor: colors.textPrimary,
+    },
+
+    moduleCopy: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    moduleTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+
+    moduleMessage: {
+      marginTop: spacing.xs,
+      fontSize: 12,
+      lineHeight: 16,
+      color: colors.textSecondary,
     },
 
     eyebrow: {

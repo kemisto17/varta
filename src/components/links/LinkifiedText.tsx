@@ -12,9 +12,15 @@ import { getLinkifiedSegments } from '../../lib/links';
 
 type LinkifiedTextProps = TextProps & {
   children: string;
+  onMentionPress?: (username: string) => void;
 };
 
-export function LinkifiedText({ children, style, ...props }: LinkifiedTextProps) {
+export function LinkifiedText({
+  children,
+  onMentionPress,
+  style,
+  ...props
+}: LinkifiedTextProps) {
   const { colors } = useTheme();
   const segments = useMemo(() => getLinkifiedSegments(children), [children]);
 
@@ -40,6 +46,18 @@ export function LinkifiedText({ children, style, ...props }: LinkifiedTextProps)
             onPress={(event) => {
               event.stopPropagation();
               void openLink(segment.url!);
+            }}
+            style={[styles.link, { color: colors.textPrimary }]}
+          >
+            {segment.text}
+          </Text>
+        ) : segment.mentionUsername ? (
+          <Text
+            accessibilityRole="link"
+            key={`${index}:${segment.text}`}
+            onPress={(event) => {
+              event.stopPropagation();
+              onMentionPress?.(segment.mentionUsername!);
             }}
             style={[styles.link, { color: colors.textPrimary }]}
           >

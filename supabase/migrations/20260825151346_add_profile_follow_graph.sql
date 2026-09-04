@@ -1,14 +1,11 @@
 alter table public.notification_preferences
 add column follows_enabled boolean not null default true;
-
 grant insert (follows_enabled)
 on public.notification_preferences
 to authenticated;
-
 grant update (follows_enabled)
 on public.notification_preferences
 to authenticated;
-
 create or replace function private.notification_preference_enabled(
   recipient_profile_id uuid,
   notification_kind public.notification_type
@@ -35,14 +32,12 @@ as $$
     true
   );
 $$;
-
 revoke all
 on function private.notification_preference_enabled(
   uuid,
   public.notification_type
 )
 from public, anon, authenticated;
-
 create table public.profile_follows (
   follower_id uuid not null
     references public.profiles(id) on delete cascade,
@@ -53,14 +48,11 @@ create table public.profile_follows (
   constraint profile_follows_prevent_self_follow
     check (follower_id <> following_id)
 );
-
 -- Keyset pagination for both directions of the people graph.
 create index profile_follows_follower_created_at_idx
 on public.profile_follows(follower_id, created_at desc, following_id desc);
-
 create index profile_follows_following_created_at_idx
 on public.profile_follows(following_id, created_at desc, follower_id desc);
-
 create or replace function private.profile_is_verified(
   target_profile_id uuid
 )
@@ -77,7 +69,6 @@ as $$
       and verification.status = 'verified'
   );
 $$;
-
 create or replace function private.profiles_are_blocked(
   first_profile_id uuid,
   second_profile_id uuid
@@ -101,7 +92,6 @@ as $$
     )
   );
 $$;
-
 create or replace function private.can_follow_profile(
   target_profile_id uuid
 )
@@ -121,7 +111,6 @@ as $$
       target_profile_id
     ));
 $$;
-
 create or replace function private.can_view_profile_follow(
   relationship_follower_id uuid,
   relationship_following_id uuid
@@ -155,55 +144,41 @@ as $$
       relationship_following_id
     ));
 $$;
-
 revoke all
 on function private.profile_is_verified(uuid)
 from public, anon, authenticated;
-
 revoke all
 on function private.profiles_are_blocked(uuid, uuid)
 from public, anon, authenticated;
-
 revoke all
 on function private.can_follow_profile(uuid)
 from public, anon, authenticated;
-
 revoke all
 on function private.can_view_profile_follow(uuid, uuid)
 from public, anon, authenticated;
-
 grant execute
 on function private.can_follow_profile(uuid)
 to authenticated;
-
 grant execute
 on function private.can_view_profile_follow(uuid, uuid)
 to authenticated;
-
 grant execute
 on function private.profile_is_verified(uuid)
 to authenticated;
-
 grant execute
 on function private.profiles_are_blocked(uuid, uuid)
 to authenticated;
-
 alter table public.profile_follows enable row level security;
-
 revoke all on table public.profile_follows from anon, authenticated;
-
 grant select (follower_id, following_id, created_at)
 on public.profile_follows
 to authenticated;
-
 grant insert (follower_id, following_id)
 on public.profile_follows
 to authenticated;
-
 grant delete
 on public.profile_follows
 to authenticated;
-
 create policy "Verified users can view university profile follows"
 on public.profile_follows
 for select
@@ -212,7 +187,6 @@ using ((select private.can_view_profile_follow(
   follower_id,
   following_id
 )));
-
 create policy "Verified users can follow university profiles"
 on public.profile_follows
 for insert
@@ -221,13 +195,11 @@ with check (
   follower_id = (select auth.uid())
   and (select private.can_follow_profile(following_id))
 );
-
 create policy "Users can remove own profile follows"
 on public.profile_follows
 for delete
 to authenticated
 using (follower_id = (select auth.uid()));
-
 -- One call supplies the social header state without a sequence of count/status
 -- queries. Security-invoker semantics preserve table RLS for every count.
 create or replace function public.get_profile_social_summary(
@@ -271,15 +243,12 @@ as $$
       ))
     );
 $$;
-
 revoke all
 on function public.get_profile_social_summary(uuid)
 from public, anon;
-
 grant execute
 on function public.get_profile_social_summary(uuid)
 to authenticated;
-
 create or replace function public.get_profile_connections(
   target_profile_id uuid,
   connection_kind text,
@@ -351,7 +320,6 @@ as $$
   order by connection.created_at desc, connection.profile_id desc
   limit least(greatest(result_limit, 1), 50);
 $$;
-
 revoke all
 on function public.get_profile_connections(
   uuid,
@@ -361,7 +329,6 @@ on function public.get_profile_connections(
   integer
 )
 from public, anon;
-
 grant execute
 on function public.get_profile_connections(
   uuid,
@@ -371,7 +338,6 @@ on function public.get_profile_connections(
   integer
 )
 to authenticated;
-
 create or replace function public.get_followed_organizations_page(
   cursor_created_at timestamptz default null,
   cursor_organization_id uuid default null,
@@ -416,7 +382,6 @@ as $$
   order by follow.created_at desc, follow.organization_id desc
   limit least(greatest(result_limit, 1), 50);
 $$;
-
 revoke all
 on function public.get_followed_organizations_page(
   timestamptz,
@@ -424,7 +389,6 @@ on function public.get_followed_organizations_page(
   integer
 )
 from public, anon;
-
 grant execute
 on function public.get_followed_organizations_page(
   timestamptz,
@@ -432,7 +396,6 @@ on function public.get_followed_organizations_page(
   integer
 )
 to authenticated;
-
 create or replace function private.create_profile_follow_notification()
 returns trigger
 language plpgsql
@@ -473,17 +436,14 @@ begin
   return new;
 end;
 $$;
-
 create unique index notifications_unique_profile_follow_idx
 on public.notifications(recipient_id, actor_id)
 where type = 'profile_follow'
   and actor_id is not null;
-
 create trigger profile_follows_create_notification
 after insert on public.profile_follows
 for each row
 execute function private.create_profile_follow_notification();
-
 -- Blocking is the source of truth: relationship edges are removed in both
 -- directions in the same transaction as the new block.
 create or replace function private.remove_profile_follows_on_block()
@@ -506,26 +466,20 @@ begin
   return new;
 end;
 $$;
-
 create trigger user_blocks_remove_profile_follows
 after insert on public.user_blocks
 for each row
 execute function private.remove_profile_follows_on_block();
-
 revoke all
 on function private.create_profile_follow_notification()
 from public, anon, authenticated;
-
 revoke all
 on function private.remove_profile_follows_on_block()
 from public, anon, authenticated;
-
 comment on table public.profile_follows is
   'Student-to-student follows, separate from organization_follows.';
-
 comment on function public.get_profile_social_summary(uuid) is
   'RLS-aware people follower/following totals and current-user follow state.';
-
 comment on function public.get_profile_connections(
   uuid,
   text,
@@ -534,7 +488,6 @@ comment on function public.get_profile_connections(
   integer
 ) is
   'Keyset-paginated RLS-aware people follower or following rows.';
-
 comment on function public.get_followed_organizations_page(
   timestamptz,
   uuid,

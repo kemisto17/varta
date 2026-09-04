@@ -20,6 +20,7 @@ import {
 } from 'react-native-safe-area-context';
 
 import { SafeAreaScreen } from '../components/SafeAreaScreen';
+import { TermsAcceptanceGate } from '../components/TermsAcceptanceGate';
 import { spacing, type ThemeColors } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
@@ -380,6 +381,26 @@ function AppNavigator() {
           />
 
           <Stack.Screen
+            name="create-post"
+          />
+
+          <Stack.Screen
+            name="lost-found/index"
+          />
+
+          <Stack.Screen
+            name="lost-found/create"
+          />
+
+          <Stack.Screen
+            name="lost-found/[id]"
+          />
+
+          <Stack.Screen
+            name="lost-found/[id]/edit"
+          />
+
+          <Stack.Screen
             name="post/[id]"
           />
 
@@ -463,7 +484,7 @@ function ThemedRoot() {
         <VerificationProvider>
           <NotificationsProvider>
             <FeedProvider>
-              <AppNavigator />
+              <TermsAcceptanceGate><AppNavigator /></TermsAcceptanceGate>
             </FeedProvider>
           </NotificationsProvider>
         </VerificationProvider>

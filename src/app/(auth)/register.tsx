@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AuthField } from '../../components/auth/AuthField';
+import { PolicyLinks } from '../../components/PolicyLinks';
 import { AuthScaffold } from '../../components/auth/AuthScaffold';
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
 import { spacing, type ThemeColors } from '../../constants/theme';
@@ -155,6 +156,11 @@ export default function RegisterScreen() {
           onPress={handleRegister}
         />
       </View>
+
+      <Text style={styles.accountPrompt}>
+        You will review and accept the Terms of Use after signing in.
+      </Text>
+      <PolicyLinks />
 
       <Text style={styles.accountPrompt}>
         Already have an account?{' '}

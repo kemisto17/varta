@@ -795,3 +795,5 @@ comment on table public.event_interests is
 
 comment on column public.events.cover_path is
   'Private event-media object path. Signed URLs are generated at read time.';
+
+;

@@ -10,10 +10,14 @@ import {
 import type { FeedStatus } from '../contexts/FeedContext';
 import { FeedContext } from '../contexts/FeedContext';
 import { useAuth } from '../hooks/useAuth';
-import { getFeedPage } from '../lib/posts';
+import { getHomeFeedPage } from '../lib/feed';
 import type {
-  FeedCursor,
-  FeedFilter,
+  HomeFeedCursor,
+  HomeFeedItem,
+  HomeFeedMode,
+  HomePostFeedItem,
+} from '../types/feed';
+import type {
   FeedPost,
 } from '../types/post';
 
@@ -29,10 +33,10 @@ export function FeedProvider({
     useRef(0);
 
   const postsRef =
-    useRef<FeedPost[]>([]);
+    useRef<HomeFeedItem[]>([]);
 
   const cursorRef =
-    useRef<FeedCursor | null>(
+    useRef<HomeFeedCursor | null>(
       null
     );
 
@@ -54,11 +58,20 @@ export function FeedProvider({
     );
 
   const [
-    filter,
-    setFilter,
-  ] = useState<FeedFilter>(
-    'all'
-  );
+    feedMode,
+    setFeedModeState,
+  ] =
+    useState<HomeFeedMode>(
+      'campus'
+    );
+
+  const [
+    items,
+    setItems,
+  ] =
+    useState<
+      HomeFeedItem[]
+    >([]);
 
   const [
     posts,
@@ -136,13 +149,26 @@ export function FeedProvider({
     removedPostIdsRef.current =
       new Set<string>();
 
+    setItems([]);
     setPosts([]);
     setHasMore(true);
     setIsRefreshing(false);
     setIsLoadingMore(false);
     setErrorMessage(null);
     setStatus('idle');
-  }, [filter, userId]);
+  }, [feedMode, userId]);
+
+  const setFeedMode =
+    useCallback(
+      (
+        nextMode: HomeFeedMode
+      ) => {
+        setFeedModeState(
+          nextMode
+        );
+      },
+      []
+    );
 
   const refreshFeed =
     useCallback(
@@ -205,11 +231,11 @@ export function FeedProvider({
 
         try {
           const page =
-            await getFeedPage(
+            await getHomeFeedPage({
+              cursor: null,
+              mode: feedMode,
               userId,
-              null,
-              filter
-            );
+            });
 
           if (
             requestId.current !==
@@ -218,16 +244,18 @@ export function FeedProvider({
             return;
           }
 
-          const visiblePosts =
-            page.posts.filter(
-              (post) =>
+          const visibleItems =
+            page.items.filter(
+              (item) =>
+                item.itemType !==
+                  'post' ||
                 !removedPostIdsRef.current.has(
-                  post.id
+                  item.post.id
                 )
             );
 
           postsRef.current =
-            visiblePosts;
+            visibleItems;
 
           cursorRef.current =
             page.cursor;
@@ -242,8 +270,16 @@ export function FeedProvider({
             userId
           );
 
+          setItems(
+            visibleItems
+          );
+
           setPosts(
-            visiblePosts
+            getPostItems(
+              visibleItems
+            ).map(
+              (item) => item.post
+            )
           );
 
           setHasMore(
@@ -289,7 +325,7 @@ export function FeedProvider({
           }
         }
       },
-      [filter, userId]
+      [feedMode, userId]
     );
 
   const loadMore =
@@ -323,11 +359,12 @@ export function FeedProvider({
 
         try {
           const page =
-            await getFeedPage(
+            await getHomeFeedPage({
+              cursor:
+                cursorRef.current,
+              mode: feedMode,
               userId,
-              cursorRef.current,
-              filter
-            );
+            });
 
           if (
             requestId.current !==
@@ -339,30 +376,34 @@ export function FeedProvider({
           const existingIds =
             new Set(
               postsRef.current.map(
-                (post) =>
-                  post.id
+                (item) =>
+                  item.feedKey
               )
             );
 
-          const newPosts =
-            page.posts.filter(
-              (post) =>
+          const newItems =
+            page.items.filter(
+              (item) =>
                 !existingIds.has(
-                  post.id
+                  item.feedKey
                 ) &&
-                !removedPostIdsRef.current.has(
-                  post.id
+                (
+                  item.itemType !==
+                    'post' ||
+                  !removedPostIdsRef.current.has(
+                    item.post.id
+                  )
                 )
             );
 
-          const nextPosts =
+          const nextItems =
             [
               ...postsRef.current,
-              ...newPosts,
+              ...newItems,
             ];
 
           postsRef.current =
-            nextPosts;
+            nextItems;
 
           cursorRef.current =
             page.cursor;
@@ -370,8 +411,16 @@ export function FeedProvider({
           hasMoreRef.current =
             page.hasMore;
 
+          setItems(
+            nextItems
+          );
+
           setPosts(
-            nextPosts
+            getPostItems(
+              nextItems
+            ).map(
+              (item) => item.post
+            )
           );
 
           setHasMore(
@@ -391,7 +440,10 @@ export function FeedProvider({
           );
 
           setErrorMessage(
-            'We could not load more posts. Please try again.'
+            typeof error === 'object' && error !== null &&
+            'message' in error && error.message === 'Feed session expired. Pull to refresh.'
+              ? 'Your feed session expired. Pull down to refresh.'
+              : 'We could not load more posts. Please try again.'
           );
         } finally {
           if (
@@ -407,7 +459,7 @@ export function FeedProvider({
           }
         }
       },
-      [filter, userId]
+      [feedMode, userId]
     );
 
   /*
@@ -419,16 +471,7 @@ export function FeedProvider({
       (
         post: FeedPost
       ) => {
-        if (
-          filter ===
-            'lost-found' &&
-          (
-            post.postKind ===
-              'general' ||
-            post.lostFoundResolvedAt !==
-              null
-          )
-        ) {
+        if (post.postKind !== 'general') {
           return;
         }
 
@@ -436,27 +479,47 @@ export function FeedProvider({
           post.id
         );
 
+        const feedItem: HomePostFeedItem =
+          {
+            createdAt:
+              post.createdAt,
+            feedKey:
+              `post:${post.id}`,
+            itemType:
+              'post',
+            post,
+            score: null,
+          };
+
         const withoutExisting =
           postsRef.current.filter(
-            (existingPost) =>
-              existingPost.id !==
-              post.id
+            (existingItem) =>
+              existingItem.feedKey !==
+              feedItem.feedKey
           );
 
-        const nextPosts =
+        const nextItems =
           [
-            post,
+            feedItem,
             ...withoutExisting,
           ];
 
         postsRef.current =
-          nextPosts;
+          nextItems;
 
         hasLoadedRef.current =
           true;
 
+        setItems(
+          nextItems
+        );
+
         setPosts(
-          nextPosts
+          getPostItems(
+            nextItems
+          ).map(
+            (item) => item.post
+          )
         );
 
         setStatus(
@@ -467,7 +530,7 @@ export function FeedProvider({
           null
         );
       },
-      [filter]
+      []
     );
 
   const replacePost =
@@ -475,35 +538,51 @@ export function FeedProvider({
       (
         post: FeedPost
       ) => {
-        const shouldRemainVisible =
-          filter === 'all' ||
-          (
-            post.postKind !==
-              'general' &&
-            post.lostFoundResolvedAt ===
-              null
+        const nextItems: HomeFeedItem[] =
+          postsRef.current.flatMap(
+            (
+              existingItem
+            ): HomeFeedItem[] => {
+              if (
+                existingItem.itemType !==
+                'post'
+              ) {
+                return [
+                  existingItem,
+                ];
+              }
+
+              if (
+                existingItem.post.id !==
+                post.id
+              ) {
+                return [
+                  existingItem,
+                ];
+              }
+
+              return post.postKind ===
+                'general'
+                ? [
+                    {
+                      ...existingItem,
+                      post,
+                    },
+                  ]
+                : [];
+            }
           );
 
-        const nextPosts =
-          shouldRemainVisible
-            ? postsRef.current.map(
-                (existingPost) =>
-                  existingPost.id ===
-                  post.id
-                    ? post
-                    : existingPost
-              )
-            : postsRef.current.filter(
-                (existingPost) =>
-                  existingPost.id !==
-                  post.id
-              );
-
         postsRef.current =
-          nextPosts;
-        setPosts(nextPosts);
+          nextItems;
+        setItems(nextItems);
+        setPosts(
+          getPostItems(nextItems).map(
+            (item) => item.post
+          )
+        );
       },
-      [filter]
+      []
     );
 
   const removePost =
@@ -517,16 +596,24 @@ export function FeedProvider({
 
         const nextPosts =
           postsRef.current.filter(
-            (post) =>
-              post.id !==
-              postId
+            (item) =>
+              item.itemType !==
+                'post' ||
+              item.post.id !==
+                postId
           );
 
         postsRef.current =
           nextPosts;
 
-        setPosts(
+        setItems(
           nextPosts
+        );
+
+        setPosts(
+          getPostItems(nextPosts).map(
+            (item) => item.post
+          )
         );
       },
       []
@@ -544,25 +631,36 @@ export function FeedProvider({
       ) => {
         const nextPosts =
           postsRef.current.map(
-            (post) =>
-              post.id ===
+            (item) =>
+              item.itemType ===
+                'post' &&
+              item.post.id ===
               postId
                 ? {
-                    ...post,
-                    commentCount:
-                      Math.max(
-                        0,
-                        commentCount
-                      ),
+                    ...item,
+                    post: {
+                      ...item.post,
+                      commentCount:
+                        Math.max(
+                          0,
+                          commentCount
+                        ),
+                    },
                   }
-                : post
+                : item
           );
 
         postsRef.current =
           nextPosts;
 
-        setPosts(
+        setItems(
           nextPosts
+        );
+
+        setPosts(
+          getPostItems(nextPosts).map(
+            (item) => item.post
+          )
         );
       },
       []
@@ -580,21 +678,32 @@ export function FeedProvider({
       ) => {
         const nextPosts =
           postsRef.current.map(
-            (post) =>
-              post.id ===
+            (item) =>
+              item.itemType ===
+                'post' &&
+              item.post.id ===
               postId
                 ? {
-                    ...post,
-                    ...state,
+                    ...item,
+                    post: {
+                      ...item.post,
+                      ...state,
+                    },
                   }
-                : post
+                : item
           );
 
         postsRef.current =
           nextPosts;
 
-        setPosts(
+        setItems(
           nextPosts
+        );
+
+        setPosts(
+          getPostItems(nextPosts).map(
+            (item) => item.post
+          )
         );
       },
       []
@@ -612,11 +721,11 @@ export function FeedProvider({
             ? errorMessage
             : null,
 
-        filter,
-
         hasMore:
           isCurrentUserState &&
           hasMore,
+
+        feedMode,
 
         isLoadingMore:
           isCurrentUserState &&
@@ -628,6 +737,11 @@ export function FeedProvider({
 
         loadMore,
 
+        items:
+          isCurrentUserState
+            ? items
+            : [],
+
         posts:
           isCurrentUserState
             ? posts
@@ -637,7 +751,7 @@ export function FeedProvider({
         refreshFeed,
         removePost,
         replacePost,
-        setFilter,
+        setFeedMode,
 
         status:
           isCurrentUserState
@@ -649,8 +763,9 @@ export function FeedProvider({
       }),
       [
         errorMessage,
-        filter,
+        feedMode,
         hasMore,
+        items,
         isCurrentUserState,
         isLoadingMore,
         isRefreshing,
@@ -660,6 +775,7 @@ export function FeedProvider({
         refreshFeed,
         removePost,
         replacePost,
+        setFeedMode,
         status,
         updatePostCommentCount,
         updatePostLike,
@@ -672,5 +788,16 @@ export function FeedProvider({
     >
       {children}
     </FeedContext.Provider>
+  );
+}
+
+function getPostItems(
+  items: HomeFeedItem[]
+) {
+  return items.filter(
+    (
+      item
+    ): item is HomePostFeedItem =>
+      item.itemType === 'post'
   );
 }

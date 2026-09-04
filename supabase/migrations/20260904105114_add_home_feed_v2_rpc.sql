@@ -1,0 +1,532 @@
+-- ============================================================
+-- HOME FEED V2
+--
+-- One cursor-paginated entry point for the Home screen.
+--
+-- Ranking is intentionally deterministic and modest:
+--   recency dominates,
+--   organization follows help official campus content,
+--   engagement uses ln(count + 1) to avoid popularity runaway,
+--   structured useful content gets a small explicit boost.
+--
+-- This function is SECURITY INVOKER so table RLS remains the
+-- first privacy boundary. Explicit eligibility predicates mirror
+-- product rules before score/order are applied.
+-- ============================================================
+
+create or replace function public.get_home_feed(
+  feed_mode text default 'campus',
+  result_limit integer default 20,
+  cursor_score numeric default null,
+  cursor_created_at timestamptz default null,
+  cursor_id uuid default null
+)
+returns table (
+  item_type text,
+  item_id uuid,
+  sort_created_at timestamptz,
+  ranking_score numeric,
+
+  post_id uuid,
+  post_author_id uuid,
+  post_organization_author_id uuid,
+  post_content text,
+  post_image_path text,
+  post_kind text,
+  post_created_at timestamptz,
+  post_updated_at timestamptz,
+  post_like_count bigint,
+  post_comment_count bigint,
+  post_is_liked_by_viewer boolean,
+
+  lost_found_id uuid,
+  lost_found_created_by uuid,
+  lost_found_organization_author_id uuid,
+  lost_found_kind text,
+  lost_found_title text,
+  lost_found_description text,
+  lost_found_category text,
+  lost_found_campus_location text,
+  lost_found_item_date date,
+  lost_found_image_path text,
+  lost_found_status text,
+  lost_found_resolved_at timestamptz,
+  lost_found_created_at timestamptz,
+  lost_found_updated_at timestamptz,
+
+  event_id uuid,
+  event_university_id uuid,
+  event_institute_id uuid,
+  event_organization_id uuid,
+  event_created_by uuid,
+  event_title text,
+  event_description text,
+  event_location text,
+  event_starts_at timestamptz,
+  event_ends_at timestamptz,
+  event_registration_url text,
+  event_cover_path text,
+  event_status text,
+  event_interested_count integer,
+  event_is_interested_by_viewer boolean,
+
+  student_author_id uuid,
+  student_author_full_name text,
+  student_author_username text,
+  student_author_branch text,
+  student_author_year smallint,
+  student_author_avatar_path text,
+  student_author_is_verified boolean,
+  student_author_institute_id uuid,
+  student_author_institute_name text,
+  student_author_institute_short_name text,
+
+  organization_author_id uuid,
+  organization_author_name text,
+  organization_author_avatar_path text,
+  organization_author_is_verified boolean,
+  organization_author_institute_short_name text,
+  organization_author_university_short_name text,
+  organization_is_followed_by_viewer boolean,
+  organization_can_manage_by_viewer boolean
+)
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  with constants as (
+    select
+      case
+        when feed_mode = 'latest' then 'latest'
+        else 'campus'
+      end as selected_mode,
+      least(greatest(coalesce(result_limit, 20), 1), 40) as page_size,
+      72.0::numeric as recency_weight,
+      18.0::numeric as followed_org_bonus,
+      4.0::numeric as like_weight,
+      5.0::numeric as comment_weight,
+      8.0::numeric as lost_found_bonus,
+      7.0::numeric as event_bonus,
+      4.0::numeric as event_soon_bonus
+  ),
+
+  post_candidates as (
+    select
+      'post'::text as item_type,
+      post.id as item_id,
+      post.created_at as sort_created_at,
+      post.id as post_id,
+      post.author_id as student_author_key,
+      post.organization_author_id as organization_author_key,
+      post.author_id as post_author_id,
+      post.organization_author_id as post_organization_author_id,
+      post.content as post_content,
+      post.image_path as post_image_path,
+      post.post_kind as post_kind,
+      post.created_at as post_created_at,
+      post.updated_at as post_updated_at,
+      null::uuid as lost_found_id,
+      null::uuid as lost_found_created_by,
+      null::uuid as lost_found_organization_author_id,
+      null::text as lost_found_kind,
+      null::text as lost_found_title,
+      null::text as lost_found_description,
+      null::text as lost_found_category,
+      null::text as lost_found_campus_location,
+      null::date as lost_found_item_date,
+      null::text as lost_found_image_path,
+      null::text as lost_found_status,
+      null::timestamptz as lost_found_resolved_at,
+      null::timestamptz as lost_found_created_at,
+      null::timestamptz as lost_found_updated_at,
+      null::uuid as event_id,
+      null::uuid as event_university_id,
+      null::uuid as event_institute_id,
+      null::uuid as event_organization_id,
+      null::uuid as event_created_by,
+      null::text as event_title,
+      null::text as event_description,
+      null::text as event_location,
+      null::timestamptz as event_starts_at,
+      null::timestamptz as event_ends_at,
+      null::text as event_registration_url,
+      null::text as event_cover_path,
+      null::text as event_status,
+      null::integer as event_interested_count,
+      null::boolean as event_is_interested_by_viewer,
+      (
+        select count(*)
+        from public.post_likes as post_like
+        where post_like.post_id = post.id
+      ) as like_count,
+      (
+        select count(*)
+        from public.comments as comment
+        where comment.post_id = post.id
+      ) as comment_count,
+      exists (
+        select 1
+        from public.post_likes as viewer_like
+        where viewer_like.post_id = post.id
+          and viewer_like.user_id = (select auth.uid())
+      ) as is_liked_by_viewer
+    from public.posts as post
+    where post.post_kind = 'general'
+      and (
+        post.author_id is null
+        or not (
+          select private.users_have_block_relation(post.author_id)
+        )
+      )
+  ),
+
+  lost_found_candidates as (
+    select
+      'lost_found'::text as item_type,
+      item.id as item_id,
+      item.created_at as sort_created_at,
+      null::uuid as post_id,
+      item.created_by as student_author_key,
+      item.organization_author_id as organization_author_key,
+      null::uuid as post_author_id,
+      null::uuid as post_organization_author_id,
+      null::text as post_content,
+      null::text as post_image_path,
+      null::text as post_kind,
+      null::timestamptz as post_created_at,
+      null::timestamptz as post_updated_at,
+      item.id as lost_found_id,
+      item.created_by as lost_found_created_by,
+      item.organization_author_id as lost_found_organization_author_id,
+      item.kind as lost_found_kind,
+      item.title as lost_found_title,
+      item.description as lost_found_description,
+      item.category as lost_found_category,
+      item.campus_location as lost_found_campus_location,
+      item.item_date as lost_found_item_date,
+      item.image_path as lost_found_image_path,
+      item.status as lost_found_status,
+      item.resolved_at as lost_found_resolved_at,
+      item.created_at as lost_found_created_at,
+      item.updated_at as lost_found_updated_at,
+      null::uuid as event_id,
+      null::uuid as event_university_id,
+      null::uuid as event_institute_id,
+      null::uuid as event_organization_id,
+      null::uuid as event_created_by,
+      null::text as event_title,
+      null::text as event_description,
+      null::text as event_location,
+      null::timestamptz as event_starts_at,
+      null::timestamptz as event_ends_at,
+      null::text as event_registration_url,
+      null::text as event_cover_path,
+      null::text as event_status,
+      null::integer as event_interested_count,
+      null::boolean as event_is_interested_by_viewer,
+      0::bigint as like_count,
+      0::bigint as comment_count,
+      false as is_liked_by_viewer
+    from public.lost_found_items as item
+    where item.status = 'active'
+      and (
+        item.created_by is null
+        or not (
+          select private.users_have_block_relation(item.created_by)
+        )
+      )
+  ),
+
+  event_candidates as (
+    select
+      'event'::text as item_type,
+      event.id as item_id,
+      event.created_at as sort_created_at,
+      null::uuid as post_id,
+      null::uuid as student_author_key,
+      event.organization_id as organization_author_key,
+      null::uuid as post_author_id,
+      null::uuid as post_organization_author_id,
+      null::text as post_content,
+      null::text as post_image_path,
+      null::text as post_kind,
+      null::timestamptz as post_created_at,
+      null::timestamptz as post_updated_at,
+      null::uuid as lost_found_id,
+      null::uuid as lost_found_created_by,
+      null::uuid as lost_found_organization_author_id,
+      null::text as lost_found_kind,
+      null::text as lost_found_title,
+      null::text as lost_found_description,
+      null::text as lost_found_category,
+      null::text as lost_found_campus_location,
+      null::date as lost_found_item_date,
+      null::text as lost_found_image_path,
+      null::text as lost_found_status,
+      null::timestamptz as lost_found_resolved_at,
+      null::timestamptz as lost_found_created_at,
+      null::timestamptz as lost_found_updated_at,
+      event.id as event_id,
+      event.university_id as event_university_id,
+      event.institute_id as event_institute_id,
+      event.organization_id as event_organization_id,
+      event.created_by as event_created_by,
+      event.title as event_title,
+      event.description as event_description,
+      event.location as event_location,
+      event.starts_at as event_starts_at,
+      event.ends_at as event_ends_at,
+      event.registration_url as event_registration_url,
+      event.cover_path as event_cover_path,
+      event.status as event_status,
+      event.interested_count as event_interested_count,
+      exists (
+        select 1
+        from public.event_interests as interest
+        where interest.event_id = event.id
+          and interest.user_id = (select auth.uid())
+      ) as event_is_interested_by_viewer,
+      0::bigint as like_count,
+      0::bigint as comment_count,
+      false as is_liked_by_viewer
+    from public.events as event
+    where event.status in ('published', 'cancelled')
+      and (
+        event.starts_at >= now()
+        or event.ends_at >= now()
+      )
+  ),
+
+  candidates as (
+    select * from post_candidates
+    union all
+    select * from lost_found_candidates
+    union all
+    select * from event_candidates
+  ),
+
+  hydrated as (
+    select
+      candidate.*,
+      profile.id as student_author_id,
+      profile.full_name as student_author_full_name,
+      profile.username as student_author_username,
+      profile.branch as student_author_branch,
+      profile.year as student_author_year,
+      profile.avatar_path as student_author_avatar_path,
+      profile.is_verified as student_author_is_verified,
+      institute.id as student_author_institute_id,
+      institute.name as student_author_institute_name,
+      institute.short_name as student_author_institute_short_name,
+      organization.id as organization_author_id,
+      organization.name as organization_author_name,
+      organization.avatar_path as organization_author_avatar_path,
+      organization.is_verified as organization_author_is_verified,
+      organization_institute.short_name as organization_author_institute_short_name,
+      organization_university.short_name as organization_author_university_short_name,
+      exists (
+        select 1
+        from public.organization_follows as follow
+        where follow.organization_id = candidate.organization_author_key
+          and follow.user_id = (select auth.uid())
+      ) as organization_is_followed_by_viewer,
+      exists (
+        select 1
+        from public.organization_members as member
+        where member.organization_id = candidate.organization_author_key
+          and member.user_id = (select auth.uid())
+          and member.role in ('owner', 'admin', 'editor')
+      ) as organization_can_manage_by_viewer
+    from candidates as candidate
+    left join public.profiles as profile
+      on profile.id = candidate.student_author_key
+    left join public.institutes as institute
+      on institute.id = profile.institute_id
+    left join public.organizations as organization
+      on organization.id = candidate.organization_author_key
+    left join public.institutes as organization_institute
+      on organization_institute.id = organization.institute_id
+    left join public.universities as organization_university
+      on organization_university.id = organization.university_id
+    where candidate.student_author_key is null
+      or profile.id is not null
+  ),
+
+  scored as (
+    select
+      hydrated.*,
+      round(
+        (
+          constants.recency_weight /
+            (1.0 + greatest(extract(epoch from (now() - hydrated.sort_created_at)) / 3600.0, 0) / 24.0)
+        )
+        + case
+            when hydrated.organization_is_followed_by_viewer
+              then constants.followed_org_bonus
+            else 0
+          end
+        -- Select ln(numeric) so round(score, 6) receives a numeric value.
+        + ln(hydrated.like_count::numeric + 1) * constants.like_weight
+        + ln(hydrated.comment_count::numeric + 1) * constants.comment_weight
+        + case
+            when hydrated.item_type = 'lost_found'
+              then constants.lost_found_bonus
+            else 0
+          end
+        + case
+            when hydrated.item_type = 'event'
+              then constants.event_bonus
+            else 0
+          end
+        + case
+            when hydrated.item_type = 'event'
+              and hydrated.event_starts_at <= now() + interval '3 days'
+              then constants.event_soon_bonus
+            else 0
+          end,
+        6
+      ) as ranking_score
+    from hydrated
+    cross join constants
+  ),
+
+  paged as (
+    select scored.*
+    from scored
+    cross join constants
+    where
+      cursor_created_at is null
+      or (
+        constants.selected_mode = 'latest'
+        and (
+          scored.sort_created_at < cursor_created_at
+          or (
+            scored.sort_created_at = cursor_created_at
+            and scored.item_id < cursor_id
+          )
+        )
+      )
+      or (
+        constants.selected_mode = 'campus'
+        and (
+          scored.ranking_score < cursor_score
+          or (
+            scored.ranking_score = cursor_score
+            and scored.sort_created_at < cursor_created_at
+          )
+          or (
+            scored.ranking_score = cursor_score
+            and scored.sort_created_at = cursor_created_at
+            and scored.item_id < cursor_id
+          )
+        )
+      )
+    order by
+      case
+        when constants.selected_mode = 'campus'
+          then scored.ranking_score
+        else null
+      end desc,
+      scored.sort_created_at desc,
+      scored.item_id desc
+    limit (
+      select page_size + 1
+      from constants
+    )
+  )
+
+  select
+    paged.item_type,
+    paged.item_id,
+    paged.sort_created_at,
+    paged.ranking_score,
+    paged.post_id,
+    paged.post_author_id,
+    paged.post_organization_author_id,
+    paged.post_content,
+    paged.post_image_path,
+    paged.post_kind,
+    paged.post_created_at,
+    paged.post_updated_at,
+    paged.like_count as post_like_count,
+    paged.comment_count as post_comment_count,
+    paged.is_liked_by_viewer as post_is_liked_by_viewer,
+    paged.lost_found_id,
+    paged.lost_found_created_by,
+    paged.lost_found_organization_author_id,
+    paged.lost_found_kind,
+    paged.lost_found_title,
+    paged.lost_found_description,
+    paged.lost_found_category,
+    paged.lost_found_campus_location,
+    paged.lost_found_item_date,
+    paged.lost_found_image_path,
+    paged.lost_found_status,
+    paged.lost_found_resolved_at,
+    paged.lost_found_created_at,
+    paged.lost_found_updated_at,
+    paged.event_id,
+    paged.event_university_id,
+    paged.event_institute_id,
+    paged.event_organization_id,
+    paged.event_created_by,
+    paged.event_title,
+    paged.event_description,
+    paged.event_location,
+    paged.event_starts_at,
+    paged.event_ends_at,
+    paged.event_registration_url,
+    paged.event_cover_path,
+    paged.event_status,
+    paged.event_interested_count,
+    paged.event_is_interested_by_viewer,
+    paged.student_author_id,
+    paged.student_author_full_name,
+    paged.student_author_username,
+    paged.student_author_branch,
+    paged.student_author_year,
+    paged.student_author_avatar_path,
+    paged.student_author_is_verified,
+    paged.student_author_institute_id,
+    paged.student_author_institute_name,
+    paged.student_author_institute_short_name,
+    paged.organization_author_id,
+    paged.organization_author_name,
+    paged.organization_author_avatar_path,
+    paged.organization_author_is_verified,
+    paged.organization_author_institute_short_name,
+    paged.organization_author_university_short_name,
+    paged.organization_is_followed_by_viewer,
+    paged.organization_can_manage_by_viewer
+  from paged;
+$$;
+
+revoke all
+on function public.get_home_feed(
+  text,
+  integer,
+  numeric,
+  timestamptz,
+  uuid
+)
+from public, anon;
+
+grant execute
+on function public.get_home_feed(
+  text,
+  integer,
+  numeric,
+  timestamptz,
+  uuid
+)
+to authenticated;
+
+comment on function public.get_home_feed(
+  text,
+  integer,
+  numeric,
+  timestamptz,
+  uuid
+) is
+  'Returns the Home feed as deterministic cursor-paginated union items for Campus and Latest modes. Uses invoker RLS plus explicit pre-ranking eligibility checks.';

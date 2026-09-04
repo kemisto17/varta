@@ -508,3 +508,5 @@ with check (
   and (select private.post_is_in_current_university(post_id))
   and not (select private.current_user_has_blocked_post_author(post_id))
 );
+
+;

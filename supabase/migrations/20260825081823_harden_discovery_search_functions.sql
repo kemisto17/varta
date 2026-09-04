@@ -9,3 +9,5 @@ create index if not exists student_verifications_reviewer_id_idx
 
 comment on function public.search_people(text, integer) is
   'RLS-enforced same-university verified profile search with current-user block filtering.';
+
+;

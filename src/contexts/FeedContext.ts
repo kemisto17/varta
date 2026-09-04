@@ -1,9 +1,10 @@
 import { createContext } from 'react';
 
 import type {
-  FeedFilter,
-  FeedPost,
-} from '../types/post';
+  HomeFeedItem,
+  HomeFeedMode,
+} from '../types/feed';
+import type { FeedPost } from '../types/post';
 
 export type FeedStatus =
   | 'idle'
@@ -18,13 +19,18 @@ export type PostLikeState = Pick<
 
 export type FeedContextValue = {
   errorMessage: string | null;
-  filter: FeedFilter;
   hasMore: boolean;
   isLoadingMore: boolean;
   isRefreshing: boolean;
 
+  feedMode: HomeFeedMode;
+  setFeedMode: (
+    mode: HomeFeedMode
+  ) => void;
+
   loadMore: () => Promise<void>;
 
+  items: HomeFeedItem[];
   posts: FeedPost[];
 
   prependPost: (
@@ -41,10 +47,6 @@ export type FeedContextValue = {
 
   replacePost: (
     post: FeedPost
-  ) => void;
-
-  setFilter: (
-    filter: FeedFilter
   ) => void;
 
   status: FeedStatus;

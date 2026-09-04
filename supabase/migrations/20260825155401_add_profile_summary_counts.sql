@@ -74,4 +74,4 @@ comment on function public.get_profile_organization_following_count(uuid) is
   'Visible student profile count of followed organizations; does not expose rows.';
 
 comment on function public.get_organization_profile_summary(uuid) is
-  'Visible organization follower and published event totals for profile headers.';
+  'Visible organization follower and published event totals for profile headers.';;

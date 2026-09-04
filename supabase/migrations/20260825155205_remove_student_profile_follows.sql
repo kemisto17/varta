@@ -27,8 +27,6 @@ drop function if exists private.profile_is_verified(uuid);
 alter table public.notification_preferences
 drop column if exists follows_enabled;
 
--- PostgreSQL enum values cannot be dropped in place. Rebuild the notification
--- enum so generated client types no longer expose the removed notification.
 delete from public.notifications
 where type = 'profile_follow';
 
@@ -124,4 +122,4 @@ comment on function public.get_followed_organizations_page(
   uuid,
   integer
 ) is
-  'Current user organization follows, kept independently of student profiles.';
+  'Current user organization follows, kept independently of student profiles.';;

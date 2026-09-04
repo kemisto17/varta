@@ -30,8 +30,6 @@
 -- ============================================================
 
 create schema if not exists private;
-
-
 -- ============================================================
 -- UNIVERSITIES
 -- ============================================================
@@ -56,8 +54,6 @@ create table public.universities (
   constraint university_slug_format
     check (slug ~ '^[a-z0-9-]+$')
 );
-
-
 -- Add SVVV
 
 insert into public.universities (
@@ -72,8 +68,6 @@ values (
   'svvv',
   'svvv.edu.in'
 );
-
-
 -- ============================================================
 -- INSTITUTES
 -- ============================================================
@@ -110,8 +104,6 @@ create table public.institutes (
     slug
   )
 );
-
-
 -- Add SVIIT under SVVV
 
 insert into public.institutes (
@@ -127,8 +119,6 @@ select
   'sviit'
 from public.universities
 where slug = 'svvv';
-
-
 -- ============================================================
 -- PROFILES
 -- ============================================================
@@ -188,8 +178,6 @@ create table public.profiles (
       char_length(bio) <= 160
     )
 );
-
-
 -- ============================================================
 -- STUDENT VERIFICATION
 --
@@ -253,8 +241,6 @@ create table public.student_verifications (
     enrollment_number
   )
 );
-
-
 -- ============================================================
 -- POSTS
 -- ============================================================
@@ -285,8 +271,6 @@ create table public.posts (
       or image_path is not null
     )
 );
-
-
 -- ============================================================
 -- POST LIKES
 -- ============================================================
@@ -307,8 +291,6 @@ create table public.post_likes (
     user_id
   )
 );
-
-
 -- ============================================================
 -- COMMENTS
 -- ============================================================
@@ -340,52 +322,30 @@ create table public.comments (
       char_length(content) <= 500
     )
 );
-
-
 -- ============================================================
 -- INDEXES
 -- ============================================================
 
 create index institutes_university_id_idx
 on public.institutes(university_id);
-
-
 create index profiles_institute_id_idx
 on public.profiles(institute_id);
-
-
 create index profiles_institute_branch_idx
 on public.profiles(institute_id, branch);
-
-
 create index verification_status_idx
 on public.student_verifications(status);
-
-
 create index verification_university_idx
 on public.student_verifications(university_id);
-
-
 create index posts_created_at_idx
 on public.posts(created_at desc);
-
-
 create index posts_author_created_at_idx
 on public.posts(author_id, created_at desc);
-
-
 create index post_likes_user_id_idx
 on public.post_likes(user_id);
-
-
 create index comments_post_created_at_idx
 on public.comments(post_id, created_at);
-
-
 create index comments_author_id_idx
 on public.comments(author_id);
-
-
 -- ============================================================
 -- UPDATED_AT FUNCTION
 -- ============================================================
@@ -403,8 +363,6 @@ begin
 
 end;
 $$;
-
-
 -- ============================================================
 -- UPDATED_AT TRIGGERS
 -- ============================================================
@@ -413,20 +371,14 @@ create trigger profiles_set_updated_at
 before update on public.profiles
 for each row
 execute function private.set_updated_at();
-
-
 create trigger posts_set_updated_at
 before update on public.posts
 for each row
 execute function private.set_updated_at();
-
-
 create trigger comments_set_updated_at
 before update on public.comments
 for each row
 execute function private.set_updated_at();
-
-
 -- ============================================================
 -- SECURITY HELPER FUNCTIONS
 -- ============================================================
@@ -453,8 +405,6 @@ as $$
   limit 1;
 
 $$;
-
-
 -- ------------------------------------------------------------
 -- Get the logged-in user's university
 -- ------------------------------------------------------------
@@ -479,8 +429,6 @@ as $$
   limit 1;
 
 $$;
-
-
 -- ------------------------------------------------------------
 -- Is the logged-in student verified?
 -- ------------------------------------------------------------
@@ -507,8 +455,6 @@ as $$
   );
 
 $$;
-
-
 -- ------------------------------------------------------------
 -- Check whether a post belongs to the logged-in user's
 -- university.
@@ -546,8 +492,6 @@ as $$
   );
 
 $$;
-
-
 -- ------------------------------------------------------------
 -- Check whether a profile belongs to the logged-in user's
 -- university.
@@ -580,106 +524,65 @@ as $$
   );
 
 $$;
-
-
 -- ============================================================
 -- PRIVATE SCHEMA PERMISSIONS
 -- ============================================================
 
 revoke all on schema private
 from public;
-
 grant usage on schema private
 to authenticated;
-
-
 revoke all
 on function private.set_updated_at()
 from public;
-
-
 revoke all
 on function private.current_institute_id()
 from public;
-
-
 revoke all
 on function private.current_university_id()
 from public;
-
-
 revoke all
 on function private.is_verified_user()
 from public;
-
-
 revoke all
 on function private.post_is_in_current_university(uuid)
 from public;
-
-
 revoke all
 on function private.profile_is_in_current_university(uuid)
 from public;
-
-
 grant execute
 on function private.current_institute_id()
 to authenticated;
-
-
 grant execute
 on function private.current_university_id()
 to authenticated;
-
-
 grant execute
 on function private.is_verified_user()
 to authenticated;
-
-
 grant execute
 on function private.post_is_in_current_university(uuid)
 to authenticated;
-
-
 grant execute
 on function private.profile_is_in_current_university(uuid)
 to authenticated;
-
-
 -- ============================================================
 -- ENABLE ROW LEVEL SECURITY
 -- ============================================================
 
 alter table public.universities
 enable row level security;
-
-
 alter table public.institutes
 enable row level security;
-
-
 alter table public.profiles
 enable row level security;
-
-
 alter table public.student_verifications
 enable row level security;
-
-
 alter table public.posts
 enable row level security;
-
-
 alter table public.post_likes
 enable row level security;
-
-
 alter table public.comments
 enable row level security;
-
-
 -- ============================================================
 -- TABLE PERMISSIONS
 -- ============================================================
@@ -691,37 +594,27 @@ enable row level security;
 
 revoke all on table public.universities
 from anon, authenticated;
-
 grant select
 on table public.universities
 to authenticated;
-
-
 -- ------------------------------------------------------------
 -- INSTITUTES
 -- ------------------------------------------------------------
 
 revoke all on table public.institutes
 from anon, authenticated;
-
 grant select
 on table public.institutes
 to authenticated;
-
-
 -- ------------------------------------------------------------
 -- PROFILES
 -- ------------------------------------------------------------
 
 revoke all on table public.profiles
 from anon, authenticated;
-
-
 grant select
 on table public.profiles
 to authenticated;
-
-
 grant insert (
   id,
   institute_id,
@@ -734,8 +627,6 @@ grant insert (
 )
 on public.profiles
 to authenticated;
-
-
 grant update (
   username,
   full_name,
@@ -746,21 +637,15 @@ grant update (
 )
 on public.profiles
 to authenticated;
-
-
 -- ------------------------------------------------------------
 -- STUDENT VERIFICATIONS
 -- ------------------------------------------------------------
 
 revoke all on table public.student_verifications
 from anon, authenticated;
-
-
 grant select
 on table public.student_verifications
 to authenticated;
-
-
 grant insert (
   user_id,
   university_id,
@@ -769,26 +654,18 @@ grant insert (
 )
 on public.student_verifications
 to authenticated;
-
-
 grant delete
 on table public.student_verifications
 to authenticated;
-
-
 -- ------------------------------------------------------------
 -- POSTS
 -- ------------------------------------------------------------
 
 revoke all on table public.posts
 from anon, authenticated;
-
-
 grant select
 on table public.posts
 to authenticated;
-
-
 grant insert (
   author_id,
   content,
@@ -796,60 +673,42 @@ grant insert (
 )
 on public.posts
 to authenticated;
-
-
 grant update (
   content,
   image_path
 )
 on public.posts
 to authenticated;
-
-
 grant delete
 on table public.posts
 to authenticated;
-
-
 -- ------------------------------------------------------------
 -- POST LIKES
 -- ------------------------------------------------------------
 
 revoke all on table public.post_likes
 from anon, authenticated;
-
-
 grant select
 on table public.post_likes
 to authenticated;
-
-
 grant insert (
   post_id,
   user_id
 )
 on public.post_likes
 to authenticated;
-
-
 grant delete
 on table public.post_likes
 to authenticated;
-
-
 -- ------------------------------------------------------------
 -- COMMENTS
 -- ------------------------------------------------------------
 
 revoke all on table public.comments
 from anon, authenticated;
-
-
 grant select
 on table public.comments
 to authenticated;
-
-
 grant insert (
   post_id,
   author_id,
@@ -857,20 +716,14 @@ grant insert (
 )
 on public.comments
 to authenticated;
-
-
 grant update (
   content
 )
 on public.comments
 to authenticated;
-
-
 grant delete
 on table public.comments
 to authenticated;
-
-
 -- ============================================================
 -- RLS: UNIVERSITIES
 -- ============================================================
@@ -882,8 +735,6 @@ to authenticated
 using (
   true
 );
-
-
 -- ============================================================
 -- RLS: INSTITUTES
 -- ============================================================
@@ -895,8 +746,6 @@ to authenticated
 using (
   true
 );
-
-
 -- ============================================================
 -- RLS: PROFILES
 -- ============================================================
@@ -912,8 +761,6 @@ to authenticated
 using (
   id = (select auth.uid())
 );
-
-
 -- Verified students can see other profiles from the same
 -- university.
 
@@ -930,8 +777,6 @@ using (
   (select private.profile_is_in_current_university(id))
 
 );
-
-
 -- A student can only create a profile belonging to their
 -- authentication account.
 
@@ -942,8 +787,6 @@ to authenticated
 with check (
   id = (select auth.uid())
 );
-
-
 -- A student can only update their own profile.
 
 create policy "Users can update own profile"
@@ -956,8 +799,6 @@ using (
 with check (
   id = (select auth.uid())
 );
-
-
 -- ============================================================
 -- RLS: STUDENT VERIFICATIONS
 -- ============================================================
@@ -972,8 +813,6 @@ to authenticated
 using (
   user_id = (select auth.uid())
 );
-
-
 -- Students can submit their own verification.
 --
 -- university_id must match the university determined through:
@@ -1010,8 +849,6 @@ with check (
   reviewer_id is null
 
 );
-
-
 -- If rejected, users may remove their submission and submit
 -- again.
 
@@ -1028,8 +865,6 @@ using (
   status = 'rejected'
 
 );
-
-
 -- ============================================================
 -- RLS: POSTS
 -- ============================================================
@@ -1058,8 +893,6 @@ using (
   (select private.profile_is_in_current_university(author_id))
 
 );
-
-
 -- Verified users may only create posts as themselves.
 
 create policy "Verified students can create posts"
@@ -1075,8 +908,6 @@ with check (
   (select private.is_verified_user())
 
 );
-
-
 -- Users may only update their own posts.
 
 create policy "Verified students can update own posts"
@@ -1101,8 +932,6 @@ with check (
   (select private.is_verified_user())
 
 );
-
-
 -- Users are allowed to delete their own posts even if their
 -- verification is later revoked.
 
@@ -1113,8 +942,6 @@ to authenticated
 using (
   author_id = (select auth.uid())
 );
-
-
 -- ============================================================
 -- RLS: POST LIKES
 -- ============================================================
@@ -1135,8 +962,6 @@ using (
   )
 
 );
-
-
 create policy "Verified students can like university posts"
 on public.post_likes
 for insert
@@ -1156,8 +981,6 @@ with check (
   )
 
 );
-
-
 -- Users can always remove their own like.
 
 create policy "Users can remove own likes"
@@ -1167,8 +990,6 @@ to authenticated
 using (
   user_id = (select auth.uid())
 );
-
-
 -- ============================================================
 -- RLS: COMMENTS
 -- ============================================================
@@ -1189,8 +1010,6 @@ using (
   )
 
 );
-
-
 create policy "Verified students can comment on university posts"
 on public.comments
 for insert
@@ -1210,8 +1029,6 @@ with check (
   )
 
 );
-
-
 create policy "Verified students can update own comments"
 on public.comments
 for update
@@ -1234,8 +1051,6 @@ with check (
   (select private.is_verified_user())
 
 );
-
-
 -- Users can delete their own comments even if verification
 -- is later revoked.
 

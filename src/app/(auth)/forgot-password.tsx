@@ -7,10 +7,12 @@ import { AuthScaffold } from '../../components/auth/AuthScaffold';
 import { PrimaryButton } from '../../components/auth/PrimaryButton';
 import { spacing, type ThemeColors } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useTheme';
-import { isValidEmail, normalizeEmail } from '../../lib/auth';
+import {
+  createPasswordRecoveryRedirectUrl,
+  isValidEmail,
+  normalizeEmail,
+} from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
-
-const RESET_PASSWORD_REDIRECT_URL = 'varta://reset-password';
 
 export default function ForgotPasswordScreen() {
   const { styles } = useThemedStyles(createStyles);
@@ -38,9 +40,10 @@ export default function ForgotPasswordScreen() {
     setIsSubmitting(true);
 
     try {
+      const redirectTo = createPasswordRecoveryRedirectUrl();
       const { error } = await supabase.auth.resetPasswordForEmail(
         normalizedEmail,
-        { redirectTo: RESET_PASSWORD_REDIRECT_URL }
+        { redirectTo }
       );
 
       if (error) {

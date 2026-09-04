@@ -31,6 +31,7 @@ type PostCardProps = {
   onCommentPress?: (post: FeedPost) => void;
   onDelete?: (post: FeedPost) => void;
   onEdit?: (post: FeedPost) => void;
+  onMentionPress?: (username: string) => void;
   onOpenPost?: (post: FeedPost) => void;
   onReport?: (post: FeedPost) => void;
   onToggleLike?: (post: FeedPost) => void;
@@ -46,6 +47,7 @@ export function PostCard({
   onCommentPress,
   onDelete,
   onEdit,
+  onMentionPress,
   onOpenPost,
   onReport,
   onToggleLike,
@@ -210,59 +212,6 @@ export function PostCard({
         ) : null}
       </View>
 
-      {post.postKind !==
-      'general' ? (
-        <View
-          style={
-            styles.lostFoundMeta
-          }
-        >
-          <View
-            style={[
-              styles.postKindBadge,
-              post.postKind ===
-              'lost'
-                ? styles.lostBadge
-                : styles.foundBadge,
-            ]}
-          >
-            <Text
-              style={
-                styles.postKindBadgeText
-              }
-            >
-              {post.postKind ===
-              'lost'
-                ? 'LOST'
-                : 'FOUND'}
-            </Text>
-          </View>
-
-          <Text
-            style={
-              styles.lostFoundStatus
-            }
-          >
-            {post.lostFoundResolvedAt
-              ? 'Resolved'
-              : 'Open'}
-          </Text>
-
-          {post.lostFoundLocation ? (
-            <Text
-              numberOfLines={
-                1
-              }
-              style={
-                styles.lostFoundLocation
-              }
-            >
-              · {post.lostFoundLocation}
-            </Text>
-          ) : null}
-        </View>
-      ) : null}
-
       {post.content ? (
         <Pressable
           accessibilityRole={onOpenPost ? 'button' : undefined}
@@ -274,7 +223,10 @@ export function PostCard({
             styles.bodyPressed
           }
         >
-          <LinkifiedText style={styles.content}>
+          <LinkifiedText
+            onMentionPress={onMentionPress}
+            style={styles.content}
+          >
             {post.content}
           </LinkifiedText>
         </Pressable>
@@ -550,59 +502,6 @@ const createStyles = (colors: ThemeColors) =>
       marginLeft: spacing.sm,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-
-    lostFoundMeta: {
-      marginTop:
-        spacing.md,
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      gap:
-        spacing.sm,
-    },
-
-    postKindBadge: {
-      paddingVertical: 4,
-      paddingHorizontal:
-        spacing.sm,
-      borderRadius:
-        radius.full,
-    },
-
-    lostBadge: {
-      backgroundColor:
-        colors.dangerSoft,
-    },
-
-    foundBadge: {
-      backgroundColor:
-        colors.successSoft,
-    },
-
-    postKindBadgeText: {
-      fontSize: 10,
-      fontWeight:
-        '800',
-      letterSpacing: 0.7,
-      color:
-        colors.textPrimary,
-    },
-
-    lostFoundStatus: {
-      fontSize: 12,
-      fontWeight:
-        '600',
-      color:
-        colors.textSecondary,
-    },
-
-    lostFoundLocation: {
-      flex: 1,
-      fontSize: 12,
-      color:
-        colors.textMuted,
     },
 
     content: {

@@ -43,20 +43,14 @@ as $$
         (select auth.uid())::text
   );
 $$;
-
-
 revoke all
 on function
 private.current_user_has_verification_document()
 from public, anon, authenticated;
-
-
 grant execute
 on function
 private.current_user_has_verification_document()
 to authenticated;
-
-
 -- ------------------------------------------------------------
 -- REPLACE UPLOAD POLICY
 -- ------------------------------------------------------------
@@ -64,8 +58,6 @@ to authenticated;
 drop policy if exists
   "Users can upload own verification document"
 on storage.objects;
-
-
 create policy
   "Users can upload own verification document"
 on storage.objects
@@ -123,8 +115,6 @@ with check (
       private.current_user_has_verification_document()
   )
 );
-
-
 comment on function
 private.current_user_has_verification_document()
 is

@@ -60,24 +60,16 @@ as $$
         )
     );
 $$;
-
-
 revoke all
 on function private.users_have_block_relation(uuid)
 from public, anon, authenticated;
-
-
 grant execute
 on function private.users_have_block_relation(uuid)
 to authenticated;
-
-
 comment on function
 private.users_have_block_relation(uuid)
 is
   'Returns true when either the authenticated user or the target profile has blocked the other.';
-
-
 -- ============================================================
 -- POST AUTHOR BLOCK RELATION
 -- ============================================================
@@ -109,20 +101,14 @@ as $$
       )
   );
 $$;
-
-
 revoke all
 on function
 private.current_user_has_block_relation_with_post_author(uuid)
 from public, anon, authenticated;
-
-
 grant execute
 on function
 private.current_user_has_block_relation_with_post_author(uuid)
 to authenticated;
-
-
 -- ============================================================
 -- PROFILES
 -- ============================================================
@@ -130,8 +116,6 @@ to authenticated;
 drop policy if exists
   "Users can view own or verified university profiles"
 on public.profiles;
-
-
 create policy
   "Users can view own or verified university profiles"
 on public.profiles
@@ -160,8 +144,6 @@ using (
     )
   )
 );
-
-
 -- ============================================================
 -- PROFILE LINKS
 -- ============================================================
@@ -169,8 +151,6 @@ using (
 drop policy if exists
   "Users can view visible profile links"
 on public.profile_links;
-
-
 create policy
   "Users can view visible profile links"
 on public.profile_links
@@ -208,8 +188,6 @@ using (
     )
   )
 );
-
-
 -- ============================================================
 -- PROFILE BADGES
 -- ============================================================
@@ -217,8 +195,6 @@ using (
 drop policy if exists
   "Users can view visible profile badge assignments"
 on public.profile_badges;
-
-
 create policy
   "Users can view visible profile badge assignments"
 on public.profile_badges
@@ -270,8 +246,6 @@ using (
     )
   )
 );
-
-
 -- ============================================================
 -- POSTS
 -- ============================================================
@@ -279,8 +253,6 @@ using (
 drop policy if exists
   "Verified users can view university posts"
 on public.posts;
-
-
 create policy
   "Verified users can view university posts"
 on public.posts
@@ -308,8 +280,6 @@ using (
     )
   )
 );
-
-
 -- ============================================================
 -- COMMENTS
 -- ============================================================
@@ -317,8 +287,6 @@ using (
 drop policy if exists
   "Verified students can view university comments"
 on public.comments;
-
-
 create policy
   "Verified students can view university comments"
 on public.comments
@@ -346,13 +314,9 @@ using (
       )
   )
 );
-
-
 drop policy if exists
   "Verified students can comment on university posts"
 on public.comments;
-
-
 create policy
   "Verified students can comment on university posts"
 on public.comments
@@ -383,8 +347,6 @@ with check (
       )
   )
 );
-
-
 -- ============================================================
 -- POST LIKES
 -- ============================================================
@@ -392,8 +354,6 @@ with check (
 drop policy if exists
   "Verified students can view university likes"
 on public.post_likes;
-
-
 create policy
   "Verified students can view university likes"
 on public.post_likes
@@ -415,13 +375,9 @@ using (
       )
   )
 );
-
-
 drop policy if exists
   "Verified students can like university posts"
 on public.post_likes;
-
-
 create policy
   "Verified students can like university posts"
 on public.post_likes
@@ -452,8 +408,6 @@ with check (
       )
   )
 );
-
-
 -- ============================================================
 -- PEOPLE SEARCH
 --
@@ -585,14 +539,10 @@ as $$
     from input
   );
 $$;
-
-
 revoke all
 on function
 public.search_people(text, integer)
 from public, anon;
-
-
 grant execute
 on function
 public.search_people(text, integer)

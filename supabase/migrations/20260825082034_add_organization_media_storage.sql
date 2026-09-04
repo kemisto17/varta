@@ -74,3 +74,5 @@ using (
 
 comment on function private.can_view_organization_media(text) is
   'Allows signed URLs only for the active avatar of an organization visible through RLS.';
+
+;

@@ -12,6 +12,7 @@ export type StructuredLink = {
 export type StructuredLinkDraft = Pick<StructuredLink, 'label' | 'url'>;
 
 export type LinkifiedSegment = {
+  mentionUsername: string | null;
   text: string;
   url: string | null;
 };
@@ -50,12 +51,14 @@ export function getLinkifiedSegments(text: string): LinkifiedSegment[] {
 
     if (url) {
       segments.push({
+        mentionUsername: null,
         text: label,
         url,
       });
     } else {
       // Invalid Markdown URL — render normally
       segments.push({
+        mentionUsername: null,
         text: match[0],
         url: null,
       });
@@ -82,6 +85,7 @@ function getPlainLinkifiedSegments(text: string): LinkifiedSegment[] {
   while ((match = tokenPattern.exec(text)) !== null) {
     if (match.index > cursor) {
       segments.push({
+        mentionUsername: null,
         text: text.slice(cursor, match.index),
         url: null,
       });
@@ -101,27 +105,32 @@ function getPlainLinkifiedSegments(text: string): LinkifiedSegment[] {
     );
 
     const url = normalizeExternalUrl(candidate);
+    const mentionUsername = getMentionUsername(candidate);
 
-    if (!url) {
+    if (!url && !mentionUsername) {
       segments.push({
+        mentionUsername: null,
         text: token,
         url: null,
       });
     } else {
       if (leading) {
         segments.push({
+          mentionUsername: null,
           text: leading,
           url: null,
         });
       }
 
       segments.push({
+        mentionUsername,
         text: candidate,
         url,
       });
 
       if (trailing) {
         segments.push({
+          mentionUsername: null,
           text: trailing,
           url: null,
         });
@@ -133,12 +142,20 @@ function getPlainLinkifiedSegments(text: string): LinkifiedSegment[] {
 
   if (cursor < text.length) {
     segments.push({
+      mentionUsername: null,
       text: text.slice(cursor),
       url: null,
     });
   }
 
   return segments;
+}
+
+function getMentionUsername(value: string) {
+  const match =
+    value.match(/^@([a-z0-9._]{3,30})$/i);
+
+  return match?.[1].toLowerCase() ?? null;
 }
 
 export function normalizeExternalUrl(value: string) {

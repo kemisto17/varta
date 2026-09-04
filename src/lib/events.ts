@@ -82,6 +82,7 @@ const EVENT_SELECT = `
   registration_url,
   cover_path,
   status,
+  interested_count,
   organization:organizations!events_organization_id_fkey (
     id,
     name,
@@ -90,10 +91,31 @@ const EVENT_SELECT = `
   )
 ` as const;
 
+const INTERESTED_EVENT_SELECT = `
+  ${EVENT_SELECT},
+  event_interests!inner (
+    event_id
+  )
+` as const;
+
 function selectEvents() {
   return supabase
     .from('events')
     .select(EVENT_SELECT);
+}
+
+function selectInterestedEvents(
+  userId: string
+) {
+  return supabase
+    .from('events')
+    .select(
+      INTERESTED_EVENT_SELECT
+    )
+    .eq(
+      'event_interests.user_id',
+      userId
+    );
 }
 
 type EventQueryRow =
@@ -230,7 +252,12 @@ export async function getEventsPage(
     new Date().toISOString();
 
   let query =
-    selectEvents()
+    (filter ===
+    'interested'
+      ? selectInterestedEvents(
+          userId
+        )
+      : selectEvents())
       .in(
         'status',
         [
@@ -1452,6 +1479,9 @@ async function mapEventRows(
 
           instituteId:
             row.institute_id,
+
+          interestedCount:
+            row.interested_count,
 
           isInterested:
             interestedIds.has(

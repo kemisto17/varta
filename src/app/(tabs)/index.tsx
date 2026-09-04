@@ -19,9 +19,9 @@ import {
 
 import { Avatar } from '../../components/Avatar';
 import { CampusNowSection } from '../../components/campus-now/CampusNowSection';
+import { FeedItemRenderer } from '../../components/feed/FeedItemRenderer';
 import { BlockUserSheet } from '../../components/moderation/BlockUserSheet';
 import { ReportSheet } from '../../components/moderation/ReportSheet';
-import { PostCard } from '../../components/PostCard';
 import { SafeAreaScreen } from '../../components/SafeAreaScreen';
 import {
   radius,
@@ -43,6 +43,7 @@ import type {
   ModerationUser,
   ReportTarget,
 } from '../../lib/moderation';
+import { getMentionedProfileId } from '../../lib/mentions';
 import {
   getInteractionErrorMessage,
   setPostLike,
@@ -74,15 +75,15 @@ export default function HomeScreen() {
 
   const {
     errorMessage,
-    filter,
+    feedMode,
     hasMore,
+    items: homeFeedItems,
     isLoadingMore,
     isRefreshing,
     loadMore,
-    posts,
     refreshFeed,
     removePost,
-    setFilter,
+    setFeedMode,
     status,
     updatePostLike,
   } = useFeed();
@@ -419,7 +420,6 @@ export default function HomeScreen() {
    *
    * Refresh when:
    * - the screen has never loaded,
-   * - the previous load failed, or
    * - cached data is older than the
    *   automatic refresh interval.
    *
@@ -434,8 +434,6 @@ export default function HomeScreen() {
       const shouldRefreshFeed =
         status ===
           'idle' ||
-        status ===
-          'error' ||
         now -
           lastFeedRefreshAtRef.current >=
           AUTO_REFRESH_INTERVAL_MS;
@@ -466,6 +464,7 @@ export default function HomeScreen() {
       ) {
         void refreshCampusNow();
       }
+
     }, [
       refreshCampusNow,
       refreshFeed,
@@ -534,6 +533,14 @@ export default function HomeScreen() {
                 event.id
                   ? {
                       ...item,
+                      interestedCount:
+                        Math.max(
+                          0,
+                          item.interestedCount +
+                            (nextInterested
+                              ? 1
+                              : -1)
+                        ),
                       isInterested:
                         nextInterested,
                     }
@@ -574,6 +581,8 @@ export default function HomeScreen() {
                     nextInterested
                     ? {
                         ...item,
+                        interestedCount:
+                          event.interestedCount,
                         isInterested:
                           event.isInterested,
                       }
@@ -929,6 +938,53 @@ export default function HomeScreen() {
       ]
     );
 
+  const openMention =
+    useCallback(
+      async (
+        username: string
+      ) => {
+        try {
+          const profileId =
+            await getMentionedProfileId(
+              username
+            );
+
+          if (!profileId) {
+            return;
+          }
+
+          if (
+            profileId ===
+            session?.user.id
+          ) {
+            router.navigate(
+              '/(tabs)/profile'
+            );
+
+            return;
+          }
+
+          router.push({
+            pathname:
+              '/user/[id]',
+            params: {
+              id:
+                profileId,
+            },
+          });
+        } catch (error) {
+          console.warn(
+            '[mentions] Could not open mentioned profile.',
+            error
+          );
+        }
+      },
+      [
+        router,
+        session?.user.id,
+      ]
+    );
+
   const isInitialLoading =
     status === 'idle' ||
     status === 'loading';
@@ -985,6 +1041,19 @@ export default function HomeScreen() {
       ? blockTarget
       : null;
 
+  const isSelectedFeedInitialLoading =
+    isInitialLoading;
+
+  const isSelectedFeedLoadingMore =
+    isLoadingMore;
+
+  const selectedFeedHasMore =
+    hasMore;
+
+  const handleLoadMore = useCallback(() => {
+    void loadMore();
+  }, [loadMore]);
+
   return (
     <SafeAreaScreen
       style={
@@ -996,12 +1065,12 @@ export default function HomeScreen() {
         contentContainerStyle={
           styles.content
         }
-        data={posts}
+        data={homeFeedItems}
         keyExtractor={(
-          post
-        ) => post.id}
+          item
+        ) => item.feedKey}
         ListEmptyComponent={
-          isInitialLoading ? (
+          isSelectedFeedInitialLoading ? (
             <FeedSkeleton />
           ) : status ===
             'error' ? (
@@ -1018,34 +1087,19 @@ export default function HomeScreen() {
             />
           ) : (
             <FeedState
-              actionLabel={
-                filter ===
-                'lost-found'
-                  ? 'Create a lost or found post'
-                  : 'Create the first post'
-              }
-              message={
-                filter ===
-                'lost-found'
-                  ? 'There are no open lost or found items right now.'
-                  : 'Start a useful conversation with students across your university.'
-              }
+              actionLabel="Create the first post"
+              message="Start a useful conversation with students across your university."
               onAction={() =>
                 router.navigate(
                   '/(tabs)/create'
                 )
               }
-              title={
-                filter ===
-                'lost-found'
-                  ? 'Nothing open in Lost & Found'
-                  : 'Your campus feed is quiet'
-              }
+              title="Your campus feed is quiet"
             />
           )
         }
         ListFooterComponent={
-          isLoadingMore ? (
+          isSelectedFeedLoadingMore ? (
             <ActivityIndicator
               color={
                 colors.textSecondary
@@ -1054,9 +1108,9 @@ export default function HomeScreen() {
                 styles.footerLoader
               }
             />
-          ) : posts.length >
+          ) : homeFeedItems.length >
               0 &&
-            !hasMore ? (
+            !selectedFeedHasMore ? (
             <View
               style={
                 styles.footerSpace
@@ -1175,32 +1229,6 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            <View
-              style={
-                styles.intro
-              }
-            >
-              <Text
-                style={
-                  styles.heading
-                }
-              >
-                What’s happening?
-              </Text>
-
-              <Text
-                style={
-                  styles.subheading
-                }
-              >
-                Discussions,
-                updates and
-                everything
-                happening around
-                campus.
-              </Text>
-            </View>
-
             <CampusNowSection
               errorMessage={
                 displayedCampusNowError
@@ -1247,78 +1275,58 @@ export default function HomeScreen() {
             >
               <Text
                 style={
-                  styles.sectionEyebrow
-                }
-              >
-                CAMPUS FEED
-              </Text>
-
-              <Text
-                style={
                   styles.sectionTitle
                 }
               >
-                {filter ===
-                'lost-found'
-                  ? 'Lost & Found'
-                  : 'Latest'}
+                Campus feed
               </Text>
 
-              <View
-                style={
-                  styles.feedFilters
-                }
-              >
-                {(
-                  [
-                    ['all', 'Campus'],
-                    [
-                      'lost-found',
-                      'Lost & Found',
-                    ],
-                  ] as const
-                ).map(
-                  ([value, label]) => {
-                    const selected =
-                      filter === value;
+              <View style={styles.feedFilters}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: feedMode === 'campus' }}
+                  onPress={() => setFeedMode('campus')}
+                  style={({ pressed }) => [
+                    styles.feedFilter,
+                    feedMode === 'campus' && styles.feedFilterActive,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.feedFilterText,
+                      feedMode === 'campus' && styles.feedFilterTextActive,
+                    ]}
+                  >
+                    Campus
+                  </Text>
+                </Pressable>
 
-                    return (
-                      <Pressable
-                        accessibilityRole="button"
-                        key={
-                          value
-                        }
-                        onPress={() =>
-                          setFilter(
-                            value
-                          )
-                        }
-                        style={(event) => [
-                          styles.feedFilter,
-                          selected &&
-                            styles.feedFilterSelected,
-                          event.pressed &&
-                            styles.pressed,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.feedFilterText,
-                            selected &&
-                              styles.feedFilterTextSelected,
-                          ]}
-                        >
-                          {label}
-                        </Text>
-                      </Pressable>
-                    );
-                  }
-                )}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: feedMode === 'latest' }}
+                  onPress={() => setFeedMode('latest')}
+                  style={({ pressed }) => [
+                    styles.feedFilter,
+                    feedMode === 'latest' && styles.feedFilterActive,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.feedFilterText,
+                      feedMode === 'latest' &&
+                        styles.feedFilterTextActive,
+                    ]}
+                  >
+                    Latest
+                  </Text>
+                </Pressable>
               </View>
             </View>
 
             {errorMessage &&
-            posts.length >
+            homeFeedItems.length >
               0 ? (
               <Pressable
                 accessibilityRole="button"
@@ -1390,8 +1398,8 @@ export default function HomeScreen() {
             ) : null}
           </>
         }
-        onEndReached={() =>
-          void loadMore()
+        onEndReached={
+          handleLoadMore
         }
         onEndReachedThreshold={
           0.35
@@ -1418,49 +1426,31 @@ export default function HomeScreen() {
         renderItem={({
           item,
         }) => (
-          <PostCard
+          <FeedItemRenderer
             currentUserId={
               session?.user.id ??
               null
             }
-            isDeleting={
-              displayedDeletingPostIds.has(
-                item.id
-              )
+            deletingPostIds={
+              displayedDeletingPostIds
             }
-            isLikePending={
-              displayedLikePendingIds.has(
-                item.id
-              )
+            eventInterestPendingIds={
+              displayedEventInterestPendingIds
+            }
+            item={item}
+            likePendingIds={
+              displayedLikePendingIds
             }
             onAuthorPress={
               openAuthor
             }
-            onBlockUser={(
-              post
-            ) =>
-              post.author.kind ===
-                'student' &&
-              post.authorId
-                ? setBlockTarget(
-                    {
-                      fullName:
-                        post.author
-                          .fullName,
-
-                      id:
-                        post.authorId,
-                    }
-                  )
-                : undefined
+            onBlockUser={
+              setBlockTarget
             }
-            onCommentPress={
-              openPost
-            }
-            onDelete={
+            onDeletePost={
               handleDeletePost
             }
-            onEdit={(post) =>
+            onEditPost={(post) =>
               router.push({
                 pathname:
                   '/post/[id]/edit',
@@ -1469,29 +1459,40 @@ export default function HomeScreen() {
                 },
               })
             }
+            onEventPress={(event) =>
+              router.push({
+                pathname:
+                  '/event/[id]',
+                params: {
+                  id:
+                    event.id,
+                },
+              })
+            }
+            onLostFoundPress={(id) =>
+              router.push({
+                pathname:
+                  '/lost-found/[id]',
+                params: {
+                  id,
+                },
+              })
+            }
+            onMentionPress={
+              openMention
+            }
             onOpenPost={
               openPost
             }
-            onReport={(
-              post
-            ) =>
-              setReportTarget(
-                {
-                  id:
-                    post.id,
-
-                  label:
-                    'Report this post',
-
-                  type:
-                    'post',
-                }
-              )
+            onReport={
+              setReportTarget
             }
-            onToggleLike={
+            onToggleEventInterest={
+              handleToggleEventInterest
+            }
+            onTogglePostLike={
               handleToggleLike
             }
-            post={item}
           />
         )}
         showsVerticalScrollIndicator={
@@ -1781,29 +1782,6 @@ const createStyles = (
         colors.textPrimary,
     },
 
-    intro: {
-      marginTop:
-        spacing.xxl,
-    },
-
-    heading: {
-      fontSize: 32,
-      lineHeight: 38,
-      fontWeight: '700',
-      color:
-        colors.textPrimary,
-    },
-
-    subheading: {
-      marginTop:
-        spacing.sm,
-      maxWidth: 320,
-      fontSize: 15,
-      lineHeight: 22,
-      color:
-        colors.textSecondary,
-    },
-
     feedHeader: {
       marginTop:
         spacing.xxl,
@@ -1821,8 +1799,6 @@ const createStyles = (
     },
 
     sectionTitle: {
-      marginTop:
-        spacing.xs,
       fontSize: 21,
       fontWeight: '700',
       color:
@@ -1848,12 +1824,14 @@ const createStyles = (
         'center',
       borderWidth: 1,
       borderColor:
-        colors.border,
+        colors.borderSubtle,
       borderRadius:
         radius.full,
+      backgroundColor:
+        colors.surface,
     },
 
-    feedFilterSelected: {
+    feedFilterActive: {
       borderColor:
         colors.textPrimary,
       backgroundColor:
@@ -1862,15 +1840,14 @@ const createStyles = (
 
     feedFilterText: {
       fontSize: 12,
-      fontWeight:
-        '600',
+      fontWeight: '700',
       color:
         colors.textSecondary,
     },
 
-    feedFilterTextSelected: {
+    feedFilterTextActive: {
       color:
-        colors.background,
+        colors.white,
     },
 
     inlineError: {

@@ -46,4 +46,4 @@ Expo Go does not demonstrate Varta's final installed launcher icon; it launches 
 - Like, comment, badge, and event notification toggles are stored as self-owned Supabase rows and honored by trusted database triggers.
 - Verification outcome notifications remain enabled because they are essential account messages.
 - Organization-update controls are omitted because no such notification producer exists yet.
-- Delete account is omitted until a privileged backend flow can revoke sessions and safely remove the Auth user.
+- Policies & Account links to privacy, terms, child safety, and the existing support-based account deletion page. Deletion is a verified manual request, not instant in-app removal; see `account-deletion-operations.md`.

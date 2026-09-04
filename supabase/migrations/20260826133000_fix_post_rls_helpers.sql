@@ -3,21 +3,15 @@
 revoke all
 on function private.can_publish_for_organization(uuid)
 from public;
-
 grant execute
 on function private.can_publish_for_organization(uuid)
 to authenticated;
-
-
 revoke all
 on function private.can_manage_post(uuid)
 from public;
-
 grant execute
 on function private.can_manage_post(uuid)
 to authenticated;
-
-
 -- Avoid re-querying public.posts during INSERT ... RETURNING.
 -- Determine post visibility directly from the author identities.
 
@@ -59,19 +53,14 @@ as $function$
       )
     );
 $function$;
-
 revoke all
 on function private.post_author_is_in_current_university(uuid, uuid)
 from public;
-
 grant execute
 on function private.post_author_is_in_current_university(uuid, uuid)
 to authenticated;
-
-
 drop policy if exists "Verified users can view university posts"
 on public.posts;
-
 create policy "Verified users can view university posts"
 on public.posts
 for select

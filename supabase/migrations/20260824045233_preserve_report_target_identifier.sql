@@ -40,3 +40,5 @@ create trigger reports_set_target_id
 before insert on public.reports
 for each row
 execute function private.set_report_target_id();
+
+;

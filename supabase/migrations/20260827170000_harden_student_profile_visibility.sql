@@ -13,8 +13,6 @@
 drop policy if exists
   "Users can view own or university profiles"
 on public.profiles;
-
-
 create policy
   "Users can view own or verified university profiles"
 on public.profiles
@@ -41,14 +39,11 @@ using (
     )
   )
 );
-
-
 comment on policy
   "Users can view own or verified university profiles"
 on public.profiles
 is
   'Users retain self-read access during onboarding. Other profiles require both a verified viewer and verified target in the same university.';
-
 -- ============================================================
 -- KEEP PROFILE SUMMARY VISIBILITY CONSISTENT WITH PROFILE RLS
 -- ============================================================
@@ -102,14 +97,10 @@ as $$
       )
     );
 $$;
-
-
 revoke all
 on function
 public.get_profile_organization_following_count(uuid)
 from public, anon;
-
-
 grant execute
 on function
 public.get_profile_organization_following_count(uuid)

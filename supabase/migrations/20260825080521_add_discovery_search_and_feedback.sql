@@ -333,3 +333,5 @@ comment on function public.search_organizations(text, integer) is
 
 comment on function public.search_events(text, integer) is
   'Upcoming same-university published event search by title or organization name.';
+
+;

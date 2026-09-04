@@ -1,7 +1,9 @@
-import { useTheme } from '../../hooks/useTheme';
 import { Stack } from 'expo-router';
-
-
+import { View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { PolicyLinks } from '../../components/PolicyLinks';
+import { spacing } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
 import { useProfile } from '../../hooks/useProfile';
 import { useVerification } from '../../hooks/useVerification';
 
@@ -15,6 +17,7 @@ export default function OnboardingLayout() {
   const { status: verificationStatus } = useVerification();
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
     <Stack
       screenOptions={{
         animation: 'fade',
@@ -46,5 +49,9 @@ export default function OnboardingLayout() {
         <Stack.Screen name="verification-rejected" />
       </Stack.Protected>
     </Stack>
+    <SafeAreaView edges={['bottom', 'left', 'right']} style={{ paddingHorizontal: spacing.md }}>
+      <PolicyLinks />
+    </SafeAreaView>
+    </View>
   );
 }

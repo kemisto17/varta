@@ -27,15 +27,11 @@ set
   public = false,
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
-
-
 -- The secondary UUID order makes the existing newest-first index
 -- deterministic for keyset pagination when timestamps match.
 
 create index if not exists posts_feed_cursor_idx
 on public.posts(created_at desc, id desc);
-
-
 -- Only verified students can upload into their own UUID folder.
 -- There is intentionally no UPDATE policy; post images are immutable.
 
@@ -64,8 +60,6 @@ with check (
   storage.filename(name) ~
     '^[a-z0-9-]+[.](jpg|jpeg|png|webp|heic|heif)$'
 );
-
-
 -- The bucket remains private. A signed URL can only be created for
 -- media referenced by a visible same-university post.
 
@@ -91,8 +85,6 @@ using (
       )
   )
 );
-
-
 -- Post owners can clean up their own immutable media after deleting
 -- the database row, or if a post insert fails after upload.
 

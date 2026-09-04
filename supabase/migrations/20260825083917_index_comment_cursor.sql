@@ -5,3 +5,5 @@ create index comments_post_created_at_id_idx
 
 comment on index public.comments_post_created_at_id_idx is
   'Supports stable ascending cursor pages for a post comment thread.';
+
+;

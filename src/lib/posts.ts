@@ -5,7 +5,6 @@ import type { ProfileBadge } from '../types/badge';
 import type { TablesInsert, TablesUpdate } from '../types/database';
 import type {
   FeedCursor,
-  FeedFilter,
   FeedPost,
   PostKind,
 } from '../types/post';
@@ -119,15 +118,13 @@ export type FeedPage = {
 
 export async function getFeedPage(
   userId: string,
-  cursor: FeedCursor | null = null,
-  filter: FeedFilter = 'all'
+  cursor: FeedCursor | null = null
 ): Promise<FeedPage> {
   return getPostsPage(
     userId,
     cursor,
     null,
-    null,
-    filter
+    null
   );
 }
 
@@ -160,10 +157,10 @@ async function getPostsPage(
   viewerUserId: string,
   cursor: FeedCursor | null,
   authorId: string | null = null,
-  organizationAuthorId: string | null = null,
-  filter: FeedFilter = 'all'
+  organizationAuthorId: string | null = null
 ): Promise<FeedPage> {
   let query = selectPosts()
+    .eq('post_kind', 'general')
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
     .limit(POSTS_PAGE_SIZE + 1);
@@ -177,12 +174,6 @@ async function getPostsPage(
       'organization_author_id',
       organizationAuthorId
     );
-  }
-
-  if (filter === 'lost-found') {
-    query = query
-      .in('post_kind', ['lost', 'found'])
-      .is('lost_found_resolved_at', null);
   }
 
   if (cursor) {

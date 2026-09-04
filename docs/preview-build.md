@@ -102,6 +102,7 @@ testers can exercise routes such as:
 - `varta://event/EVENT_UUID`
 - `varta://organization/ORGANIZATION_UUID`
 - `varta://notifications`
+- `varta://reset-password`
 
 With Android platform tools available, a route can be opened with:
 
@@ -115,6 +116,11 @@ Configuration and implement/test the callback session exchange. A broader
 `varta://**` allow-list can be useful during development, but the production
 allow-list should use exact paths. Do not enable confirmation until that route
 is implemented, or email links will open an incomplete flow.
+
+Password recovery requires the exact `varta://reset-password` callback in the
+hosted project's Supabase Auth URL Configuration. Test recovery in an installed
+development or preview build. Expo Go callback URLs are not stable enough for
+an email authentication redirect allow-list.
 
 ## Push readiness
 

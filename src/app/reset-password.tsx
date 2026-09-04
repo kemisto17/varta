@@ -12,6 +12,7 @@ import {
   beginPasswordRecoverySession,
   clearPendingPasswordRecoverySession,
   getAuthErrorMessage,
+  isPasswordRecoveryUrl,
 } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 
@@ -42,20 +43,6 @@ function getRecoveryParameters(url: string) {
   }
 
   return parameters;
-}
-
-function isResetPasswordUrl(url: string) {
-  try {
-    const parsedUrl = new URL(url);
-    const route = [parsedUrl.hostname, parsedUrl.pathname]
-      .filter(Boolean)
-      .join('/')
-      .replace(/^\/+|\/+$/g, '');
-
-    return parsedUrl.protocol === 'varta:' && route === 'reset-password';
-  } catch {
-    return false;
-  }
 }
 
 async function clearRecoverySession(scope: 'global' | 'local' = 'global') {
@@ -127,7 +114,7 @@ export default function ResetPasswordScreen() {
       setStatus('checking');
       setErrorMessage(null);
 
-      if (!isResetPasswordUrl(recoveryUrl)) {
+      if (!isPasswordRecoveryUrl(recoveryUrl)) {
         if (isActive) {
           setErrorMessage(INVALID_LINK_MESSAGE);
           setStatus('error');

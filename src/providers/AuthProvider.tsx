@@ -1,11 +1,13 @@
 import type { PropsWithChildren } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 
 import { AuthContext } from '../contexts/AuthContext';
 import {
   clearPendingPasswordRecoverySession,
   hasPendingPasswordRecoverySession,
+  isPasswordRecoveryUrl,
 } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 
@@ -16,6 +18,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     let isMounted = true;
     let authEventVersion = 0;
+    const isPasswordRecoveryLaunch = isPasswordRecoveryUrl(
+      Linking.getLinkingURL()
+    );
 
     const {
       data: { subscription },
@@ -47,6 +52,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
       } = await supabase.auth.getSession();
 
       if (hasPendingPasswordRecoverySession()) {
+        // A pending recovery session from an interrupted earlier launch should
+        // be removed. The same marker is also present while a fresh email link
+        // is establishing its session, so the active deep link must win here.
+        if (isPasswordRecoveryLaunch) {
+          if (!isMounted) {
+            return;
+          }
+
+          setSession(null);
+          setIsLoading(false);
+          return;
+        }
+
         let recoverySessionWasCleared = false;
 
         try {

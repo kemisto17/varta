@@ -48,8 +48,6 @@ with check (
       and document.name = id_document_path
   )
 );
-
-
 alter policy "Users can upload own verification document"
 on storage.objects
 with check (

@@ -16,19 +16,15 @@ grant select (
 )
 on public.notifications
 to service_role;
-
 grant update (push_claimed_at, push_sent_at)
 on public.notifications
 to service_role;
-
 grant select (id, user_id, token, updated_at)
 on public.push_tokens
 to service_role;
-
 grant delete
 on public.push_tokens
 to service_role;
-
 grant select, insert, update, delete
 on public.push_delivery_receipts
 to service_role;

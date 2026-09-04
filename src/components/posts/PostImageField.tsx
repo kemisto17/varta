@@ -2,7 +2,7 @@ import type { ImagePickerAsset } from 'expo-image-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -35,8 +35,17 @@ export function PostImageField({
   const { colors, styles } = useThemedStyles(createStyles);
   const [cropCandidate, setCropCandidate] =
     useState<ImagePickerAsset | null>(null);
+  const [originalAsset, setOriginalAsset] =
+    useState<ImagePickerAsset | null>(null);
   const [isPicking, setIsPicking] = useState(false);
   const displayUri = asset?.uri ?? existingImageUrl;
+
+  useEffect(() => {
+    if (!asset && !existingImageUrl) {
+      setOriginalAsset(null);
+      setCropCandidate(null);
+    }
+  }, [asset, existingImageUrl]);
 
   const pickImage = async () => {
     if (isPicking || disabled) {
@@ -48,7 +57,7 @@ export function PostImageField({
 
     try {
       if (!(await requestImageLibraryAccess())) {
-        onError('Allow photo access to add an image to your post.');
+        onError('Allow photo access to add an image.');
         return;
       }
 
@@ -70,6 +79,7 @@ export function PostImageField({
         return;
       }
 
+      setOriginalAsset(nextAsset);
       setCropCandidate(nextAsset);
     } catch (error) {
       console.warn('[post-image] Could not open photo library.', error);
@@ -83,18 +93,44 @@ export function PostImageField({
     <>
       {displayUri ? (
         <View style={styles.imageContainer}>
-          <Image
-            accessibilityLabel="Selected post photo"
-            contentFit="contain"
-            source={{ uri: displayUri }}
-            style={styles.imagePreview}
-          />
+          <Pressable
+            accessibilityLabel={asset ? 'Edit selected photo' : 'Selected photo'}
+            accessibilityRole={asset ? 'button' : undefined}
+            disabled={!asset || disabled}
+            onPress={() => setCropCandidate(originalAsset ?? asset)}
+            style={({ pressed }) => [
+              styles.previewButton,
+              pressed && asset && styles.pressed,
+            ]}
+          >
+            <Image
+              accessibilityLabel="Selected photo preview"
+              contentFit="contain"
+              source={{ uri: displayUri }}
+              style={styles.imagePreview}
+            />
+
+            {asset ? (
+              <View pointerEvents="none" style={styles.editHint}>
+                <SymbolView
+                  name={{ android: 'crop', ios: 'crop', web: 'crop' }}
+                  size={15}
+                  tintColor={colors.viewerForeground}
+                />
+                <Text style={styles.editHintText}>Tap to edit</Text>
+              </View>
+            ) : null}
+          </Pressable>
 
           <Pressable
             accessibilityLabel="Remove selected photo"
             accessibilityRole="button"
             disabled={disabled}
-            onPress={() => onChange(null)}
+            onPress={() => {
+              setOriginalAsset(null);
+              setCropCandidate(null);
+              onChange(null);
+            }}
             style={({ pressed }) => [
               styles.removeImageButton,
               pressed && styles.pressed,
@@ -110,6 +146,26 @@ export function PostImageField({
       ) : null}
 
       <View style={styles.footer}>
+        {asset ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={disabled}
+            onPress={() => setCropCandidate(originalAsset ?? asset)}
+            style={({ pressed }) => [
+              styles.mediaButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <SymbolView
+              name={{ android: 'crop', ios: 'crop', web: 'crop' }}
+              size={19}
+              tintColor={colors.textPrimary}
+            />
+
+            <Text style={styles.mediaButtonText}>Edit photo</Text>
+          </Pressable>
+        ) : null}
+
         <Pressable
           accessibilityRole="button"
           disabled={isPicking || disabled}
@@ -163,6 +219,26 @@ const createStyles = (colors: ThemeColors) =>
       width: '100%',
       aspectRatio: 4 / 3,
     },
+    previewButton: {
+      width: '100%',
+    },
+    editHint: {
+      position: 'absolute',
+      left: spacing.sm,
+      bottom: spacing.sm,
+      minHeight: 34,
+      paddingHorizontal: spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      borderRadius: radius.full,
+      backgroundColor: colors.imageOverlay,
+    },
+    editHintText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.viewerForeground,
+    },
     removeImageButton: {
       position: 'absolute',
       top: spacing.sm,
@@ -177,6 +253,8 @@ const createStyles = (colors: ThemeColors) =>
     footer: {
       marginTop: spacing.xl,
       flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
     },
     mediaButton: {
       minHeight: 44,

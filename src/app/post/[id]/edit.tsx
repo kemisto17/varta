@@ -10,11 +10,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
 import { SafeAreaScreen } from '../../../components/SafeAreaScreen';
+import { MentionInput } from '../../../components/MentionInput';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { PostImageField } from '../../../components/posts/PostImageField';
 import { radius, spacing, type ThemeColors } from '../../../constants/theme';
@@ -25,11 +25,10 @@ import { isUuid } from '../../../lib/identifiers';
 import {
   getPostById,
   getPostErrorMessage,
-  MAX_LOST_FOUND_LOCATION_CHARACTERS,
   MAX_POST_CHARACTERS,
   updatePost,
 } from '../../../lib/posts';
-import type { FeedPost, PostKind } from '../../../types/post';
+import type { FeedPost } from '../../../types/post';
 
 export default function EditPostScreen() {
   const { colors, styles } = useThemedStyles(createStyles);
@@ -42,9 +41,6 @@ export default function EditPostScreen() {
 
   const [post, setPost] = useState<FeedPost | null>(null);
   const [content, setContent] = useState('');
-  const [postKind, setPostKind] = useState<PostKind>('general');
-  const [location, setLocation] = useState('');
-  const [isResolved, setIsResolved] = useState(false);
   const [imageAsset, setImageAsset] = useState<ImagePickerAsset | null>(null);
   const [isExistingImageRemoved, setIsExistingImageRemoved] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -68,11 +64,16 @@ export default function EditPostScreen() {
           return;
         }
 
+        if (result.postKind !== 'general') {
+          router.replace({
+            pathname: '/lost-found/[id]/edit',
+            params: { id: result.id },
+          });
+          return;
+        }
+
         setPost(result);
         setContent(result.content);
-        setPostKind(result.postKind);
-        setLocation(result.lostFoundLocation ?? '');
-        setIsResolved(result.lostFoundResolvedAt !== null);
       })
       .catch((error) => {
         console.warn('[edit-post] Could not load post.', error);
@@ -86,15 +87,12 @@ export default function EditPostScreen() {
     return () => {
       isActive = false;
     };
-  }, [postId, session?.user.id]);
+  }, [postId, router, session?.user.id]);
 
   const hasImage =
     imageAsset !== null ||
     (post?.imagePath !== null && !isExistingImageRemoved);
-  const hasRequiredContent =
-    postKind === 'general'
-      ? content.trim().length > 0 || hasImage
-      : content.trim().length > 0;
+  const hasRequiredContent = content.trim().length > 0 || hasImage;
   const canSave =
     post !== null && hasRequiredContent && !isSaving;
 
@@ -113,11 +111,10 @@ export default function EditPostScreen() {
       await updatePost({
         asset: imageAsset,
         content,
-        lostFoundLocation: location,
         post,
-        postKind,
+        postKind: 'general',
         removeImage: isExistingImageRemoved,
-        resolved: isResolved,
+        resolved: false,
       });
 
       const updatedPost = await getPostById(post.id, userId);
@@ -217,53 +214,12 @@ export default function EditPostScreen() {
           <Text style={styles.identityLabel}>Posting as</Text>
           <Text style={styles.identityName}>{post.author.fullName}</Text>
 
-          <View style={styles.postKindPicker}>
-            {(
-              [
-                ['general', 'Regular'],
-                ['lost', 'Lost'],
-                ['found', 'Found'],
-              ] as const
-            ).map(([value, label]) => {
-              const selected = postKind === value;
-
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={isSaving}
-                  key={value}
-                  onPress={() => setPostKind(value)}
-                  style={({ pressed }) => [
-                    styles.postKindButton,
-                    selected && styles.postKindButtonSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.postKindText,
-                      selected && styles.postKindTextSelected,
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <TextInput
+          <MentionInput
             editable={!isSaving}
             maxLength={MAX_POST_CHARACTERS}
             multiline
             onChangeText={setContent}
-            placeholder={
-              postKind === 'lost'
-                ? 'Describe the lost item'
-                : postKind === 'found'
-                  ? 'Describe the found item'
-                  : "What's happening on campus?"
-            }
+            placeholder="What's happening on campus?"
             placeholderTextColor={colors.textMuted}
             style={styles.input}
             textAlignVertical="top"
@@ -273,42 +229,6 @@ export default function EditPostScreen() {
           <Text style={styles.characterCount}>
             {content.length}/{MAX_POST_CHARACTERS}
           </Text>
-
-          {postKind !== 'general' ? (
-            <>
-              <Text style={styles.fieldLabel}>Campus location (optional)</Text>
-              <TextInput
-                editable={!isSaving}
-                maxLength={MAX_LOST_FOUND_LOCATION_CHARACTERS}
-                onChangeText={setLocation}
-                placeholder="e.g. Main library, second floor"
-                placeholderTextColor={colors.textMuted}
-                style={styles.locationInput}
-                value={location}
-              />
-
-              <Pressable
-                accessibilityRole="switch"
-                accessibilityState={{ checked: isResolved }}
-                disabled={isSaving}
-                onPress={() => setIsResolved((value) => !value)}
-                style={({ pressed }) => [
-                  styles.resolvedRow,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <View style={[styles.checkbox, isResolved && styles.checkboxSelected]}>
-                  {isResolved ? <Text style={styles.checkmark}>✓</Text> : null}
-                </View>
-                <View style={styles.resolvedCopy}>
-                  <Text style={styles.resolvedTitle}>Mark as resolved</Text>
-                  <Text style={styles.resolvedMessage}>
-                    Resolved items leave the open Lost & Found feed.
-                  </Text>
-                </View>
-              </Pressable>
-            </>
-          ) : null}
 
           <PostImageField
             asset={imageAsset}
@@ -362,24 +282,6 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '700',
       color: colors.textPrimary,
     },
-    postKindPicker: {
-      marginTop: spacing.lg,
-      padding: 4,
-      flexDirection: 'row',
-      gap: 4,
-      borderRadius: radius.full,
-      backgroundColor: colors.borderSubtle,
-    },
-    postKindButton: {
-      minHeight: 38,
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: radius.full,
-    },
-    postKindButtonSelected: { backgroundColor: colors.surfaceElevated },
-    postKindText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-    postKindTextSelected: { color: colors.textPrimary },
     input: {
       minHeight: 170,
       maxHeight: 260,
@@ -394,49 +296,6 @@ const createStyles = (colors: ThemeColors) =>
       textAlign: 'right',
       fontSize: 12,
       color: colors.textMuted,
-    },
-    fieldLabel: {
-      marginTop: spacing.lg,
-      marginBottom: spacing.sm,
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.textSecondary,
-    },
-    locationInput: {
-      minHeight: 46,
-      paddingHorizontal: spacing.md,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius.md,
-      fontSize: 14,
-      color: colors.textPrimary,
-    },
-    resolvedRow: {
-      marginTop: spacing.lg,
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    checkbox: {
-      width: 24,
-      height: 24,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 7,
-    },
-    checkboxSelected: {
-      borderColor: colors.success,
-      backgroundColor: colors.success,
-    },
-    checkmark: { fontSize: 14, fontWeight: '800', color: colors.white },
-    resolvedCopy: { flex: 1, marginLeft: spacing.md },
-    resolvedTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-    resolvedMessage: {
-      marginTop: 2,
-      fontSize: 12,
-      lineHeight: 17,
-      color: colors.textSecondary,
     },
     errorText: {
       marginTop: spacing.md,
