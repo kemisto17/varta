@@ -15,7 +15,9 @@ Varta is an independent student project. It is not an official application of, e
 - Email/password authentication, persisted sessions, and password recovery
 - Profile onboarding backed by live institute records
 - Private student-ID verification with trusted admin approval
-- Verified, same-university feed with editable posts, photos, likes, and comments
+- Unified same-university Home feed with ranked Campus and chronological Latest modes
+- Posts, events, and active Lost & Found items rendered through one paginated feed
+- Editable posts, photos, likes, threaded comment replies, mentions, and mention notifications
 - Lost & Found posts with an open-item feed, campus location, and resolution state
 - Post image cropping with original, square, portrait, and landscape options
 - Student profiles, badges, reporting, and blocking
@@ -24,7 +26,7 @@ Varta is an independent student project. It is not an official application of, e
 - Search for students, organizations, and upcoming events
 - Device-local recent searches and server-backed private feedback
 - System, Light, and Dark appearance modes with device-local persistence
-- Settings with real notification controls and blocked-user management
+- Settings with notification controls, blocked-user management, policy links, and account-deletion requests
 
 ## Screenshots
 
@@ -84,6 +86,7 @@ target that matches the test:
 | Development build | Varta's native shell plus developer tools | `npx eas-cli@latest build --platform android --profile development`, then `npx expo start --dev-client` |
 | Preview APK | Production-like, directly installable testing build | `npx eas-cli@latest build --platform android --profile preview` |
 | Production AAB | Google Play upload; not directly installable | `npx eas-cli@latest build --platform android --profile production` |
+| Local production AAB | Android Studio signed bundle using the existing upload key | Generate `android` with `npx expo prebuild --platform android`, then use Android Studio's signed-bundle flow |
 
 Before a cloud build, sign in and confirm that the repository is linked to the
 intended EAS project:
@@ -156,15 +159,16 @@ Trusted admin workflows are documented separately:
 ## Legal and safety
 
 - [Privacy Policy](https://kemisto17.github.io/varta/privacy-policy/)
+- [Terms of Use](https://kemisto17.github.io/varta/terms/)
 - [Account Deletion](https://kemisto17.github.io/varta/account-deletion/)
 - [Child Safety Standards](https://kemisto17.github.io/varta/child-safety/)
 
 ## Release status
 
-- Current source release: V1.0.1
-- Expo/package version: `1.0.1`
+- Current source release: V1.0.3
+- Expo/package version: `1.0.3`
 - Android package: `com.kemisto17.varta`
-- Android version code: `2`
+- Android version code: `4`
 - Distribution status: Google Play testing; not generally available
 - Production build format: AAB
 

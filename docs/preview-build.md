@@ -1,6 +1,6 @@
 # Varta Android preview build
 
-This is the release-readiness gate for Varta `0.1.0` (Android versionCode `1`).
+This is the release-readiness gate for Varta `1.0.3` (Android versionCode `4`).
 It prepares an internal APK; it does not publish to Google Play.
 
 ## Build identity and profiles
@@ -11,7 +11,7 @@ It prepares an internal APK; it does not publish to Google Play.
 - Android application ID: `com.kemisto17.varta`
 - `development`: internal APK with `expo-dev-client` and developer tools
 - `preview`: internal, production-like APK without developer tools
-- `production`: future Play Store AAB
+- `production`: Play Store AAB
 
 The repository uses local app versioning. Increment `expo.version` when the
 user-visible release changes and increment `expo.android.versionCode` for every
@@ -143,14 +143,15 @@ navigation where available.
 
 1. Launch, register/login, close and reopen, then confirm the session persists.
 2. Confirm there is no white flash, auth-route flash, stuck splash, or status-bar strip.
-3. Check Home feed, text post, image post, Post Detail like/comment, and fullscreen image controls.
+3. Accept the Terms of Use, then check Campus/Latest switching, refresh, multi-page scrolling, text and image posts, events, active Lost & Found cards, Post Detail likes, comment replies, mentions, and fullscreen image controls.
 4. Edit Profile and upload an avatar.
 5. Open Explore student, organization, and event results; confirm signed organization images/fallbacks render, follow an organization, and mark an event Interested. Organization-image upload remains an admin workflow in this alpha and is not exposed to the mobile client.
 6. Open Notifications and test a background/cold-start push tap.
 7. Upload an event cover and verification document through the roles/states that expose those controls.
 8. Submit a report and feedback item.
 9. Switch System/Light/Dark, restart after each choice, and confirm persistence and status-bar contrast.
-10. Logout, log in again, and confirm the theme preference remains device-local.
+10. Open every policy link in Settings, including Request account deletion; confirm the public pages load and the deletion flow clearly creates a support-reviewed request.
+11. Logout, log in again, and confirm the theme preference remains device-local.
 
 Check punch-hole/notch top insets, bottom gesture insets, the tab bar, Create
 Post actions, comment composer, sheets, and fullscreen close control. The code

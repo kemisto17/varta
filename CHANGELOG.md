@@ -3,6 +3,22 @@
 This file records user-visible changes to Varta. Release dates are intentionally
 omitted until the corresponding releases are published.
 
+## v1.0.3
+
+### Added
+
+- Ranked Campus and chronological Latest modes in the unified Home feed.
+- Home feed cards for posts, upcoming events, and active Lost & Found items.
+- Threaded comment replies and username mentions in posts and comments.
+- Mention suggestions, in-app mention notifications, and push routing.
+- In-app Terms of Use acceptance plus privacy, child-safety, and account-deletion links.
+
+### Fixed
+
+- Stabilized Campus pagination so engagement changes and new posts do not reorder an active scroll session.
+- Rechecked blocks, RLS visibility, deletion, and structured-content status on every feed page.
+- Kept feed payload hydration batched to avoid per-card database requests.
+
 ## v1.0.1
 
 ### Added
