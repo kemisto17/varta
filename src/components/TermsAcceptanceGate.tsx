@@ -1,4 +1,4 @@
-import { useEffect, useState, type PropsWithChildren } from 'react';
+import { useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { usePathname } from 'expo-router';
@@ -7,6 +7,11 @@ import { spacing, type ThemeColors } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
 import { useThemedStyles } from '../hooks/useTheme';
 import { supabase } from '../lib/supabase';
+import {
+  cacheCurrentTermsAcceptance,
+  clearCachedTermsAcceptance,
+  hasCachedCurrentTermsAcceptance,
+} from '../lib/termsAcceptance';
 import { SafeAreaScreen } from './SafeAreaScreen';
 import { PrimaryButton } from './auth/PrimaryButton';
 import { PolicyLinks } from './PolicyLinks';
@@ -21,20 +26,38 @@ export function TermsAcceptanceGate({ children }: PropsWithChildren) {
   const [agreed, setAgreed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [retry, setRetry] = useState(0);
+  const cachedAcceptance = useMemo(
+    () => (userId ? hasCachedCurrentTermsAcceptance(userId) : false),
+    [userId],
+  );
+
   useEffect(() => {
     let active = true;
-    setResult(undefined); setError(null); setAgreed(false);
-    if (userId) {
-      void Promise.resolve(supabase.rpc('has_accepted_current_terms')).then(({ data, error }) => {
-        if (!active) return;
-        if (error) setError('Could not check your terms acceptance. Please try again.');
-        else setResult({ userId, accepted: data === true });
-      }).catch(() => {
-        if (active) setError('Could not check your terms acceptance. Please try again.');
-      });
+    setError(null); setAgreed(false);
+    if (!userId) {
+      setResult(undefined);
+      return () => { active = false; };
     }
+
+    if (!cachedAcceptance) setResult(undefined);
+    void Promise.resolve(supabase.rpc('has_accepted_current_terms')).then(({ data, error }) => {
+      if (!active) return;
+      if (error) {
+        if (!cachedAcceptance) setError('Could not check your terms acceptance. Please try again.');
+        return;
+      }
+
+      const accepted = data === true;
+      if (accepted) cacheCurrentTermsAcceptance(userId);
+      else clearCachedTermsAcceptance(userId);
+      setResult({ userId, accepted });
+    }).catch(() => {
+      if (active && !cachedAcceptance) {
+        setError('Could not check your terms acceptance. Please try again.');
+      }
+    });
     return () => { active = false; };
-  }, [userId, retry]);
+  }, [cachedAcceptance, userId, retry]);
 
   const accept = async () => {
     if (!userId || !agreed || saving) return;
@@ -42,12 +65,15 @@ export function TermsAcceptanceGate({ children }: PropsWithChildren) {
     try {
       const { error } = await supabase.rpc('accept_current_terms', { accepted_version: TERMS_VERSION });
       if (error) throw error;
+      cacheCurrentTermsAcceptance(userId);
       setResult({ userId, accepted: true });
     } catch { setError('Could not save your acceptance. Please try again.'); }
     finally { setSaving(false); }
   };
 
-  if (!userId || pathname === '/reset-password' || (result?.userId === userId && result.accepted)) return children;
+  const currentResult = result?.userId === userId ? result : undefined;
+  const hasAccepted = currentResult ? currentResult.accepted : cachedAcceptance;
+  if (!userId || pathname === '/reset-password' || hasAccepted) return children;
   const loaded = result?.userId === userId;
   return (
     <SafeAreaScreen style={styles.screen}>

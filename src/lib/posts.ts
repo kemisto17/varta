@@ -192,98 +192,7 @@ async function getPostsPage(
     0,
     POSTS_PAGE_SIZE
   );
-
-  const imagePaths = [
-    ...new Set(
-      pageRows
-        .map((row) => row.image_path)
-        .filter(
-          (path): path is string =>
-            path !== null
-        )
-    ),
-  ];
-
-  const avatarPaths = [
-    ...new Set(
-      pageRows
-        .map(
-          (row) =>
-            row.author?.avatar_path ?? null
-        )
-        .filter(
-          (path): path is string =>
-            path !== null
-        )
-    ),
-  ];
-
-  const organizationAvatarPaths = [
-    ...new Set(
-      pageRows
-        .map(
-          (row) =>
-            row.organization_author
-              ?.avatar_path ?? null
-        )
-        .filter(
-          (path): path is string =>
-            path !== null
-        )
-    ),
-  ];
-
-  const organizationIds =
-    pageRows.flatMap((row) =>
-      row.organization_author
-        ? [row.organization_author.id]
-        : []
-    );
-
-  const [
-    signedUrls,
-    avatarUrls,
-    organizationAvatarUrls,
-    likedPostIds,
-    primaryBadges,
-    manageableOrganizationIds,
-  ] = await Promise.all([
-    getSignedPostMediaUrls(imagePaths),
-    getSignedAvatarUrls(avatarPaths),
-    getSignedOrganizationAvatarUrls(
-      organizationAvatarPaths
-    ),
-    getLikedPostIds(
-      pageRows.map((row) => row.id),
-      viewerUserId
-    ),
-    getPublicPrimaryBadges(
-      pageRows.flatMap((row) =>
-        row.author ? [row.author.id] : []
-      )
-    ),
-    getManageableOrganizationIds(
-      organizationIds,
-      viewerUserId
-    ),
-  ]);
-
-  const posts = pageRows.flatMap(
-    (row) => {
-      const post = mapPostRow(
-        row,
-        signedUrls,
-        avatarUrls,
-        organizationAvatarUrls,
-        likedPostIds,
-        primaryBadges,
-        manageableOrganizationIds,
-        viewerUserId
-      );
-
-      return post ? [post] : [];
-    }
-  );
+  const posts = await hydratePostRows(pageRows, viewerUserId);
 
   const lastPost =
     posts.at(-1) ?? null;
@@ -320,68 +229,19 @@ export async function getPostById(
     return null;
   }
 
-  const imagePaths =
-    data.image_path
-      ? [data.image_path]
-      : [];
+  const [post] = await hydratePostRows([data], userId);
+  return post ?? null;
+}
 
-  const avatarPaths =
-    data.author?.avatar_path
-      ? [data.author.avatar_path]
-      : [];
+export async function getPostsByIds(postIds: string[], userId: string) {
+  if (postIds.length === 0) return [];
 
-  const organizationAvatarPaths =
-    data.organization_author
-      ?.avatar_path
-      ? [
-          data.organization_author
-            .avatar_path,
-        ]
-      : [];
+  const { data, error } = await selectPosts()
+    .in('id', postIds)
+    .eq('post_kind', 'general');
 
-  const organizationIds =
-    data.organization_author
-      ? [data.organization_author.id]
-      : [];
-
-  const [
-    signedUrls,
-    avatarUrls,
-    organizationAvatarUrls,
-    likedPostIds,
-    primaryBadges,
-    manageableOrganizationIds,
-  ] = await Promise.all([
-    getSignedPostMediaUrls(imagePaths),
-    getSignedAvatarUrls(avatarPaths),
-    getSignedOrganizationAvatarUrls(
-      organizationAvatarPaths
-    ),
-    getLikedPostIds(
-      [data.id],
-      userId
-    ),
-    getPublicPrimaryBadges(
-      data.author
-        ? [data.author.id]
-        : []
-    ),
-    getManageableOrganizationIds(
-      organizationIds,
-      userId
-    ),
-  ]);
-
-  return mapPostRow(
-    data,
-    signedUrls,
-    avatarUrls,
-    organizationAvatarUrls,
-    likedPostIds,
-    primaryBadges,
-    manageableOrganizationIds,
-    userId
-  );
+  if (error) throw error;
+  return hydratePostRows(data, userId);
 }
 
 export async function publishPost({
@@ -999,6 +859,67 @@ export function getPostImageUrl(
     imagePath,
     60 * 60
   );
+}
+
+async function hydratePostRows(
+  rows: PostQueryRow[],
+  viewerUserId: string
+) {
+  const imagePaths = [
+    ...new Set(
+      rows.map((row) => row.image_path).filter(
+        (path): path is string => path !== null
+      )
+    ),
+  ];
+  const avatarPaths = [
+    ...new Set(
+      rows.map((row) => row.author?.avatar_path ?? null).filter(
+        (path): path is string => path !== null
+      )
+    ),
+  ];
+  const organizationAvatarPaths = [
+    ...new Set(
+      rows.map((row) => row.organization_author?.avatar_path ?? null).filter(
+        (path): path is string => path !== null
+      )
+    ),
+  ];
+  const organizationIds = rows.flatMap((row) =>
+    row.organization_author ? [row.organization_author.id] : []
+  );
+  const [
+    signedUrls,
+    avatarUrls,
+    organizationAvatarUrls,
+    likedPostIds,
+    primaryBadges,
+    manageableOrganizationIds,
+  ] = await Promise.all([
+    getSignedPostMediaUrls(imagePaths),
+    getSignedAvatarUrls(avatarPaths),
+    getSignedOrganizationAvatarUrls(organizationAvatarPaths),
+    getLikedPostIds(rows.map((row) => row.id), viewerUserId),
+    getPublicPrimaryBadges(
+      rows.flatMap((row) => row.author ? [row.author.id] : [])
+    ),
+    getManageableOrganizationIds(organizationIds, viewerUserId),
+  ]);
+
+  return rows.flatMap((row) => {
+    const post = mapPostRow(
+      row,
+      signedUrls,
+      avatarUrls,
+      organizationAvatarUrls,
+      likedPostIds,
+      primaryBadges,
+      manageableOrganizationIds,
+      viewerUserId
+    );
+    return post ? [post] : [];
+  });
 }
 
 function mapPostRow(

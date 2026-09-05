@@ -779,6 +779,39 @@ export type Database = {
           },
         ]
       }
+      post_saves: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_saves_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_saves_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           author_id: string | null
@@ -1229,6 +1262,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_current_terms: {
+        Args: { accepted_version: string }
+        Returns: undefined
+      }
+      can_deliver_mention_notification: {
+        Args: { target_notification_id: string }
+        Returns: boolean
+      }
       get_discovery_organizations: {
         Args: { result_limit?: number }
         Returns: {
@@ -1257,22 +1298,6 @@ export type Database = {
           name: string
           organization_id: string
         }[]
-      }
-      can_deliver_mention_notification: {
-        Args: { target_notification_id: string }
-        Returns: boolean
-      }
-      accept_current_terms: {
-        Args: { accepted_version: string }
-        Returns: undefined
-      }
-      has_accepted_current_terms: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      get_home_feed_page: {
-        Args: { feed_mode?: string; result_limit?: number; page_cursor?: Json }
-        Returns: Json
       }
       get_home_feed: {
         Args: {
@@ -1347,6 +1372,10 @@ export type Database = {
           student_author_year: number
         }[]
       }
+      get_home_feed_page: {
+        Args: { feed_mode?: string; page_cursor?: Json; result_limit?: number }
+        Returns: Json
+      }
       get_my_blocked_users: {
         Args: never
         Returns: {
@@ -1369,6 +1398,7 @@ export type Database = {
         Args: { target_profile_id: string }
         Returns: number
       }
+      has_accepted_current_terms: { Args: never; Returns: boolean }
       register_push_token: {
         Args: { device_platform: string; expo_token: string }
         Returns: undefined
@@ -1420,7 +1450,6 @@ export type Database = {
     Enums: {
       admin_role: "super_admin" | "admin" | "moderator" | "reviewer"
       notification_type:
-        | "mention"
         | "post_like"
         | "post_comment"
         | "verification_approved"
@@ -1429,6 +1458,7 @@ export type Database = {
         | "event_cancelled"
         | "event_updated"
         | "organization_role_assigned"
+        | "mention"
       report_reason:
         | "spam"
         | "harassment"
@@ -1568,7 +1598,6 @@ export const Constants = {
     Enums: {
       admin_role: ["super_admin", "admin", "moderator", "reviewer"],
       notification_type: [
-        "mention",
         "post_like",
         "post_comment",
         "verification_approved",
@@ -1577,6 +1606,7 @@ export const Constants = {
         "event_cancelled",
         "event_updated",
         "organization_role_assigned",
+        "mention",
       ],
       report_reason: [
         "spam",

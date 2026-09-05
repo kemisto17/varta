@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Open in Varta</title>
+  <link rel="icon" href="../assets/varta-icon.png" />
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100svh;
+      margin: 0;
+      padding: 32px 20px;
+      display: grid;
+      place-items: center;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #111110;
+      color: #f8f7f4;
+      text-align: center;
+      letter-spacing: 0;
+    }
+    main { width: min(440px, 100%); }
+    img { width: min(260px, 72vw); height: auto; }
+    h1 { margin: 32px 0 0; font-size: 28px; line-height: 1.2; }
+    p { margin: 12px auto 0; max-width: 360px; color: #bdbdb7; line-height: 1.6; }
+    .loader {
+      width: 26px;
+      height: 26px;
+      margin: 28px auto 0;
+      border: 3px solid #3b3b38;
+      border-top-color: #f8f7f4;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .actions { margin-top: 30px; display: grid; gap: 10px; }
+    a {
+      min-height: 48px;
+      padding: 0 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #f8f7f4;
+      border-radius: 6px;
+      color: #111110;
+      background: #f8f7f4;
+      font-weight: 750;
+      text-decoration: none;
+    }
+    a.secondary { color: #f8f7f4; background: transparent; }
+    [hidden] { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .loader { animation: none; } }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="../assets/varta-wordmark.png" alt="Varta" />
+    <h1 id="title">Opening Varta</h1>
+    <p id="message">Taking you to the shared campus content.</p>
+    <div class="loader" id="loader" aria-label="Opening"></div>
+    <div class="actions">
+      <a id="open-app" href="varta://">Open Varta</a>
+      <a class="secondary" href="https://play.google.com/store/apps/details?id=com.kemisto17.varta">Get Varta on Google Play</a>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var type = params.get('type');
+      var id = params.get('id');
+      var isKnownType = type === 'post' || type === 'event';
+      var isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id || '');
+      var playUrl = 'https://play.google.com/store/apps/details?id=com.kemisto17.varta';
+      var openApp = document.getElementById('open-app');
+      var title = document.getElementById('title');
+      var message = document.getElementById('message');
+      var loader = document.getElementById('loader');
+
+      if (!isKnownType || !isUuid) {
+        title.textContent = 'This Varta link is not valid';
+        message.textContent = 'Open Varta to continue exploring your campus community.';
+        loader.hidden = true;
+        openApp.href = 'varta://';
+        return;
+      }
+
+      var deepLink = 'varta://open/?type=' + encodeURIComponent(type) + '&id=' + encodeURIComponent(id);
+      openApp.href = deepLink;
+
+      var fallbackTimer = window.setTimeout(function () {
+        window.location.replace(playUrl);
+      }, 1400);
+
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+          window.clearTimeout(fallbackTimer);
+        }
+      });
+
+      window.location.href = deepLink;
+    }());
+  </script>
+</body>
+</html>

@@ -18,6 +18,7 @@ import {
   getEventErrorMessage,
   setEventInterest,
 } from '../../lib/events';
+import { shareVartaContent } from '../../lib/contentSharing';
 import { formatEventDateRange } from '../../lib/time';
 import { isUuid } from '../../lib/identifiers';
 import type { EventDetail } from '../../types/event';
@@ -41,6 +42,7 @@ export default function EventDetailScreen() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isImageOpen, setIsImageOpen] = useState(false);
   const [isInterestPending, setIsInterestPending] = useState(false);
+  const [isSharePending, setIsSharePending] = useState(false);
   const [status, setStatus] = useState<DetailStatus>('loading');
 
   useEffect(() => {
@@ -50,6 +52,7 @@ export default function EventDetailScreen() {
     cancellationPendingRef.current = false;
     setIsCancelling(false);
     setIsInterestPending(false);
+    setIsSharePending(false);
   }, [eventId, userId]);
 
   const loadEvent = useCallback(async () => {
@@ -213,20 +216,62 @@ export default function EventDetailScreen() {
     }
   };
 
+  const shareEvent = async () => {
+    if (!event || event.status === 'draft' || isSharePending) {
+      return;
+    }
+
+    setIsSharePending(true);
+
+    try {
+      await shareVartaContent('event', event.id);
+    } catch (error) {
+      console.warn('[sharing] Could not share event.', error);
+      Alert.alert('Could not share event', 'Please try again in a moment.');
+    } finally {
+      setIsSharePending(false);
+    }
+  };
+
   return (
     <SafeAreaScreen style={styles.safeArea}>
       <ScreenHeader
         action={
-          event?.canManage ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() =>
-                router.push({ pathname: '/event/[id]/edit', params: { id: event.id } })
-              }
-              style={({ pressed }) => pressed && styles.pressed}
-            >
-              <Text style={styles.editLabel}>Edit</Text>
-            </Pressable>
+          event ? (
+            <View style={styles.headerActions}>
+              {event.status !== 'draft' ? (
+                <Pressable
+                  accessibilityLabel="Share event"
+                  accessibilityRole="button"
+                  accessibilityState={{ busy: isSharePending }}
+                  disabled={isSharePending}
+                  onPress={() => void shareEvent()}
+                  style={({ pressed }) => [
+                    styles.headerIconButton,
+                    pressed && styles.pressed,
+                    isSharePending && styles.disabled,
+                  ]}
+                >
+                  <SymbolView
+                    name={{ android: 'share', ios: 'square.and.arrow.up', web: 'share' }}
+                    size={20}
+                    tintColor={colors.textPrimary}
+                  />
+                </Pressable>
+              ) : null}
+
+              {event.canManage ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() =>
+                    router.push({ pathname: '/event/[id]/edit', params: { id: event.id } })
+                  }
+                  style={({ pressed }) => pressed && styles.pressed}
+                >
+                  <Text style={styles.editLabel}>Edit</Text>
+                </Pressable>
+              ) : null}
+            </View>
           ) : null
         }
         title="Event"
@@ -406,6 +451,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   content: { paddingBottom: spacing.xxl },
   cover: { width: '100%', aspectRatio: 16 / 10, backgroundColor: colors.borderSubtle },
   body: { padding: spacing.lg },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  headerIconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   editLabel: { padding: spacing.sm, fontSize: 13, fontWeight: '700', color: colors.textPrimary },
   statusLabel: { marginBottom: spacing.sm, fontSize: 10, fontWeight: '800', letterSpacing: 1.1, color: colors.textSecondary },
   cancelled: { color: colors.danger },

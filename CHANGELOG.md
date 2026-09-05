@@ -3,6 +3,21 @@
 This file records user-visible changes to Varta. Release dates are intentionally
 omitted until the corresponding releases are published.
 
+## v1.0.4
+
+### Added
+
+- Private Saved Posts available from Settings, with save controls on post cards.
+- Cursor-paginated saved-post history with pull-to-refresh and normal post interactions.
+- Native sharing for visible posts and published events.
+- HTTPS share links that open Varta when installed and otherwise continue to Google Play.
+- A refreshed public Varta website with product, safety, support, and policy links.
+
+### Fixed
+
+- Remembered the accepted Terms version on-device so returning users no longer see the Terms screen during every restart.
+- Continued to revalidate Terms acceptance with Supabase without weakening publishing policies.
+
 ## v1.0.3
 
 ### Added

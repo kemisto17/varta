@@ -1,6 +1,6 @@
 # Varta Android preview build
 
-This is the release-readiness gate for Varta `1.0.3` (Android versionCode `4`).
+This is the release-readiness gate for Varta `1.0.4` (Android versionCode `5`).
 It prepares an internal APK; it does not publish to Google Play.
 
 ## Build identity and profiles
@@ -110,6 +110,21 @@ With Android platform tools available, a route can be opened with:
 adb shell am start -a android.intent.action.VIEW -d "varta://notifications" com.kemisto17.varta
 ~~~
 
+Post and event share actions use HTTPS links under
+`https://kemisto17.github.io/varta/open/`. The Android manifest claims that
+path as a verified App Link and Expo Router rewrites validated `type` and `id`
+parameters to the existing post or event detail route. The browser fallback
+attempts the `varta://open/` custom scheme, then sends users without an
+installed app to Varta's Google Play listing. Only eligible accounts can see
+and install a closed-test release.
+
+Domain verification still requires the Play App Signing SHA-256 fingerprint
+to be published at
+`https://kemisto17.github.io/.well-known/assetlinks.json`. Follow
+`docs/sharing-and-app-links.md`; the project site path
+`/varta/.well-known/assetlinks.json` is not sufficient for Android host
+verification.
+
 Email confirmation remains disabled for this internal alpha. Before enabling
 it, add the exact callback `varta://auth/callback` to Supabase Auth URL
 Configuration and implement/test the callback session exchange. A broader
@@ -143,15 +158,17 @@ navigation where available.
 
 1. Launch, register/login, close and reopen, then confirm the session persists.
 2. Confirm there is no white flash, auth-route flash, stuck splash, or status-bar strip.
-3. Accept the Terms of Use, then check Campus/Latest switching, refresh, multi-page scrolling, text and image posts, events, active Lost & Found cards, Post Detail likes, comment replies, mentions, and fullscreen image controls.
+3. Accept the Terms of Use, restart twice to confirm the gate does not flash again, then check Campus/Latest switching, refresh, multi-page scrolling, text and image posts, events, active Lost & Found cards, Post Detail likes, comment replies, mentions, and fullscreen image controls.
 4. Edit Profile and upload an avatar.
 5. Open Explore student, organization, and event results; confirm signed organization images/fallbacks render, follow an organization, and mark an event Interested. Organization-image upload remains an admin workflow in this alpha and is not exposed to the mobile client.
 6. Open Notifications and test a background/cold-start push tap.
 7. Upload an event cover and verification document through the roles/states that expose those controls.
 8. Submit a report and feedback item.
 9. Switch System/Light/Dark, restart after each choice, and confirm persistence and status-bar contrast.
-10. Open every policy link in Settings, including Request account deletion; confirm the public pages load and the deletion flow clearly creates a support-reviewed request.
-11. Logout, log in again, and confirm the theme preference remains device-local.
+10. Save posts from Home, profiles, organizations, and Post Detail; open Saved posts from Settings, paginate, refresh, like/open a saved post, and remove a bookmark.
+11. Share a post and published event into Messages or another app. Open each HTTPS link with Varta installed, then uninstall Varta and confirm the same link reaches the Google Play test page. Confirm draft events have no share action.
+12. Open every policy link in Settings, including Request account deletion; confirm the public pages load and the deletion flow clearly creates a support-reviewed request.
+13. Logout, log in again, and confirm the theme preference remains device-local.
 
 Check punch-hole/notch top insets, bottom gesture insets, the tab bar, Create
 Post actions, comment composer, sheets, and fullscreen close control. The code

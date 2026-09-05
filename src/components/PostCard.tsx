@@ -3,6 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -11,6 +12,8 @@ import {
 
 import { radius, spacing, type ThemeColors } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useTheme';
+import { useSavedPosts } from '../hooks/useSavedPosts';
+import { shareVartaContent } from '../lib/contentSharing';
 import { formatRelativeTimestamp } from '../lib/time';
 import type { FeedPost } from '../types/post';
 import { Avatar } from './Avatar';
@@ -54,6 +57,14 @@ export function PostCard({
   post,
 }: PostCardProps) {
   const { colors, styles } = useThemedStyles(createStyles);
+  const {
+    isReady: savedPostsReady,
+    pendingPostIds: savePendingIds,
+    savedPostIds,
+    toggleSavedPost,
+  } = useSavedPosts();
+  const isSaved = savedPostIds.has(post.id);
+  const isSavePending = savePendingIds.has(post.id);
 
   const canDelete =
     post.canDeleteByCurrentUser &&
@@ -88,13 +99,33 @@ export function PostCard({
     useState(false);
   const [isOptionsVisible, setIsOptionsVisible] =
     useState(false);
+  const [isSharePending, setIsSharePending] =
+    useState(false);
 
   useEffect(() => {
     setImageFailed(false);
     setImageAspectRatio(DEFAULT_FEED_IMAGE_ASPECT_RATIO);
     setIsImageViewerVisible(false);
     setIsOptionsVisible(false);
+    setIsSharePending(false);
   }, [post.id, post.imageUrl]);
+
+  const sharePost = async () => {
+    if (isSharePending) {
+      return;
+    }
+
+    setIsSharePending(true);
+
+    try {
+      await shareVartaContent('post', post.id);
+    } catch (error) {
+      console.warn('[sharing] Could not share post.', error);
+      Alert.alert('Could not share post', 'Please try again in a moment.');
+    } finally {
+      setIsSharePending(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -354,6 +385,58 @@ export function PostCard({
             {post.commentCount}
           </Text>
         </Pressable>
+
+        <Pressable
+          accessibilityLabel="Share post"
+          accessibilityRole="button"
+          accessibilityState={{ busy: isSharePending }}
+          disabled={isSharePending}
+          hitSlop={8}
+          onPress={() => void sharePost()}
+          style={({ pressed }) => [
+            styles.shareAction,
+            isSharePending && styles.actionPending,
+            pressed && styles.pressed,
+          ]}
+        >
+          <SymbolView
+            name={{ android: 'share', ios: 'square.and.arrow.up', web: 'share' }}
+            size={20}
+            tintColor={colors.textSecondary}
+          />
+        </Pressable>
+
+        <Pressable
+          accessibilityLabel={isSaved ? 'Remove from saved posts' : 'Save post'}
+          accessibilityRole="button"
+          accessibilityState={{ busy: isSavePending, checked: isSaved }}
+          disabled={!savedPostsReady || isSavePending}
+          hitSlop={8}
+          onPress={() => {
+            void toggleSavedPost(post.id).catch((error) => {
+              console.warn('[saved-posts] Could not update saved post.', error);
+              Alert.alert(
+                'Could not update saved posts',
+                'Check your connection and try again.'
+              );
+            });
+          }}
+          style={({ pressed }) => [
+            styles.saveAction,
+            isSavePending && styles.actionPending,
+            pressed && styles.pressed,
+          ]}
+        >
+          <SymbolView
+            name={
+              isSaved
+                ? { android: 'bookmark', ios: 'bookmark.fill', web: 'bookmark' }
+                : { android: 'bookmark_border', ios: 'bookmark', web: 'bookmark_border' }
+            }
+            size={20}
+            tintColor={isSaved ? colors.textPrimary : colors.textSecondary}
+          />
+        </Pressable>
       </View>
 
       <FullscreenImageViewer
@@ -565,6 +648,21 @@ const createStyles = (colors: ThemeColors) =>
 
     actionPending: {
       opacity: 0.58,
+    },
+
+    saveAction: {
+      width: 34,
+      height: 34,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    shareAction: {
+      width: 34,
+      height: 34,
+      marginLeft: 'auto',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
 
     bodyPressed: {

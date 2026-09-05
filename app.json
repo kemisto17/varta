@@ -2,7 +2,7 @@
   "expo": {
     "name": "Varta",
     "slug": "varta",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/varta-icon-monogram.png",
     "scheme": "varta",
@@ -15,7 +15,7 @@
     "android": {
       "package": "com.kemisto17.varta",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 4,
+      "versionCode": 5,
       "adaptiveIcon": {
         "backgroundColor": "#F8F7F4",
         "foregroundImage": "./assets/images/varta-adaptive-monogram.png",
@@ -23,6 +23,23 @@
       },
       "backgroundColor": "#F8F7F4",
       "userInterfaceStyle": "automatic",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "kemisto17.github.io",
+              "pathPrefix": "/varta/open"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
       "blockedPermissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
@@ -76,7 +93,8 @@
             "enableShrinkResourcesInReleaseBuilds": true
           }
         }
-      ]
+      ],
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,

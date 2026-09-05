@@ -1,7 +1,9 @@
 import { useThemedStyles } from '../../hooks/useTheme';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
+import { useState } from 'react';
 import {
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -11,6 +13,7 @@ import {
 } from 'react-native';
 
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
+import { shareVartaContent } from '../../lib/contentSharing';
 import { formatEventStart, isEventHappeningNow } from '../../lib/time';
 import type { CampusEvent } from '../../types/event';
 import { OrganizationAvatar } from '../organizations/OrganizationAvatar';
@@ -33,6 +36,26 @@ export function EventCard({
   const { colors, styles } = useThemedStyles(createStyles);
   const isCancelled = event.status === 'cancelled';
   const happeningNow = isEventHappeningNow(event.startsAt, event.endsAt);
+  const canToggleInterest = onInterestToggle !== undefined && !isCancelled;
+  const canShare = event.status !== 'draft';
+  const [isSharePending, setIsSharePending] = useState(false);
+
+  const shareEvent = async () => {
+    if (isSharePending) {
+      return;
+    }
+
+    setIsSharePending(true);
+
+    try {
+      await shareVartaContent('event', event.id);
+    } catch (error) {
+      console.warn('[sharing] Could not share event.', error);
+      Alert.alert('Could not share event', 'Please try again in a moment.');
+    } finally {
+      setIsSharePending(false);
+    }
+  };
 
   return (
     <View style={[styles.card, containerStyle]}>
@@ -97,37 +120,63 @@ export function EventCard({
         </View>
       </Pressable>
 
-      {onInterestToggle && !isCancelled ? (
-        <Pressable
-          accessibilityLabel={`${event.isInterested ? 'Remove interest' : 'Save event'}. ${event.interestedCount} ${event.interestedCount === 1 ? 'person is' : 'people are'} interested.`}
-          accessibilityRole="button"
-          disabled={interestPending}
-          onPress={() => onInterestToggle(event)}
-          style={({ pressed }) => [
-            styles.interestButton,
-            event.isInterested && styles.interestButtonActive,
-            pressed && styles.pressed,
-            interestPending && styles.disabled,
-          ]}
-        >
-          <SymbolView
-            name={{
-              android: event.isInterested ? 'bookmark' : 'bookmark_border',
-              ios: event.isInterested ? 'bookmark.fill' : 'bookmark',
-              web: event.isInterested ? 'bookmark' : 'bookmark_border',
-            }}
-            size={15}
-            tintColor={event.isInterested ? colors.white : colors.textPrimary}
-          />
-          <Text
-            style={[
-              styles.interestLabel,
-              event.isInterested && styles.interestLabelActive,
-            ]}
-          >
-            {event.isInterested ? 'Interested' : 'Save event'} · {event.interestedCount}
-          </Text>
-        </Pressable>
+      {canToggleInterest || canShare ? (
+        <View style={styles.actions}>
+          {canToggleInterest ? (
+            <Pressable
+              accessibilityLabel={`${event.isInterested ? 'Remove interest' : 'Save event'}. ${event.interestedCount} ${event.interestedCount === 1 ? 'person is' : 'people are'} interested.`}
+              accessibilityRole="button"
+              disabled={interestPending}
+              onPress={() => onInterestToggle?.(event)}
+              style={({ pressed }) => [
+                styles.interestButton,
+                event.isInterested && styles.interestButtonActive,
+                pressed && styles.pressed,
+                interestPending && styles.disabled,
+              ]}
+            >
+              <SymbolView
+                name={{
+                  android: event.isInterested ? 'bookmark' : 'bookmark_border',
+                  ios: event.isInterested ? 'bookmark.fill' : 'bookmark',
+                  web: event.isInterested ? 'bookmark' : 'bookmark_border',
+                }}
+                size={15}
+                tintColor={event.isInterested ? colors.white : colors.textPrimary}
+              />
+              <Text
+                style={[
+                  styles.interestLabel,
+                  event.isInterested && styles.interestLabelActive,
+                ]}
+              >
+                {event.isInterested ? 'Interested' : 'Save event'} · {event.interestedCount}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {canShare ? (
+            <Pressable
+              accessibilityLabel="Share event"
+              accessibilityRole="button"
+              accessibilityState={{ busy: isSharePending }}
+              disabled={isSharePending}
+              onPress={() => void shareEvent()}
+              style={({ pressed }) => [
+                styles.shareButton,
+                canToggleInterest && styles.shareButtonWithDivider,
+                pressed && styles.pressed,
+                isSharePending && styles.disabled,
+              ]}
+            >
+              <SymbolView
+                name={{ android: 'share', ios: 'square.and.arrow.up', web: 'share' }}
+                size={18}
+                tintColor={colors.textPrimary}
+              />
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
@@ -194,19 +243,35 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   cancelledText: { textDecorationLine: 'line-through', color: colors.textSecondary },
   meta: { marginTop: spacing.sm, fontSize: 13, fontWeight: '600', color: colors.textPrimary },
   location: { marginTop: 4, fontSize: 13, color: colors.textSecondary },
+  actions: {
+    minHeight: 42,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
   interestButton: {
     minHeight: 42,
+    flex: 1,
     paddingHorizontal: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
   },
   interestButtonActive: { backgroundColor: colors.textPrimary },
   interestLabel: { fontSize: 12, fontWeight: '700', color: colors.textPrimary },
   interestLabelActive: { color: colors.white },
+  shareButton: {
+    width: 48,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareButtonWithDivider: {
+    borderLeftWidth: 1,
+    borderLeftColor: colors.borderSubtle,
+  },
   pressed: { opacity: 0.58 },
   disabled: { opacity: 0.45 },
 });

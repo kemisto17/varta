@@ -28,6 +28,7 @@ import { useTheme, useThemedStyles } from '../hooks/useTheme';
 import { useVerification } from '../hooks/useVerification';
 import { AuthProvider } from '../providers/AuthProvider';
 import { FeedProvider } from '../providers/FeedProvider';
+import { SavedPostsProvider } from '../providers/SavedPostsProvider';
 import { NotificationsProvider } from '../providers/NotificationsProvider';
 import { ProfileProvider } from '../providers/ProfileProvider';
 import { ThemeProvider } from '../providers/ThemeProvider';
@@ -365,6 +366,10 @@ function AppNavigator() {
           />
 
           <Stack.Screen
+            name="saved-posts"
+          />
+
+          <Stack.Screen
             name="blocked-users"
           />
 
@@ -483,9 +488,11 @@ function ThemedRoot() {
       <ProfileProvider>
         <VerificationProvider>
           <NotificationsProvider>
-            <FeedProvider>
-              <TermsAcceptanceGate><AppNavigator /></TermsAcceptanceGate>
-            </FeedProvider>
+            <SavedPostsProvider>
+              <FeedProvider>
+                <TermsAcceptanceGate><AppNavigator /></TermsAcceptanceGate>
+              </FeedProvider>
+            </SavedPostsProvider>
           </NotificationsProvider>
         </VerificationProvider>
       </ProfileProvider>

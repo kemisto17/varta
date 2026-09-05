@@ -17,7 +17,7 @@ Varta is an independent student project. It is not an official application of, e
 - Private student-ID verification with trusted admin approval
 - Unified same-university Home feed with ranked Campus and chronological Latest modes
 - Posts, events, and active Lost & Found items rendered through one paginated feed
-- Editable posts, photos, likes, threaded comment replies, mentions, and mention notifications
+- Editable posts, photos, likes, private bookmarks, sharing links, threaded comment replies, mentions, and mention notifications
 - Lost & Found posts with an open-item feed, campus location, and resolution state
 - Post image cropping with original, square, portrait, and landscape options
 - Student profiles, badges, reporting, and blocking
@@ -27,6 +27,7 @@ Varta is an independent student project. It is not an official application of, e
 - Device-local recent searches and server-backed private feedback
 - System, Light, and Dark appearance modes with device-local persistence
 - Settings with notification controls, blocked-user management, policy links, and account-deletion requests
+- A free static product and policy website hosted through GitHub Pages
 
 ## Screenshots
 
@@ -144,6 +145,7 @@ Trusted admin workflows are documented separately:
 - [Badges](docs/profile-badges-admin.md)
 - [Notifications and push](docs/notifications-and-push.md)
 - [Branding and settings](docs/branding-and-settings.md)
+- [Sharing and Android App Links](docs/sharing-and-app-links.md)
 
 ## Project layout
 
@@ -165,10 +167,10 @@ Trusted admin workflows are documented separately:
 
 ## Release status
 
-- Current source release: V1.0.3
-- Expo/package version: `1.0.3`
+- Current source release: V1.0.4
+- Expo/package version: `1.0.4`
 - Android package: `com.kemisto17.varta`
-- Android version code: `4`
+- Android version code: `5`
 - Distribution status: Google Play testing; not generally available
 - Production build format: AAB
 

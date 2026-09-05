@@ -514,6 +514,15 @@ export default function SettingsScreen() {
           />
 
           <SettingsRow
+            label="Saved posts"
+            onPress={() =>
+              router.push(
+                '/saved-posts'
+              )
+            }
+          />
+
+          <SettingsRow
             isLast
             label="Verification status"
             value={
