@@ -3,7 +3,7 @@
     "name": "Varta",
     "slug": "varta",
     "version": "1.0.4",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/varta-icon-monogram.png",
     "scheme": "varta",
     "userInterfaceStyle": "automatic",

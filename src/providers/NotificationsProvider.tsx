@@ -31,6 +31,20 @@ import {
 } from '../lib/pushNotifications';
 import { supabase } from '../lib/supabase';
 
+let notificationChannelSequence = 0;
+
+/*
+ * Realtime reuses named channels, while removal completes asynchronously.
+ * The timestamp also prevents a Fast Refresh from resetting into an old name.
+ */
+function getNotificationChannelTopic(
+  userId: string
+) {
+  notificationChannelSequence += 1;
+
+  return `user-notifications:${userId}:${Date.now()}:${notificationChannelSequence}`;
+}
+
 export function NotificationsProvider({
   children,
 }: PropsWithChildren) {
@@ -413,12 +427,16 @@ export function NotificationsProvider({
       return;
     }
 
+    let isActive = true;
+
     void loadInitial();
 
     const channel =
       supabase
         .channel(
-          `user-notifications:${userId}`
+          getNotificationChannelTopic(
+            userId
+          )
         )
 
         /*
@@ -440,6 +458,10 @@ export function NotificationsProvider({
               'notifications',
           },
           (payload) => {
+            if (!isActive) {
+              return;
+            }
+
             const notification =
               payload.new;
 
@@ -524,6 +546,10 @@ export function NotificationsProvider({
               'notifications',
           },
           (payload) => {
+            if (!isActive) {
+              return;
+            }
+
             const updated =
               payload.new;
 
@@ -590,6 +616,8 @@ export function NotificationsProvider({
         .subscribe();
 
     return () => {
+      isActive = false;
+
       requestId.current += 1;
 
       void supabase.removeChannel(

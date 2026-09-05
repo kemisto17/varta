@@ -153,15 +153,19 @@ credentials in the app.
 ## Real-device smoke test
 
 Use a physical Android device and watch logs. Test both Light and Dark, System
-appearance, a cold start, a warm start, gesture navigation, and three-button
-navigation where available.
+appearance, a cold start, a warm start, portrait and landscape, gesture
+navigation, and three-button navigation where available. Also check an Android
+16 tablet or foldable emulator because the app no longer requests a fixed
+portrait orientation.
 
 1. Launch, register/login, close and reopen, then confirm the session persists.
 2. Confirm there is no white flash, auth-route flash, stuck splash, or status-bar strip.
 3. Accept the Terms of Use, restart twice to confirm the gate does not flash again, then check Campus/Latest switching, refresh, multi-page scrolling, text and image posts, events, active Lost & Found cards, Post Detail likes, comment replies, mentions, and fullscreen image controls.
 4. Edit Profile and upload an avatar.
 5. Open Explore student, organization, and event results; confirm signed organization images/fallbacks render, follow an organization, and mark an event Interested. Organization-image upload remains an admin workflow in this alpha and is not exposed to the mobile client.
-6. Open Notifications and test a background/cold-start push tap.
+6. Open Notifications, trigger an in-app notification, restart the app, and
+   confirm Realtime reconnects without duplicate rows or subscription errors.
+   Then test a background/cold-start push tap.
 7. Upload an event cover and verification document through the roles/states that expose those controls.
 8. Submit a report and feedback item.
 9. Switch System/Light/Dark, restart after each choice, and confirm persistence and status-bar contrast.

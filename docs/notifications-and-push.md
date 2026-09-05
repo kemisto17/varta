@@ -7,6 +7,9 @@
   assignments, and event cancellations for interested students.
 - The app loads 25 notifications at a time, tracks unread state, and listens to
   Realtime inserts filtered to the signed-in user.
+- Each Realtime subscription lifecycle uses a unique channel topic and ignores
+  callbacks as soon as cleanup starts. This avoids reusing a subscribed channel
+  while Supabase is still removing it after a remount or Fast Refresh.
 - A physical-device development or release build can register multiple Expo
   push tokens per user. Tokens are never stored on `profiles`.
 - Notification responses are observed after the verified session resolves.

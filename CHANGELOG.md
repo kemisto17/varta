@@ -17,6 +17,8 @@ omitted until the corresponding releases are published.
 
 - Remembered the accepted Terms version on-device so returning users no longer see the Terms screen during every restart.
 - Continued to revalidate Terms acceptance with Supabase without weakening publishing policies.
+- Prevented Realtime notification subscriptions from reusing a channel that is still being removed during an effect restart or Fast Refresh.
+- Removed the portrait-only restriction so Varta can adapt to landscape, tablets, and foldable displays.
 
 ## v1.0.3
 
