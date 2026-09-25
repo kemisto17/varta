@@ -20,9 +20,8 @@ Varta's Google Play listing:
 https://play.google.com/store/apps/details?id=com.kemisto17.varta
 ~~~
 
-Only eligible, opted-in accounts can install while Varta remains in closed
-testing. The website's **Join testing** button therefore uses the separate
-closed-test opt-in URL; the share fallback itself always targets the listing.
+The website's download button and the share fallback both use this public
+Google Play listing.
 
 ## Publish the domain association
 

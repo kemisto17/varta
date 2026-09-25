@@ -1,8 +1,7 @@
 # Varta
 
 Varta is a campus community app for verified university students. The Android
-app is currently distributed through Google Play testing; it is not presented
-as generally available.
+app is available on [Google Play](https://play.google.com/store/apps/details?id=com.kemisto17.varta).
 
 ## Why Varta
 
@@ -31,7 +30,7 @@ Varta is an independent student project. It is not an official application of, e
 
 ## Screenshots
 
-Screenshots are not yet included in the repository. Release screenshots can be added here after the Google Play testing assets are finalized.
+Screenshots are not yet included in the repository. Release screenshots can be added here when the Google Play listing assets are ready to share.
 
 ## Requirements
 
@@ -171,7 +170,7 @@ Trusted admin workflows are documented separately:
 - Expo/package version: `1.0.4`
 - Android package: `com.kemisto17.varta`
 - Android version code: `5`
-- Distribution status: Google Play testing; not generally available
+- Distribution status: Published on Google Play
 - Production build format: AAB
 
 This repository does not include Play Store binaries or signing credentials. GitHub releases and Play uploads are created separately.
