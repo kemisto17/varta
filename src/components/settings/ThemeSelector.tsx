@@ -9,6 +9,7 @@ const OPTIONS: readonly { label: string; value: ThemePreference }[] = [
   { label: 'System', value: 'system' },
   { label: 'Light', value: 'light' },
   { label: 'Dark', value: 'dark' },
+  { label: 'Warm Ivory', value: 'warm' },
 ];
 
 type ThemeSelectorProps = {

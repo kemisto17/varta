@@ -488,7 +488,7 @@ export default function SettingsScreen() {
         }
       >
         <SettingsSection
-          description="System follows this device and updates when its appearance changes."
+          description="Choose a look for Varta. System follows this device and updates when its appearance changes."
           title="Appearance"
         >
           <ThemeSelector

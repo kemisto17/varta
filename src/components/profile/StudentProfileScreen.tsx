@@ -1459,12 +1459,14 @@ export function StudentProfileScreen({
               )
             }
             onFollowing={
-              isOwnProfile
-                ? () =>
-                    router.push(
-                      '/following'
-                    )
-                : undefined
+              () =>
+                router.push({
+                  pathname:
+                    '/following',
+                  params: {
+                    profileId,
+                  },
+                })
             }
             links={
               links

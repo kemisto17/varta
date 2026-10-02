@@ -65,7 +65,7 @@ export function EventDateTimeField({
             onDismiss={handleDismiss}
             onValueChange={handleValueChange}
             textColor={colors.textPrimary}
-            themeVariant={resolvedTheme}
+            themeVariant={resolvedTheme === 'dark' ? 'dark' : 'light'}
             value={value}
           />
           {Platform.OS === 'ios' ? (

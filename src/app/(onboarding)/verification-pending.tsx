@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -111,8 +112,9 @@ export default function VerificationPendingScreen() {
     <SafeAreaScreen
       style={styles.safeArea}
     >
-      <View
-        style={styles.content}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
       >
         <View
           style={styles.header}
@@ -159,21 +161,12 @@ export default function VerificationPendingScreen() {
             Verification pending.
           </Text>
 
-          <Text
-            style={styles.subtitle}
-          >
-            We’re checking your
-            student status
-            {profile?.full_name
-              ? `, ${
-                  profile.full_name.split(
-                    ' '
-                  )[0]
-                }`
-              : ''}
-            . You’ll get access to
-            Varta once your account
-            is approved.
+          <Text style={styles.subtitle}>
+            {`We’re checking your student status${
+              profile?.full_name
+                ? `, ${profile.full_name.split(' ')[0]}`
+                : ''
+            }. You’ll get access to Varta once your account is approved.`}
           </Text>
         </View>
 
@@ -218,26 +211,14 @@ export default function VerificationPendingScreen() {
             style={styles.divider}
           />
 
-          <Text
-            style={
-              styles.statusTitle
-            }
-          >
-            Nothing else needed
-            right now.
-          </Text>
+            <Text style={styles.statusTitle}>
+              Nothing else needed right now.
+            </Text>
 
-          <Text
-            style={
-              styles.statusDescription
-            }
-          >
-            Your enrollment number
-            and private ID document
-            are waiting for review.
-            Reopen the app later or
-            check again below.
-          </Text>
+            <Text style={styles.statusDescription}>
+              Your enrollment number and private ID document are waiting for
+              review. Reopen the app later or check again below.
+            </Text>
         </View>
 
         {errorMessage ? (
@@ -287,7 +268,7 @@ export default function VerificationPendingScreen() {
             </Text>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaScreen>
   );
 }
@@ -303,7 +284,7 @@ const createStyles = (
     },
 
     content: {
-      flex: 1,
+      flexGrow: 1,
       paddingHorizontal:
         spacing.lg,
       paddingBottom:
@@ -409,12 +390,15 @@ const createStyles = (
 
     statusRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       justifyContent:
         'space-between',
+      rowGap: spacing.sm,
     },
 
     statusLabel: {
+      flexShrink: 1,
       fontSize: 9,
       fontWeight: '700',
       letterSpacing: 1.2,

@@ -31,6 +31,7 @@ const COMMENT_SELECT = `
     full_name,
     branch,
     year,
+    username,
     avatar_path,
     is_verified
   )
@@ -253,6 +254,7 @@ function mapCommentRow(
       fullName: row.author.full_name,
       id: row.author.id,
       isVerified: row.author.is_verified,
+      username: row.author.username,
       year: row.author.year,
     },
     authorId: row.author_id,

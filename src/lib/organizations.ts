@@ -448,6 +448,56 @@ export async function getFollowedOrganizationsPage(
   };
 }
 
+export async function getProfileFollowedOrganizationsPage(
+  profileId: string,
+  cursor: FollowedOrganizationCursor | null = null
+): Promise<FollowedOrganizationPage> {
+  const { data, error } = await supabase.rpc(
+    'get_profile_followed_organizations_page',
+    {
+      cursor_created_at: cursor?.createdAt,
+      cursor_organization_id: cursor?.organizationId,
+      result_limit: FOLLOWED_ORGANIZATIONS_PAGE_SIZE + 1,
+      target_profile_id: profileId,
+    }
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  const hasMore = data.length > FOLLOWED_ORGANIZATIONS_PAGE_SIZE;
+  const rows = data.slice(0, FOLLOWED_ORGANIZATIONS_PAGE_SIZE);
+  const avatarUrls = await getSafeOrganizationAvatarUrls(
+    rows.flatMap((row) => row.avatar_path ? [row.avatar_path] : [])
+  );
+  const organizations = rows.map(
+    (row): FollowedOrganization => ({
+      avatarPath: row.avatar_path || null,
+      avatarUrl: row.avatar_path
+        ? avatarUrls.get(row.avatar_path) ?? null
+        : null,
+      campusShortName: row.campus_short_name,
+      createdAt: row.created_at,
+      id: row.organization_id,
+      isVerified: row.is_verified,
+      name: row.name,
+    })
+  );
+  const lastOrganization = organizations.at(-1);
+
+  return {
+    cursor: lastOrganization
+      ? {
+          createdAt: lastOrganization.createdAt,
+          organizationId: lastOrganization.id,
+        }
+      : null,
+    hasMore,
+    organizations,
+  };
+}
+
 export function isOrganizationManagerRole(
   role: OrganizationRole | null
 ): role is OrganizationRole {

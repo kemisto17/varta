@@ -69,6 +69,39 @@ export const darkColors: ThemeColors = {
   white: '#171716',
 };
 
+export const warmColors: ThemeColors = {
+  background: '#FBF6EE',
+  surface: '#FFFDF8',
+  surfaceElevated: '#FFFFFF',
+  surfaceMuted: '#F3EADF',
+
+  textPrimary: '#2A211B',
+  textSecondary: '#76685C',
+  textMuted: '#8C7B6C',
+
+  border: '#E2D6C8',
+  borderSubtle: '#EEE5DA',
+  icon: '#2A211B',
+
+  primaryActionBackground: '#2A211B',
+  primaryActionForeground: '#FFFDF8',
+
+  danger: '#B42318',
+  dangerSoft: '#F7EAE7',
+  success: '#277047',
+  successSoft: '#E8F2EB',
+
+  overlay: 'rgba(42, 33, 27, 0.42)',
+  imageOverlay: 'rgba(0, 0, 0, 0.75)',
+  viewerBackground: '#050505',
+  viewerForeground: '#FFFFFF',
+  viewerMuted: '#D4D4D8',
+  viewerOverlay: 'rgba(24, 24, 27, 0.76)',
+
+  black: '#2A211B',
+  white: '#FFFDF8',
+};
+
 export const spacing = {
   xs: 4,
   sm: 8,

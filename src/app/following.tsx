@@ -1,4 +1,8 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
+} from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -19,6 +23,7 @@ import { radius, spacing, type ThemeColors } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
 import {
   getFollowedOrganizationsPage,
+  getProfileFollowedOrganizationsPage,
   setOrganizationFollow,
 } from '../lib/organizations';
 import type {
@@ -38,8 +43,21 @@ export default function FollowingScreen() {
   const router =
     useRouter();
 
+  const { profileId: requestedProfileId } =
+    useLocalSearchParams<{
+      profileId?: string | string[];
+    }>();
+
   const userId =
     session?.user.id ?? null;
+
+  const targetProfileId =
+    Array.isArray(requestedProfileId)
+      ? requestedProfileId[0] ?? null
+      : requestedProfileId ?? userId;
+
+  const isOwnFollowing =
+    targetProfileId === userId;
 
   const loadMorePendingRef =
     useRef(false);
@@ -131,7 +149,7 @@ export default function FollowingScreen() {
 
   /*
    * Following data belongs to the
-   * authenticated account.
+   * profile currently being viewed.
    *
    * Immediately invalidate all
    * asynchronous work and cached UI
@@ -139,7 +157,7 @@ export default function FollowingScreen() {
    */
   useEffect(() => {
     activeUserIdRef.current =
-      userId;
+      targetProfileId;
 
     requestIdRef.current +=
       1;
@@ -156,7 +174,7 @@ export default function FollowingScreen() {
     pendingIdsRef.current.clear();
 
     setStateUserId(
-      userId
+      targetProfileId
     );
 
     setCursor(
@@ -190,7 +208,7 @@ export default function FollowingScreen() {
     setStatus(
       'loading'
     );
-  }, [userId]);
+  }, [targetProfileId]);
 
   const loadPage =
     useCallback(
@@ -198,7 +216,7 @@ export default function FollowingScreen() {
         refreshing =
           false
       ) => {
-        if (!userId) {
+        if (!targetProfileId) {
           return;
         }
 
@@ -245,13 +263,17 @@ export default function FollowingScreen() {
 
         try {
           const page =
-            await getFollowedOrganizationsPage();
+            isOwnFollowing
+              ? await getFollowedOrganizationsPage()
+              : await getProfileFollowedOrganizationsPage(
+                  targetProfileId
+                );
 
           if (
             requestIdRef.current !==
               requestId ||
             activeUserIdRef.current !==
-              userId
+              targetProfileId
           ) {
             return;
           }
@@ -298,7 +320,7 @@ export default function FollowingScreen() {
             requestIdRef.current !==
               requestId ||
             activeUserIdRef.current !==
-              userId
+              targetProfileId
           ) {
             return;
           }
@@ -322,7 +344,7 @@ export default function FollowingScreen() {
             requestIdRef.current ===
               requestId &&
             activeUserIdRef.current ===
-              userId
+              targetProfileId
           ) {
             firstPagePendingRef.current =
               false;
@@ -333,7 +355,7 @@ export default function FollowingScreen() {
           }
         }
       },
-      [userId]
+      [isOwnFollowing, targetProfileId]
     );
 
   useFocusEffect(
@@ -370,7 +392,7 @@ export default function FollowingScreen() {
     useCallback(
       async () => {
         if (
-          !userId ||
+          !targetProfileId ||
           firstPagePendingRef.current ||
           loadMorePendingRef.current ||
           !cursor ||
@@ -398,15 +420,20 @@ export default function FollowingScreen() {
 
         try {
           const page =
-            await getFollowedOrganizationsPage(
-              activeCursor
-            );
+            isOwnFollowing
+              ? await getFollowedOrganizationsPage(
+                  activeCursor
+                )
+              : await getProfileFollowedOrganizationsPage(
+                  targetProfileId,
+                  activeCursor
+                );
 
           if (
             requestIdRef.current !==
               requestId ||
             activeUserIdRef.current !==
-              userId
+              targetProfileId
           ) {
             return;
           }
@@ -457,7 +484,7 @@ export default function FollowingScreen() {
             requestIdRef.current !==
               requestId ||
             activeUserIdRef.current !==
-              userId
+              targetProfileId
           ) {
             return;
           }
@@ -475,7 +502,7 @@ export default function FollowingScreen() {
             requestIdRef.current ===
               requestId &&
             activeUserIdRef.current ===
-              userId
+              targetProfileId
           ) {
             loadMorePendingRef.current =
               false;
@@ -489,7 +516,8 @@ export default function FollowingScreen() {
       [
         cursor,
         hasMore,
-        userId,
+        isOwnFollowing,
+        targetProfileId,
       ]
     );
 
@@ -500,6 +528,7 @@ export default function FollowingScreen() {
           FollowedOrganization
       ) => {
         if (
+          !isOwnFollowing ||
           !userId ||
           pendingIdsRef.current.has(
             organization.id
@@ -683,6 +712,7 @@ export default function FollowingScreen() {
         }
       },
       [
+        isOwnFollowing,
         organizations,
         userId,
       ]
@@ -698,7 +728,7 @@ export default function FollowingScreen() {
    */
   const isCurrentUserState =
     stateUserId ===
-    userId;
+    targetProfileId;
 
   const displayedOrganizations =
     isCurrentUserState
@@ -807,7 +837,9 @@ export default function FollowingScreen() {
                   styles.stateTitle
                 }
               >
-                You&apos;re not following any organizations yet.
+                {isOwnFollowing
+                  ? 'You\'re not following any organizations yet.'
+                  : 'This student isn\'t following any organizations yet.'}
               </Text>
 
               <Text
@@ -1001,51 +1033,53 @@ export default function FollowingScreen() {
                 </Text>
               </View>
 
-              <Pressable
-                accessibilityLabel={`Unfollow ${item.name}`}
-                accessibilityRole="button"
-                disabled={
-                  pendingIds.has(
+              {isOwnFollowing ? (
+                <Pressable
+                  accessibilityLabel={`Unfollow ${item.name}`}
+                  accessibilityRole="button"
+                  disabled={
+                    pendingIds.has(
+                      item.id
+                    )
+                  }
+                  onPress={(
+                    event
+                  ) => {
+                    event.stopPropagation();
+
+                    void unfollow(
+                      item
+                    );
+                  }}
+                  style={({
+                    pressed,
+                  }) => [
+                    styles.followingButton,
+
+                    pressed &&
+                      styles.pressed,
+                  ]}
+                >
+                  {pendingIds.has(
                     item.id
-                  )
-                }
-                onPress={(
-                  event
-                ) => {
-                  event.stopPropagation();
-
-                  void unfollow(
-                    item
-                  );
-                }}
-                style={({
-                  pressed,
-                }) => [
-                  styles.followingButton,
-
-                  pressed &&
-                    styles.pressed,
-                ]}
-              >
-                {pendingIds.has(
-                  item.id
-                ) ? (
-                  <ActivityIndicator
-                    color={
-                      colors.textPrimary
-                    }
-                    size="small"
-                  />
-                ) : (
-                  <Text
-                    style={
-                      styles.followingLabel
-                    }
-                  >
-                    Following
-                  </Text>
-                )}
-              </Pressable>
+                  ) ? (
+                    <ActivityIndicator
+                      color={
+                        colors.textPrimary
+                      }
+                      size="small"
+                    />
+                  ) : (
+                    <Text
+                      style={
+                        styles.followingLabel
+                      }
+                    >
+                      Following
+                    </Text>
+                  )}
+                </Pressable>
+              ) : null}
             </Pressable>
           )}
           showsVerticalScrollIndicator={

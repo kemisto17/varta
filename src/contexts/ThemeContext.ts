@@ -2,8 +2,12 @@ import { createContext } from 'react';
 
 import type { ThemeColors } from '../constants/theme';
 
-export type ThemePreference = 'system' | 'light' | 'dark';
-export type ResolvedTheme = 'light' | 'dark';
+export type ThemePreference =
+  | 'system'
+  | 'light'
+  | 'dark'
+  | 'warm';
+export type ResolvedTheme = 'light' | 'dark' | 'warm';
 
 export type ThemeContextValue = {
   colors: ThemeColors;

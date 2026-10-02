@@ -75,6 +75,7 @@ export type PostComment = {
     | 'fullName'
     | 'id'
     | 'isVerified'
+    | 'username'
     | 'year'
   >;
   authorId: CommentRow['author_id'];

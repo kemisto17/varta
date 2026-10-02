@@ -1214,18 +1214,34 @@ export default function HomeScreen() {
                   ) : null}
                 </Pressable>
 
-                <Avatar
-                  fullName={
-                    profile?.full_name ??
-                    'Student'
+                <Pressable
+                  accessibilityLabel="Open your profile"
+                  accessibilityRole="button"
+                  onPress={() =>
+                    router.push(
+                      '/(tabs)/profile'
+                    )
                   }
-                  uri={
-                    profileAvatarUrl
+                  style={({
+                    pressed,
+                  }) =>
+                    pressed &&
+                    styles.pressed
                   }
-                  verified={
-                    profile?.is_verified
-                  }
-                />
+                >
+                  <Avatar
+                    fullName={
+                      profile?.full_name ??
+                      'Student'
+                    }
+                    uri={
+                      profileAvatarUrl
+                    }
+                    verified={
+                      profile?.is_verified
+                    }
+                  />
+                </Pressable>
               </View>
             </View>
 

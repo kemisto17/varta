@@ -1299,6 +1299,22 @@ export type Database = {
           organization_id: string
         }[]
       }
+      get_profile_followed_organizations_page: {
+        Args: {
+          cursor_created_at?: string
+          cursor_organization_id?: string
+          result_limit?: number
+          target_profile_id: string
+        }
+        Returns: {
+          avatar_path: string
+          campus_short_name: string
+          created_at: string
+          is_verified: boolean
+          name: string
+          organization_id: string
+        }[]
+      }
       get_home_feed: {
         Args: {
           cursor_created_at?: string

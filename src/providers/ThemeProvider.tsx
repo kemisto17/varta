@@ -4,7 +4,11 @@ import type { PropsWithChildren } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Appearance, useColorScheme } from 'react-native';
 
-import { darkColors, lightColors } from '../constants/theme';
+import {
+  darkColors,
+  lightColors,
+  warmColors,
+} from '../constants/theme';
 import {
   ThemeContext,
   type ThemeContextValue,
@@ -55,7 +59,12 @@ export function ThemeProvider({ children }: PropsWithChildren) {
         ? 'dark'
         : 'light'
       : preference;
-  const colors = resolvedTheme === 'dark' ? darkColors : lightColors;
+  const colors =
+    resolvedTheme === 'dark'
+      ? darkColors
+      : resolvedTheme === 'warm'
+        ? warmColors
+        : lightColors;
 
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(colors.background).catch(
@@ -92,11 +101,20 @@ export function ThemeProvider({ children }: PropsWithChildren) {
 }
 
 function isThemePreference(value: string | null): value is ThemePreference {
-  return value === 'system' || value === 'light' || value === 'dark';
+  return (
+    value === 'system' ||
+    value === 'light' ||
+    value === 'dark' ||
+    value === 'warm'
+  );
 }
 
 function applyNativePreference(preference: ThemePreference) {
   Appearance.setColorScheme(
-    preference === 'system' ? 'unspecified' : preference
+    preference === 'system'
+      ? 'unspecified'
+      : preference === 'dark'
+        ? 'dark'
+        : 'light'
   );
 }

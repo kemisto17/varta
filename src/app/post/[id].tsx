@@ -662,7 +662,11 @@ export default function PostDetailScreen() {
                 commentText,
 
               parentCommentId:
-                replyingTo?.id ?? null,
+                replyingTo
+                  ? getThreadParentCommentId(
+                      replyingTo
+                    )
+                  : null,
 
               postId,
 
@@ -728,7 +732,7 @@ export default function PostDetailScreen() {
         commentText,
         post,
         postId,
-        replyingTo?.id,
+        replyingTo,
         updatePostCommentCount,
         userId,
       ]
@@ -861,6 +865,24 @@ export default function PostDetailScreen() {
         updatePostCommentCount,
         userId,
       ]
+    );
+
+  const handleReply =
+    useCallback(
+      (comment: PostComment) => {
+        const previousPrefix = replyingTo
+          ? `@${replyingTo.author.username} `
+          : '';
+
+        setReplyingTo(comment);
+        setCommentText((current) =>
+          !current.trim() || current === previousPrefix
+            ? `@${comment.author.username} `
+            : current
+        );
+        commentInputRef.current?.focus();
+      },
+      [replyingTo]
     );
 
   const handleDeletePost =
@@ -1267,16 +1289,7 @@ export default function PostDetailScreen() {
                     }
                   )
                 }
-                onReply={(
-                  comment
-                ) => {
-                  setReplyingTo(
-                    comment
-                  );
-                  commentInputRef
-                    .current
-                    ?.focus();
-                }}
+                onReply={handleReply}
               />
             )}
             showsVerticalScrollIndicator={
@@ -1312,11 +1325,10 @@ export default function PostDetailScreen() {
                   accessibilityLabel="Cancel reply"
                   accessibilityRole="button"
                   hitSlop={10}
-                  onPress={() =>
-                    setReplyingTo(
-                      null
-                    )
-                  }
+                  onPress={() => {
+                    setReplyingTo(null);
+                    setCommentText('');
+                  }}
                   style={({
                     pressed,
                   }) =>
@@ -1694,8 +1706,7 @@ function CommentRow({
           }
         </LinkifiedText>
 
-        {!isReply ? (
-          <Pressable
+        <Pressable
             accessibilityLabel={`Reply to ${comment.author.fullName}`}
             accessibilityRole="button"
             onPress={() =>
@@ -1719,7 +1730,6 @@ function CommentRow({
               Reply
             </Text>
           </Pressable>
-        ) : null}
       </View>
 
       <ActionSheet
@@ -1818,6 +1828,10 @@ function flattenCommentThread(
       ) ?? []),
     ]
   );
+}
+
+function getThreadParentCommentId(comment: PostComment) {
+  return comment.parentCommentId ?? comment.id;
 }
 
 function DetailSkeleton() {

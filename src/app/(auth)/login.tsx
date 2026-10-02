@@ -1,7 +1,7 @@
 import { useThemedStyles } from '../../hooks/useTheme';
 import { Link } from 'expo-router';
 import { useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AuthField } from '../../components/auth/AuthField';
 import { AuthScaffold } from '../../components/auth/AuthScaffold';
@@ -18,6 +18,7 @@ export default function LoginScreen() {
   const { styles } = useThemedStyles(createStyles);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitPendingRef = useRef(false);
@@ -91,7 +92,19 @@ export default function LoginScreen() {
           onSubmitEditing={handleLogin}
           placeholder="Your password"
           returnKeyType="done"
-          secureTextEntry
+          rightAccessory={(
+            <Pressable
+              accessibilityLabel={isPasswordVisible ? 'Hide password' : 'Show password'}
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => setIsPasswordVisible((visible) => !visible)}
+            >
+              <Text style={styles.passwordToggle}>
+                {isPasswordVisible ? 'Hide' : 'Show'}
+              </Text>
+            </Pressable>
+          )}
+          secureTextEntry={!isPasswordVisible}
           textContentType="password"
           value={password}
         />
@@ -159,6 +172,12 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     marginTop: -spacing.sm,
     alignSelf: 'flex-end',
     fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+
+  passwordToggle: {
+    fontSize: 13,
     fontWeight: '700',
     color: colors.textPrimary,
   },
