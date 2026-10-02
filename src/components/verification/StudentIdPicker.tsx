@@ -209,6 +209,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.lg,
     flexDirection: 'row',
+    alignItems: 'stretch',
+    overflow: 'hidden',
     backgroundColor: colors.background,
   },
 
@@ -221,7 +223,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
 
   selectedCopy: {
     flex: 1,
-    padding: spacing.md,
+    minWidth: 0,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
   },
 
   selectedEyebrow: {
@@ -247,16 +251,22 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   selectedActions: {
     marginTop: 'auto',
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: spacing.md,
   },
 
   changeLabel: {
+    flexShrink: 1,
+    paddingVertical: spacing.xs,
     fontSize: 12,
     fontWeight: '700',
     color: colors.textPrimary,
   },
 
   removeLabel: {
+    flexShrink: 1,
+    paddingVertical: spacing.xs,
     fontSize: 12,
     fontWeight: '600',
     color: colors.danger,
