@@ -13,6 +13,12 @@ export function redirectSystemPath({ path }: { initial: boolean; path: string })
       url.hostname === 'app' && normalizedPath === SHARE_PATH;
     const isCustomSchemeShareLink =
       url.protocol === 'varta:' && url.hostname === 'open';
+    const isAuthCallbackLink =
+      url.protocol === 'varta:' && url.hostname === 'auth-callback';
+
+    if (isAuthCallbackLink) {
+      return '/';
+    }
 
     if (
       !isWebShareLink &&

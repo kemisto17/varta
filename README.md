@@ -145,6 +145,7 @@ Trusted admin workflows are documented separately:
 - [Notifications and push](docs/notifications-and-push.md)
 - [Branding and settings](docs/branding-and-settings.md)
 - [Sharing and Android App Links](docs/sharing-and-app-links.md)
+- [Security Phase 1 audit notes](docs/security-phase-1.md)
 
 ## Project layout
 
