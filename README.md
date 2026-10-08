@@ -145,6 +145,7 @@ Trusted admin workflows are documented separately:
 - [Notifications and push](docs/notifications-and-push.md)
 - [Branding and settings](docs/branding-and-settings.md)
 - [Sharing and Android App Links](docs/sharing-and-app-links.md)
+- [Security Phase 1 audit notes](docs/security-phase-1.md)
 
 ## Project layout
 
@@ -166,10 +167,10 @@ Trusted admin workflows are documented separately:
 
 ## Release status
 
-- Current source release: V1.0.4
-- Expo/package version: `1.0.4`
+- Current source release: V1.0.5
+- Expo/package version: `1.0.5`
 - Android package: `com.kemisto17.varta`
-- Android version code: `5`
+- Android version code: `6`
 - Distribution status: Published on Google Play
 - Production build format: AAB
 

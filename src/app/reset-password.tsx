@@ -12,6 +12,7 @@ import {
   beginPasswordRecoverySession,
   clearPendingPasswordRecoverySession,
   getAuthErrorMessage,
+  getPasswordPolicyMessage,
   isPasswordRecoveryUrl,
 } from '../lib/auth';
 import { supabase } from '../lib/supabase';
@@ -196,8 +197,10 @@ export default function ResetPasswordScreen() {
 
     setErrorMessage(null);
 
-    if (newPassword.length < 8) {
-      setErrorMessage('Use at least 8 characters for your password.');
+    const passwordPolicyMessage = getPasswordPolicyMessage(newPassword);
+
+    if (passwordPolicyMessage) {
+      setErrorMessage(passwordPolicyMessage);
       return;
     }
 
@@ -308,7 +311,7 @@ export default function ResetPasswordScreen() {
           autoComplete="new-password"
           label="New password"
           onChangeText={setNewPassword}
-          placeholder="At least 8 characters"
+          placeholder="Letters and numbers"
           returnKeyType="next"
           secureTextEntry
           textContentType="newPassword"

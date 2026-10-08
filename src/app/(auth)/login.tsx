@@ -9,8 +9,10 @@ import { PrimaryButton } from '../../components/auth/PrimaryButton';
 import { spacing, type ThemeColors } from '../../constants/theme';
 import {
   getAuthErrorMessage,
+  isGoogleSignInEnabled,
   isValidEmail,
   normalizeEmail,
+  startGoogleSignIn,
 } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 
@@ -20,8 +22,13 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [googleErrorMessage, setGoogleErrorMessage] = useState<string | null>(
+    null
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const submitPendingRef = useRef(false);
+  const googleSubmitPendingRef = useRef(false);
 
   const handleLogin = async () => {
     if (submitPendingRef.current) {
@@ -60,6 +67,30 @@ export default function LoginScreen() {
       submitPendingRef.current = false;
       setErrorMessage('We could not sign you in. Check your connection and try again.');
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (googleSubmitPendingRef.current) {
+      return;
+    }
+
+    setGoogleErrorMessage(null);
+    googleSubmitPendingRef.current = true;
+    setIsGoogleSubmitting(true);
+
+    try {
+      await startGoogleSignIn();
+      googleSubmitPendingRef.current = false;
+      setIsGoogleSubmitting(false);
+    } catch (error) {
+      googleSubmitPendingRef.current = false;
+      setGoogleErrorMessage(
+        error instanceof Error
+          ? getAuthErrorMessage(error.message)
+          : 'We could not start Google sign-in. Try again in a moment.'
+      );
+      setIsGoogleSubmitting(false);
     }
   };
 
@@ -127,6 +158,37 @@ export default function LoginScreen() {
           label="Sign in"
           onPress={handleLogin}
         />
+
+        {isGoogleSignInEnabled ? (
+          <>
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerLabel}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              disabled={isGoogleSubmitting}
+              onPress={handleGoogleSignIn}
+              style={({ pressed }) => [
+                styles.googleButton,
+                isGoogleSubmitting && styles.googleButtonDisabled,
+                pressed && !isGoogleSubmitting && styles.googleButtonPressed,
+              ]}
+            >
+              <Text style={styles.googleButtonLabel}>
+                {isGoogleSubmitting ? 'Opening Google…' : 'Continue with Google'}
+              </Text>
+            </Pressable>
+
+            {googleErrorMessage ? (
+              <Text accessibilityRole="alert" style={styles.errorMessage}>
+                {googleErrorMessage}
+              </Text>
+            ) : null}
+          </>
+        ) : null}
       </View>
 
       <Text style={styles.accountPrompt}>
@@ -180,6 +242,48 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.borderSubtle,
+  },
+
+  dividerLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
+
+  googleButton: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+
+  googleButtonLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+
+  googleButtonPressed: {
+    backgroundColor: colors.borderSubtle,
+  },
+
+  googleButtonDisabled: {
+    opacity: 0.55,
   },
 
   accountPrompt: {

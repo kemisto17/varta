@@ -52,8 +52,8 @@ Varta is **not** an official university application. It is an independent studen
 - Android package: `com.kemisto17.varta`
 - URL scheme: `varta`
 - Google Play distribution
-- Current source/package version: 1.0.4
-- Android versionCode: 5
+- Current source/package version: 1.0.5
+- Android versionCode: 6
 
 ## 4. High-level architecture
 
