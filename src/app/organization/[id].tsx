@@ -1110,7 +1110,7 @@ export default function OrganizationScreen() {
                 styles.identityLabel
               }
             >
-              Official organization
+              {organization.isVerified ? 'Official organization' : 'Organization'}
             </Text>
 
             <Text

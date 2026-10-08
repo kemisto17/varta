@@ -192,7 +192,7 @@ export function PostCard({
                   numberOfLines={1}
                   style={styles.identityMeta}
                 >
-                  Official organization ·{' '}
+                  {post.author.isVerified ? 'Official organization' : 'Organization'} ·{' '}
                   {post.author.campusShortName}
                 </Text>
 

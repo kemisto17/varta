@@ -24,6 +24,7 @@ import {
   getProfileLinks,
   type StructuredLink,
 } from '../../lib/links';
+import { getMentionedProfileId } from '../../lib/mentions';
 import {
   getIsUserBlocked,
   type ModerationUser,
@@ -1119,6 +1120,36 @@ export function StudentProfileScreen({
       [router]
     );
 
+  const openMention =
+    useCallback(
+      async (username: string) => {
+        try {
+          const mentionedProfileId =
+            await getMentionedProfileId(username);
+
+          if (!mentionedProfileId) {
+            return;
+          }
+
+          if (mentionedProfileId === viewerUserId) {
+            router.navigate('/(tabs)/profile');
+            return;
+          }
+
+          router.push({
+            pathname: '/user/[id]',
+            params: { id: mentionedProfileId },
+          });
+        } catch (error) {
+          console.warn(
+            '[mentions] Could not open mentioned profile from bio.',
+            error
+          );
+        }
+      },
+      [router, viewerUserId]
+    );
+
   const goBack =
     useCallback(() => {
       if (
@@ -1468,6 +1499,7 @@ export function StudentProfileScreen({
                   },
                 })
             }
+            onMentionPress={openMention}
             links={
               links
             }
@@ -1836,6 +1868,7 @@ function ProfileHeader({
   isOwnProfile,
   onEdit,
   onFollowing,
+  onMentionPress,
   links,
   profile,
 }: {
@@ -1850,6 +1883,9 @@ function ProfileHeader({
 
   onFollowing?:
     () => void;
+
+  onMentionPress:
+    (username: string) => void;
 
   links:
     StructuredLink[];
@@ -1883,7 +1919,7 @@ function ProfileHeader({
               profile.avatarUrl
             }
             verified={
-              profile.isVerified
+              profile.hasVerifiedBadge
             }
           />
 
@@ -1929,7 +1965,7 @@ function ProfileHeader({
             }
           </Text>
 
-          {profile.isVerified ? (
+          {profile.hasVerifiedBadge ? (
             <SymbolView
               name={{
                 android:
@@ -1968,6 +2004,7 @@ function ProfileHeader({
 
         {profile.bio ? (
           <LinkifiedText
+            onMentionPress={onMentionPress}
             style={
               styles.bio
             }
@@ -1988,9 +2025,7 @@ function ProfileHeader({
         />
 
         <ProfileBadges
-          badges={
-            profile.badges
-          }
+          badges={profile.badges.filter((badge) => badge.slug !== 'verified')}
           maxVisible={3}
         />
 

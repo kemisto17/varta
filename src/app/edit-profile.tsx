@@ -49,6 +49,7 @@ export default function EditProfileScreen() {
   const [instituteName, setInstituteName] = useState('Your verified institute');
   const [isPicking, setIsPicking] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasVerifiedBadge, setHasVerifiedBadge] = useState(false);
   const [links, setLinks] = useState<StructuredLinkDraft[]>([]);
   const [removeAvatar, setRemoveAvatar] = useState(false);
   const [selectedAsset, setSelectedAsset] =
@@ -83,6 +84,7 @@ export default function EditProfileScreen() {
         }
 
         setAvatarUrl(userProfile.avatarUrl);
+        setHasVerifiedBadge(userProfile.hasVerifiedBadge);
         setInstituteName(userProfile.institute.name);
         setLinks(nextLinks.map(({ label, url }) => ({ label, url })));
       })
@@ -254,7 +256,7 @@ export default function EditProfileScreen() {
               fullName={fullName || 'Student'}
               size={96}
               uri={displayedAvatarUrl}
-              verified={profile?.is_verified}
+              verified={hasVerifiedBadge}
             />
 
             <View style={styles.avatarActions}>

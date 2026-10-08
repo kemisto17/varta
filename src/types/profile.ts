@@ -17,6 +17,7 @@ export type UserProfile = {
     name: InstituteRow['name'];
     shortName: InstituteRow['short_name'];
   };
+  hasVerifiedBadge: boolean;
   isVerified: boolean;
   organizationFollowingCount: number;
   postCount: number;

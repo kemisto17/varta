@@ -332,6 +332,7 @@ function mapUserProfile(
       name: row.institute.name,
       shortName: row.institute.short_name,
     },
+    hasVerifiedBadge: badges.some((badge) => badge.slug === 'verified'),
     isVerified: row.is_verified,
     organizationFollowingCount,
     postCount: row.posts[0]?.count ?? 0,

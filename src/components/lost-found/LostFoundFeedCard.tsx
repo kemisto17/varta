@@ -72,7 +72,7 @@ export function LostFoundFeedCard({
           <Text numberOfLines={1} style={styles.identityMeta}>
             {item.author.kind === 'student'
               ? `@${item.author.username} · ${item.author.institute.short_name}`
-              : `Official organization · ${item.author.campusShortName}`}
+              : `${item.author.isVerified ? 'Official organization' : 'Organization'} · ${item.author.campusShortName}`}
           </Text>
           <Text style={styles.time}>{formatRelativeTimestamp(item.createdAt)}</Text>
         </View>

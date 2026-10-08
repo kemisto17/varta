@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import { Avatar } from '../components/Avatar';
 import { SafeAreaScreen } from '../components/SafeAreaScreen';
 import { MentionInput } from '../components/MentionInput';
 import {
@@ -27,6 +28,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useFeed } from '../hooks/useFeed';
 import { useProfile } from '../hooks/useProfile';
 import { useThemedStyles } from '../hooks/useTheme';
+import { getAvatarUrl } from '../lib/avatars';
 import { getManageableOrganizationsForPosting } from '../lib/organizations';
 import {
   getPostById,
@@ -34,7 +36,6 @@ import {
   MAX_POST_CHARACTERS,
   publishPost,
 } from '../lib/posts';
-import { getInitials } from '../lib/text';
 import type { ManageableOrganization } from '../types/organization';
 
 type CreatePostScreenProps = {
@@ -60,6 +61,7 @@ export default function CreatePostScreen({
   const [isChangingCreateType, setIsChangingCreateType] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isIdentityPickerVisible, setIsIdentityPickerVisible] = useState(false);
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
   const [manageableOrganizations, setManageableOrganizations] = useState<
     ManageableOrganization[]
   >([]);
@@ -71,6 +73,35 @@ export default function CreatePostScreen({
     manageableOrganizations.find(
       (organization) => organization.id === selectedOrganizationId
     ) ?? null;
+
+  useEffect(() => {
+    let isActive = true;
+    const avatarPath = profile?.avatar_path;
+
+    setProfileAvatarUrl(null);
+
+    if (!avatarPath) {
+      return () => {
+        isActive = false;
+      };
+    }
+
+    void getAvatarUrl(avatarPath)
+      .then((url) => {
+        if (isActive) {
+          setProfileAvatarUrl(url);
+        }
+      })
+      .catch((error) => {
+        if (isActive) {
+          console.warn('[create-post] Could not load profile avatar.', error);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [profile?.avatar_path]);
 
   useFocusEffect(
     useCallback(() => {
@@ -270,11 +301,11 @@ export default function CreatePostScreen({
                 uri={selectedOrganization.avatarUrl}
               />
             ) : (
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {getInitials(profile?.full_name ?? 'Student')}
-                </Text>
-              </View>
+              <Avatar
+                fullName={profile?.full_name ?? 'Student'}
+                size={42}
+                uri={profileAvatarUrl}
+              />
             )}
 
             <View style={styles.authorCopy}>
@@ -283,7 +314,7 @@ export default function CreatePostScreen({
               </Text>
               <Text numberOfLines={1} style={styles.authorMeta}>
                 {selectedOrganization
-                  ? `Official organization · ${selectedOrganization.campusShortName}`
+                  ? `${selectedOrganization.isVerified ? 'Official organization' : 'Organization'} · ${selectedOrganization.campusShortName}`
                   : profile
                     ? `${profile.branch} · ${formatYear(profile.year)}`
                     : 'Campus member'}
@@ -399,15 +430,6 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
     },
-    avatar: {
-      width: 42,
-      height: 42,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 21,
-      backgroundColor: colors.textPrimary,
-    },
-    avatarText: { fontSize: 13, fontWeight: '700', color: colors.white },
     authorCopy: { flex: 1, marginLeft: spacing.md },
     authorName: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
     authorMeta: { marginTop: 3, fontSize: 12, color: colors.textSecondary },

@@ -13,7 +13,7 @@ import { OrganizationAvatar } from '../../components/organizations/OrganizationA
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import {
-  cancelOrganizationEvent,
+  deleteOrganizationEvent,
   getEventById,
   getEventErrorMessage,
   setEventInterest,
@@ -35,11 +35,11 @@ export default function EventDetailScreen() {
   const requestIdRef = useRef(0);
   const eventRef = useRef<EventDetail | null>(null);
   const interestPendingRef = useRef(false);
-  const cancellationPendingRef = useRef(false);
+  const deletionPendingRef = useRef(false);
   const activeUserIdRef = useRef<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [event, setEvent] = useState<EventDetail | null>(null);
-  const [isCancelling, setIsCancelling] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isImageOpen, setIsImageOpen] = useState(false);
   const [isInterestPending, setIsInterestPending] = useState(false);
   const [isSharePending, setIsSharePending] = useState(false);
@@ -49,8 +49,8 @@ export default function EventDetailScreen() {
     activeUserIdRef.current = userId;
     requestIdRef.current += 1;
     interestPendingRef.current = false;
-    cancellationPendingRef.current = false;
-    setIsCancelling(false);
+    deletionPendingRef.current = false;
+    setIsDeleting(false);
     setIsInterestPending(false);
     setIsSharePending(false);
   }, [eventId, userId]);
@@ -150,56 +150,61 @@ export default function EventDetailScreen() {
     }
   };
 
-  const confirmCancellation = () => {
-    if (!event || cancellationPendingRef.current || event.status === 'cancelled') {
+  const confirmDeletion = () => {
+    if (!event || deletionPendingRef.current) {
       return;
     }
 
     Alert.alert(
-      'Cancel this event?',
-      'The event will remain visible as cancelled, and interested students will be notified.',
+      'Delete this event?',
+      'This permanently removes the event and its cover image. Interested students will no longer see it.',
       [
         { style: 'cancel', text: 'Keep event' },
         {
           style: 'destructive',
-          text: 'Cancel event',
-          onPress: () => void cancelEvent(),
+          text: 'Delete event',
+          onPress: () => void deleteEvent(),
         },
       ]
     );
   };
 
-  const cancelEvent = async () => {
-    if (!event || cancellationPendingRef.current) {
+  const deleteEvent = async () => {
+    if (!event || deletionPendingRef.current) {
       return;
     }
 
-    cancellationPendingRef.current = true;
-    setIsCancelling(true);
+    deletionPendingRef.current = true;
+    setIsDeleting(true);
     setErrorMessage(null);
 
     try {
-      await cancelOrganizationEvent(event.id);
+      await deleteOrganizationEvent(event);
 
       if (activeUserIdRef.current !== userId) {
         return;
       }
 
-      const cancelledEvent: EventDetail = { ...event, status: 'cancelled' };
-      eventRef.current = cancelledEvent;
-      setEvent(cancelledEvent);
+      eventRef.current = null;
+      setEvent(null);
+      setStatus('unavailable');
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/events');
+      }
     } catch (error) {
       if (activeUserIdRef.current !== userId) {
         return;
       }
 
-      console.warn('[event-detail] Could not cancel event.', error);
+      console.warn('[event-detail] Could not delete event.', error);
       setErrorMessage(getEventErrorMessage(error));
     } finally {
-      cancellationPendingRef.current = false;
+      deletionPendingRef.current = false;
 
       if (activeUserIdRef.current === userId) {
-        setIsCancelling(false);
+        setIsDeleting(false);
       }
     }
   };
@@ -387,15 +392,15 @@ export default function EventDetailScreen() {
               </Pressable>
             ) : null}
 
-            {event.canManage && event.status !== 'cancelled' && event.status !== 'draft' ? (
+            {event.canManage ? (
               <Pressable
                 accessibilityRole="button"
-                disabled={isCancelling}
-                onPress={confirmCancellation}
-                style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}
+                disabled={isDeleting}
+                onPress={confirmDeletion}
+                style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
               >
-                <Text style={styles.cancelButtonText}>
-                  {isCancelling ? 'Cancelling…' : 'Cancel event'}
+                <Text style={styles.deleteButtonText}>
+                  {isDeleting ? 'Deleting…' : 'Delete event'}
                 </Text>
               </Pressable>
             ) : null}
@@ -472,8 +477,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   description: { marginTop: spacing.sm, fontSize: 15, lineHeight: 24, color: colors.textSecondary },
   registrationButton: { minHeight: 52, marginTop: spacing.xl, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, borderRadius: radius.full, backgroundColor: colors.textPrimary },
   registrationText: { fontSize: 14, fontWeight: '700', color: colors.white },
-  cancelButton: { minHeight: 48, marginTop: spacing.md, alignItems: 'center', justifyContent: 'center' },
-  cancelButtonText: { fontSize: 13, fontWeight: '700', color: colors.danger },
+  deleteButton: { minHeight: 48, marginTop: spacing.md, alignItems: 'center', justifyContent: 'center' },
+  deleteButtonText: { fontSize: 13, fontWeight: '700', color: colors.danger },
   error: { marginTop: spacing.lg, fontSize: 13, lineHeight: 19, color: colors.danger },
   stateTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center', color: colors.textPrimary },
   stateMessage: { maxWidth: 290, marginTop: spacing.sm, fontSize: 14, lineHeight: 21, textAlign: 'center', color: colors.textSecondary },

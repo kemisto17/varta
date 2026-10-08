@@ -1133,18 +1133,9 @@ export async function cancelOrganizationEvent(
   return data;
 }
 
-export async function deleteDraftEvent(
+export async function deleteOrganizationEvent(
   event: CampusEvent
 ) {
-  if (
-    event.status !==
-    'draft'
-  ) {
-    throw new Error(
-      'Published events should be cancelled, not deleted.'
-    );
-  }
-
   /*
    * R2 deletion authorization needs
    * the event row to exist, so delete
@@ -1166,7 +1157,7 @@ export async function deleteDraftEvent(
       cleanupError
     ) {
       console.warn(
-        '[events] Could not remove draft event cover.',
+        '[events] Could not remove event cover before deletion.',
         cleanupError
       );
     }
@@ -1183,10 +1174,6 @@ export async function deleteDraftEvent(
         'id',
         event.id
       )
-      .eq(
-        'status',
-        'draft'
-      )
       .select('id')
       .single();
 
@@ -1195,6 +1182,16 @@ export async function deleteDraftEvent(
   }
 
   return data;
+}
+
+export async function deleteDraftEvent(
+  event: CampusEvent
+) {
+  if (event.status !== 'draft') {
+    throw new Error('Only draft events can use the draft delete helper.');
+  }
+
+  return deleteOrganizationEvent(event);
 }
 
 export function getEventErrorMessage(

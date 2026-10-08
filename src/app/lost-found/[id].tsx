@@ -276,7 +276,7 @@ export default function LostFoundDetailScreen() {
               <Text style={styles.authorMeta}>
                 {item.author.kind === 'student'
                   ? `@${item.author.username} · ${item.author.institute.short_name}`
-                  : `Official organization · ${item.author.campusShortName}`}
+                  : `${item.author.isVerified ? 'Official organization' : 'Organization'} · ${item.author.campusShortName}`}
               </Text>
               <Text style={styles.authorTime}>
                 Posted {formatRelativeTimestamp(item.createdAt)}

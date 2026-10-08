@@ -266,10 +266,6 @@ export function LostFoundFormScreen({
             style={styles.input}
             value={campusLocation}
           />
-          <Text style={styles.locationHint}>
-            This is typed campus context only. Varta does not request device GPS.
-          </Text>
-
           <View style={styles.dateField}>
             <EventDateTimeField
               label={kind === 'lost' ? 'Date lost' : 'Date found'}
@@ -394,12 +390,6 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surface,
     },
     selectValue: { fontSize: 15, color: colors.textPrimary },
-    locationHint: {
-      marginTop: spacing.sm,
-      fontSize: 11,
-      lineHeight: 16,
-      color: colors.textMuted,
-    },
     dateField: { marginTop: spacing.lg },
     submitButton: {
       minWidth: 84,
