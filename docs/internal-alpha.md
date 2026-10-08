@@ -18,7 +18,7 @@ Before sharing an Expo QR code:
 - The tester has the exact version/commit identifier and knows where to send feedback.
 - The configured VĀ launcher icon has been checked in a development build, preview APK, or production build rather than judged through Expo Go.
 
-Email confirmation is intentionally disabled only for Expo Go development. Before inviting external testers, configure a mobile auth callback, re-enable confirmation, and enable leaked-password protection in Supabase Auth.
+Email confirmation may be disabled only for Expo Go development. Before inviting external testers, configure the `varta://auth-callback` mobile redirect and re-enable confirmation in Supabase Auth. Leaked-password protection is recommended by Supabase but currently requires a paid Supabase plan, so it is unavailable under Varta's zero-paid-subscription constraint.
 
 ## Approve a student tester
 
@@ -192,7 +192,7 @@ Do not expose this query or a feedback-list screen to the mobile role. Treat mes
 ## Known alpha constraints
 
 - Installed builds use the `varta` URL scheme and `com.kemisto17.varta` Android application ID. Old `campus://` development links are intentionally retired.
-- Email confirmation is disabled until the mobile callback is configured.
+- Email confirmation must be enabled in hosted Supabase before external testing; the app now supports the `varta://auth-callback` mobile confirmation callback.
 - Organization avatar upload is admin-managed; the client is read-only.
 - Search does not include post content or full-text ranking.
 - Product analytics are not added in this milestone; server table counts and the private feedback queue provide the minimum alpha signal without introducing a new data processor.

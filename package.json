@@ -1,7 +1,7 @@
 {
   "name": "varta",
   "main": "expo-router/entry",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "dependencies": {
     "@react-native-community/datetimepicker": "9.1.0",
     "@supabase/supabase-js": "^2.112.3",

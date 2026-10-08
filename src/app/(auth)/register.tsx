@@ -1,7 +1,7 @@
 import { useThemedStyles } from '../../hooks/useTheme';
 import { Link } from 'expo-router';
 import { useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AuthField } from '../../components/auth/AuthField';
 import { PolicyLinks } from '../../components/PolicyLinks';
@@ -10,8 +10,12 @@ import { PrimaryButton } from '../../components/auth/PrimaryButton';
 import { spacing, type ThemeColors } from '../../constants/theme';
 import {
   getAuthErrorMessage,
+  createAuthCallbackRedirectUrl,
+  getPasswordPolicyMessage,
+  isGoogleSignInEnabled,
   isValidEmail,
   normalizeEmail,
+  startGoogleSignIn,
 } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 
@@ -24,8 +28,13 @@ export default function RegisterScreen() {
     null
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [googleErrorMessage, setGoogleErrorMessage] = useState<string | null>(
+    null
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const submitPendingRef = useRef(false);
+  const googleSubmitPendingRef = useRef(false);
 
   const handleRegister = async () => {
     if (submitPendingRef.current) {
@@ -39,8 +48,10 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (password.length < 8) {
-      setErrorMessage('Use at least 8 characters for your password.');
+    const passwordPolicyMessage = getPasswordPolicyMessage(password);
+
+    if (passwordPolicyMessage) {
+      setErrorMessage(passwordPolicyMessage);
       return;
     }
 
@@ -58,6 +69,9 @@ export default function RegisterScreen() {
       const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
+        options: {
+          emailRedirectTo: createAuthCallbackRedirectUrl(),
+        },
       });
 
       if (error) {
@@ -78,6 +92,30 @@ export default function RegisterScreen() {
       submitPendingRef.current = false;
       setErrorMessage('We could not create your account. Check your connection and try again.');
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (googleSubmitPendingRef.current) {
+      return;
+    }
+
+    setGoogleErrorMessage(null);
+    googleSubmitPendingRef.current = true;
+    setIsGoogleSubmitting(true);
+
+    try {
+      await startGoogleSignIn();
+      googleSubmitPendingRef.current = false;
+      setIsGoogleSubmitting(false);
+    } catch (error) {
+      googleSubmitPendingRef.current = false;
+      setGoogleErrorMessage(
+        error instanceof Error
+          ? getAuthErrorMessage(error.message)
+          : 'We could not start Google sign-in. Try again in a moment.'
+      );
+      setIsGoogleSubmitting(false);
     }
   };
 
@@ -124,7 +162,7 @@ export default function RegisterScreen() {
           autoComplete="new-password"
           label="Password"
           onChangeText={setPassword}
-          placeholder="At least 8 characters"
+          placeholder="Letters and numbers"
           returnKeyType="next"
           secureTextEntry
           textContentType="newPassword"
@@ -155,6 +193,37 @@ export default function RegisterScreen() {
           label="Create account"
           onPress={handleRegister}
         />
+
+        {isGoogleSignInEnabled ? (
+          <>
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerLabel}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              disabled={isGoogleSubmitting}
+              onPress={handleGoogleSignIn}
+              style={({ pressed }) => [
+                styles.googleButton,
+                isGoogleSubmitting && styles.googleButtonDisabled,
+                pressed && !isGoogleSubmitting && styles.googleButtonPressed,
+              ]}
+            >
+              <Text style={styles.googleButtonLabel}>
+                {isGoogleSubmitting ? 'Opening Google…' : 'Continue with Google'}
+              </Text>
+            </Pressable>
+
+            {googleErrorMessage ? (
+              <Text accessibilityRole="alert" style={styles.errorMessage}>
+                {googleErrorMessage}
+              </Text>
+            ) : null}
+          </>
+        ) : null}
       </View>
 
       <Text style={styles.accountPrompt}>
@@ -207,6 +276,48 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     color: colors.danger,
+  },
+
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.borderSubtle,
+  },
+
+  dividerLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
+
+  googleButton: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+
+  googleButtonLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+
+  googleButtonPressed: {
+    backgroundColor: colors.borderSubtle,
+  },
+
+  googleButtonDisabled: {
+    opacity: 0.55,
   },
 
   accountPrompt: {

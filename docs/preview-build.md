@@ -1,6 +1,6 @@
 # Varta Android preview build
 
-This is the release-readiness gate for Varta `1.0.4` (Android versionCode `5`).
+This is the release-readiness gate for Varta `1.0.5` (Android versionCode `6`).
 It prepares an internal APK; it does not publish to Google Play.
 
 ## Build identity and profiles
@@ -126,7 +126,7 @@ to be published at
 verification.
 
 Email confirmation remains disabled for this internal alpha. Before enabling
-it, add the exact callback `varta://auth/callback` to Supabase Auth URL
+it, add the exact callback `varta://auth-callback` to Supabase Auth URL
 Configuration and implement/test the callback session exchange. A broader
 `varta://**` allow-list can be useful during development, but the production
 allow-list should use exact paths. Do not enable confirmation until that route
