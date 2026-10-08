@@ -167,10 +167,10 @@ Trusted admin workflows are documented separately:
 
 ## Release status
 
-- Current source release: V1.0.4
-- Expo/package version: `1.0.4`
+- Current source release: V1.0.5
+- Expo/package version: `1.0.5`
 - Android package: `com.kemisto17.varta`
-- Android version code: `5`
+- Android version code: `6`
 - Distribution status: Published on Google Play
 - Production build format: AAB
 
