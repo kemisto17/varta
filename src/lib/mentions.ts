@@ -8,6 +8,10 @@ export type MentionSuggestion = {
   avatarUrl: string | null;
 };
 
+export type MentionedDestination =
+  | { id: string; kind: 'profile' }
+  | { id: string; kind: 'organization' };
+
 export async function searchMentionSuggestions(query: string, userId: string, signal: AbortSignal): Promise<MentionSuggestion[]> {
   if (!/^[a-z0-9._]{0,30}$/i.test(query)) return [];
   const prefix = query.toLowerCase().replace(/_/g, '\\_');
@@ -55,4 +59,43 @@ export async function getMentionedProfileId(username: string) {
   }
 
   return data?.id ?? null;
+}
+
+export async function getMentionedDestination(
+  username: string
+): Promise<MentionedDestination | null> {
+  const normalizedUsername =
+    username.trim().replace(/^@/, '').toLowerCase();
+
+  if (!/^[a-z0-9._-]{3,30}$/.test(normalizedUsername)) {
+    return null;
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('username', normalizedUsername)
+    .maybeSingle();
+
+  if (profileError) {
+    throw profileError;
+  }
+
+  if (profile) {
+    return { id: profile.id, kind: 'profile' };
+  }
+
+  const { data: organization, error: organizationError } = await supabase
+    .from('organizations')
+    .select('id')
+    .eq('slug', normalizedUsername)
+    .maybeSingle();
+
+  if (organizationError) {
+    throw organizationError;
+  }
+
+  return organization
+    ? { id: organization.id, kind: 'organization' }
+    : null;
 }

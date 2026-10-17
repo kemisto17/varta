@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { radius, spacing, type ThemeColors } from '../../constants/theme';
+import { isDarkTheme } from '../../contexts/ThemeContext';
 import { formatDateInput, formatTimeInput } from '../../lib/time';
 
 type EventDateTimeFieldProps = {
@@ -65,7 +66,7 @@ export function EventDateTimeField({
             onDismiss={handleDismiss}
             onValueChange={handleValueChange}
             textColor={colors.textPrimary}
-            themeVariant={resolvedTheme === 'dark' ? 'dark' : 'light'}
+            themeVariant={isDarkTheme(resolvedTheme) ? 'dark' : 'light'}
             value={value}
           />
           {Platform.OS === 'ios' ? (

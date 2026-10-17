@@ -1,6 +1,6 @@
 # Varta Android preview build
 
-This is the release-readiness gate for Varta `1.0.5` (Android versionCode `6`).
+This is the release-readiness gate for Varta `1.0.6` (Android versionCode `7`).
 It prepares an internal APK; it does not publish to Google Play.
 
 ## Build identity and profiles
@@ -125,12 +125,18 @@ to be published at
 `/varta/.well-known/assetlinks.json` is not sufficient for Android host
 verification.
 
-Email confirmation remains disabled for this internal alpha. Before enabling
-it, add the exact callback `varta://auth-callback` to Supabase Auth URL
-Configuration and implement/test the callback session exchange. A broader
-`varta://**` allow-list can be useful during development, but the production
-allow-list should use exact paths. Do not enable confirmation until that route
-is implemented, or email links will open an incomplete flow.
+The app implements the `varta://auth-callback` session exchange. The hosted
+Supabase Auth URL Configuration must include that exact callback before email
+confirmation is enabled. A broader `varta://**` allow-list can be useful during
+development, but the production allow-list should use exact paths.
+
+Google sign-in is the primary zero-cost onboarding path. Supabase's shared SMTP
+sender has low limits and is not a dependable high-volume delivery path, so
+email/password confirmation and recovery are a documented best-effort fallback
+unless custom SMTP is added later. When an email already belongs to a confirmed
+Google identity, password sign-up intentionally does not send a confirmation
+email; the registration result directs that user back to Google sign-in without
+revealing account existence.
 
 Password recovery requires the exact `varta://reset-password` callback in the
 hosted project's Supabase Auth URL Configuration. Test recovery in an installed
@@ -152,8 +158,8 @@ credentials in the app.
 
 ## Real-device smoke test
 
-Use a physical Android device and watch logs. Test both Light and Dark, System
-appearance, a cold start, a warm start, portrait and landscape, gesture
+Use a physical Android device and watch logs. Test System, Light, Dark, Warm
+Ivory, Ocean Blue, Forest Green, and all three matching dark palettes, a cold start, a warm start, portrait and landscape, gesture
 navigation, and three-button navigation where available. Also check an Android
 16 tablet or foldable emulator because the app no longer requests a fixed
 portrait orientation.
@@ -162,17 +168,19 @@ portrait orientation.
 2. Confirm there is no white flash, auth-route flash, stuck splash, or status-bar strip.
 3. Accept the Terms of Use, restart twice to confirm the gate does not flash again, then check Campus/Latest switching, refresh, multi-page scrolling, text and image posts, events, active Lost & Found cards, Post Detail likes, comment replies, mentions, and fullscreen image controls.
 4. Edit Profile and upload an avatar.
-5. Open Explore student, organization, and event results; confirm signed organization images/fallbacks render, follow an organization, and mark an event Interested. Organization-image upload remains an admin workflow in this alpha and is not exposed to the mobile client.
+5. Open Explore student, organization, and event results; confirm organization images/fallbacks render, follow an organization, and mark an event Interested. With an assigned owner/admin account, update the organization profile and avatar. With an owner account, add, change, and remove an admin/editor.
 6. Open Notifications, trigger an in-app notification, restart the app, and
    confirm Realtime reconnects without duplicate rows or subscription errors.
    Then test a background/cold-start push tap.
 7. Upload an event cover and verification document through the roles/states that expose those controls.
 8. Submit a report and feedback item.
-9. Switch System/Light/Dark, restart after each choice, and confirm persistence and status-bar contrast.
+9. Switch through System, Light, Dark, Warm Ivory, Ocean Blue, Forest Green, Warm Dark, Ocean Dark, and Forest Dark; restart after each choice and confirm persistence, readable text, button contrast, date/time picker appearance, and status-bar contrast.
 10. Save posts from Home, profiles, organizations, and Post Detail; open Saved posts from Settings, paginate, refresh, like/open a saved post, and remove a bookmark.
 11. Share a post and published event into Messages or another app. Open each HTTPS link with Varta installed, then uninstall Varta and confirm the same link reaches the Google Play test page. Confirm draft events have no share action.
 12. Open every policy link in Settings, including Request account deletion; confirm the public pages load and the deletion flow clearly creates a support-reviewed request.
-13. Logout, log in again, and confirm the theme preference remains device-local.
+13. Confirm Google sign-in with a new account. If email/password access is included in this release, register a genuinely new email and verify that the shared sender delivers a confirmation that opens `varta://auth-callback`; record delivery failure as the accepted SMTP limitation. Then try an address already used with Google and confirm the app offers Google sign-in without promising another email.
+14. Capture release screenshots only from the installed preview build after the selected theme, test data, notification state, and privacy-sensitive content have been reviewed.
+15. Logout, log in again, and confirm the theme preference remains device-local.
 
 Check punch-hole/notch top insets, bottom gesture insets, the tab bar, Create
 Post actions, comment composer, sheets, and fullscreen close control. The code

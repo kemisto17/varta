@@ -8,11 +8,11 @@
 - Expo slug and deep-link scheme: `varta`
 - Android application ID: `com.kemisto17.varta`
 
-These identifiers are the stable internal-alpha identity. Changing the Android application ID later would create a different installed app and Play Store listing.
+These identifiers are Varta's stable release identity. Changing the Android application ID later would create a different installed app and Play Store listing.
 
 ## Appearance architecture
 
-`ThemeProvider` loads `system`, `light`, or `dark` from the local Expo SQLite key-value store before the protected router renders. `System` subscribes to React Native Appearance changes. Screens consume semantic colors through `useTheme()` or `useThemedStyles()`; spacing and radius remain mode-independent.
+`ThemeProvider` loads `system`, the standard light or dark theme, or the light and dark Warm, Ocean, and Forest palettes from the local Expo SQLite key-value store before the protected router renders. `System` subscribes to React Native Appearance changes. Screens consume semantic colors through `useTheme()` or `useThemedStyles()`; spacing and radius remain mode-independent.
 
 The root navigator, tab bar, status bar, modal surfaces, and native root background receive the same resolved palette. Fullscreen media intentionally retains a black viewer palette.
 

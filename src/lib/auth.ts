@@ -213,6 +213,12 @@ export function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+export function requestPasswordRecovery(email: string) {
+  return supabase.auth.resetPasswordForEmail(normalizeEmail(email), {
+    redirectTo: createPasswordRecoveryRedirectUrl(),
+  });
+}
+
 export function isValidEmail(email: string) {
   return /^\S+@\S+\.\S+$/.test(normalizeEmail(email));
 }
@@ -222,8 +228,13 @@ export function getPasswordPolicyMessage(password: string) {
     return `Use at least ${PASSWORD_MIN_LENGTH} characters for your password.`;
   }
 
-  if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) {
-    return 'Use at least one letter and one number in your password.';
+  if (
+    !/[a-z]/.test(password) ||
+    !/[A-Z]/.test(password) ||
+    !/\d/.test(password) ||
+    !/[^A-Za-z0-9]/.test(password)
+  ) {
+    return 'Use uppercase, lowercase, a number, and a symbol.';
   }
 
   return null;
@@ -252,7 +263,7 @@ export function getAuthErrorMessage(message: string) {
   }
 
   if (normalizedMessage.includes('weak password')) {
-    return 'Use a stronger password with at least one letter and one number.';
+    return 'Use uppercase, lowercase, a number, and a symbol.';
   }
 
   if (normalizedMessage.includes('password')) {

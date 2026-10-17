@@ -2,6 +2,8 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.112.3';
 
+import { getEffectiveAccountModerationStatus } from '../_shared/accountModeration.ts';
+
 type NotificationType =
   | 'badge_assigned'
   | 'event_cancelled'
@@ -124,6 +126,14 @@ Deno.serve(async (request: Request) => {
 
     hasClaim = true;
     const notification = rawNotification;
+    const recipientStatus = await getEffectiveAccountModerationStatus(
+      supabase,
+      notification.recipient_id
+    );
+    if (recipientStatus === 'suspended' || recipientStatus === 'banned') {
+      await markProcessed(supabase, notification.id, claimedAt);
+      return jsonResponse({ delivered: 0, skipped: 'account_unavailable' });
+    }
     if (notification.type === 'mention') {
       const { data: canDeliver, error: visibilityError } = await supabase.rpc(
         'can_deliver_mention_notification',

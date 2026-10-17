@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,7 +21,6 @@ import { ThemeSelector } from '../components/settings/ThemeSelector';
 import { spacing, type ThemeColors } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme, useThemedStyles } from '../hooks/useTheme';
-import { useVerification } from '../hooks/useVerification';
 import { getAuthErrorMessage } from '../lib/auth';
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
@@ -39,11 +38,6 @@ export default function SettingsScreen() {
 
   const { session } =
     useAuth();
-
-  const {
-    status: verificationStatus,
-  } =
-    useVerification();
 
   const {
     preference,
@@ -463,12 +457,6 @@ export default function SettingsScreen() {
       ?.version ??
     'Unavailable';
 
-  const verificationLabel =
-    verificationStatus ===
-    'verified'
-      ? 'Verified student'
-      : 'In progress';
-
   return (
     <SafeAreaScreen
       style={
@@ -488,7 +476,7 @@ export default function SettingsScreen() {
         }
       >
         <SettingsSection
-          description="Choose a look for Varta. System follows this device and updates when its appearance changes."
+          description="System follows your device."
           title="Appearance"
         >
           <ThemeSelector
@@ -524,9 +512,11 @@ export default function SettingsScreen() {
 
           <SettingsRow
             isLast
-            label="Verification status"
-            value={
-              verificationLabel
+            label="Reset password"
+            onPress={() =>
+              router.push(
+                '/change-password' as Href
+              )
             }
           />
         </SettingsSection>
@@ -675,7 +665,7 @@ export default function SettingsScreen() {
         >
           <SettingsRow
             label="Varta"
-            value="Internal Alpha"
+            value="Campus community"
           />
 
           <SettingsRow

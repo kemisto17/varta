@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Profile, ProfileStatus } from '../contexts/ProfileContext';
 import { ProfileContext } from '../contexts/ProfileContext';
 import { useAuth } from '../hooks/useAuth';
+import {
+  ACTIVE_ACCOUNT_MODERATION,
+  getCurrentAccountModeration,
+  type AccountModeration,
+} from '../lib/accountModeration';
 import { getStudentProfile } from '../lib/profile';
 
 export function ProfileProvider({ children }: PropsWithChildren) {
@@ -16,6 +21,8 @@ export function ProfileProvider({ children }: PropsWithChildren) {
   const [stateUserId, setStateUserId] = useState<string | null>(null);
   const [status, setStatus] = useState<ProfileStatus>('idle');
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [accountModeration, setAccountModeration] =
+    useState<AccountModeration>(ACTIVE_ACCOUNT_MODERATION);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,6 +34,7 @@ export function ProfileProvider({ children }: PropsWithChildren) {
       setStateUserId(null);
       statusRef.current = 'idle';
       setProfile(null);
+      setAccountModeration(ACTIVE_ACCOUNT_MODERATION);
       setStatus('idle');
       setErrorMessage(null);
       return;
@@ -47,7 +55,10 @@ export function ProfileProvider({ children }: PropsWithChildren) {
 
     const loadProfile = async () => {
       try {
-        const nextProfile = await getStudentProfile(userId);
+        const [nextProfile, nextAccountModeration] = await Promise.all([
+          getStudentProfile(userId),
+          getCurrentAccountModeration(userId),
+        ]);
 
         if (requestId.current !== activeRequestId) {
           return;
@@ -59,6 +70,7 @@ export function ProfileProvider({ children }: PropsWithChildren) {
         setStateUserId(userId);
         statusRef.current = nextStatus;
         setProfile(nextProfile);
+        setAccountModeration(nextAccountModeration);
         setStatus(nextStatus);
       } catch {
         if (requestId.current !== activeRequestId) {
@@ -70,6 +82,7 @@ export function ProfileProvider({ children }: PropsWithChildren) {
           setStateUserId(userId);
           statusRef.current = 'error';
           setProfile(null);
+          setAccountModeration(ACTIVE_ACCOUNT_MODERATION);
           setStatus('error');
         }
 
@@ -108,9 +121,13 @@ export function ProfileProvider({ children }: PropsWithChildren) {
       ? status
       : 'loading';
   const exposedErrorMessage = isCurrentUserState ? errorMessage : null;
+  const exposedAccountModeration = isCurrentUserState
+    ? accountModeration
+    : ACTIVE_ACCOUNT_MODERATION;
 
   const value = useMemo(
     () => ({
+      accountModeration: exposedAccountModeration,
       errorMessage: exposedErrorMessage,
       markProfileCreated,
       profile: exposedProfile,
@@ -119,6 +136,7 @@ export function ProfileProvider({ children }: PropsWithChildren) {
     }),
     [
       exposedErrorMessage,
+      exposedAccountModeration,
       exposedProfile,
       exposedStatus,
       markProfileCreated,

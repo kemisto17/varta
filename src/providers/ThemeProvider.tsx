@@ -6,16 +6,34 @@ import { Appearance, useColorScheme } from 'react-native';
 
 import {
   darkColors,
+  forestDarkColors,
+  forestColors,
   lightColors,
+  oceanDarkColors,
+  oceanColors,
+  type ThemeColors,
+  warmDarkColors,
   warmColors,
 } from '../constants/theme';
 import {
+  isDarkTheme,
   ThemeContext,
   type ThemeContextValue,
   type ThemePreference,
+  type ResolvedTheme,
 } from '../contexts/ThemeContext';
 
 const THEME_PREFERENCE_KEY = 'varta:theme-preference';
+const THEME_COLORS: Record<ResolvedTheme, ThemeColors> = {
+  light: lightColors,
+  dark: darkColors,
+  warm: warmColors,
+  ocean: oceanColors,
+  forest: forestColors,
+  'warm-dark': warmDarkColors,
+  'ocean-dark': oceanDarkColors,
+  'forest-dark': forestDarkColors,
+};
 
 export function ThemeProvider({ children }: PropsWithChildren) {
   const systemTheme = useColorScheme();
@@ -59,12 +77,7 @@ export function ThemeProvider({ children }: PropsWithChildren) {
         ? 'dark'
         : 'light'
       : preference;
-  const colors =
-    resolvedTheme === 'dark'
-      ? darkColors
-      : resolvedTheme === 'warm'
-        ? warmColors
-        : lightColors;
+  const colors = THEME_COLORS[resolvedTheme];
 
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(colors.background).catch(
@@ -105,7 +118,12 @@ function isThemePreference(value: string | null): value is ThemePreference {
     value === 'system' ||
     value === 'light' ||
     value === 'dark' ||
-    value === 'warm'
+    value === 'warm' ||
+    value === 'ocean' ||
+    value === 'forest' ||
+    value === 'warm-dark' ||
+    value === 'ocean-dark' ||
+    value === 'forest-dark'
   );
 }
 
@@ -113,7 +131,7 @@ function applyNativePreference(preference: ThemePreference) {
   Appearance.setColorScheme(
     preference === 'system'
       ? 'unspecified'
-      : preference === 'dark'
+      : isDarkTheme(preference)
         ? 'dark'
         : 'light'
   );

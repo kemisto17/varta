@@ -5,6 +5,19 @@ type FollowedOrganizationRow =
   Database['public']['Functions']['get_followed_organizations_page']['Returns'][number];
 
 export type OrganizationRole = 'owner' | 'admin' | 'editor';
+export type OrganizationMemberRole = Exclude<OrganizationRole, 'owner'>;
+
+export type OrganizationMember = {
+  fullName: string;
+  id: string;
+  role: OrganizationMemberRole;
+  username: string;
+};
+
+export type OrganizationMemberCandidate = Pick<
+  OrganizationMember,
+  'fullName' | 'id' | 'username'
+>;
 
 export type CampusOrganization = {
   avatarPath: OrganizationRow['avatar_path'];

@@ -257,6 +257,29 @@ export default function ManageOrganizationScreen() {
             </Text>
           )}
 
+          {organization.role === 'owner' ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() =>
+                router.push({
+                  pathname: '/organization/[id]/members',
+                  params: {
+                    id: organization.id,
+                  },
+                })
+              }
+              style={({ pressed }) => [
+                styles.profileButton,
+                styles.membersButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={styles.profileButtonText}>
+                Manage admins and editors
+              </Text>
+            </Pressable>
+          ) : null}
+
           <Pressable
             accessibilityRole="button"
             onPress={() =>
@@ -440,6 +463,10 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 13,
       fontWeight: '700',
       color: colors.textPrimary,
+    },
+
+    membersButton: {
+      marginTop: spacing.md,
     },
 
     profilePermissionNote: {

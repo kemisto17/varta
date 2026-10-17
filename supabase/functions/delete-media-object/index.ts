@@ -6,6 +6,8 @@ import {
 } from "npm:@aws-sdk/client-s3";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { accountCanWrite } from "../_shared/accountModeration.ts";
+
 type DeleteMediaRequest = {
   kind?:
     | "avatar"
@@ -596,6 +598,21 @@ Deno.serve(async (req) => {
     const currentUserId =
       userData.user.id;
 
+    if (
+      !(await accountCanWrite(
+        supabase,
+        currentUserId
+      ))
+    ) {
+      return json(
+        {
+          error:
+            "Your account cannot delete media right now.",
+        },
+        403
+      );
+    }
+
     const body =
       (await req.json()) as DeleteMediaRequest;
 
@@ -641,6 +658,8 @@ Deno.serve(async (req) => {
      *
      * This allows cleanup even if the
      * profile later loses verification.
+     * Account moderation restrictions
+     * still apply before this branch.
      */
     if (
       body.kind === "avatar"

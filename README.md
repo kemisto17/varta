@@ -24,7 +24,7 @@ Varta is an independent student project. It is not an official application of, e
 - Official organizations, follows, events, and event interest
 - Search for students, organizations, and upcoming events
 - Device-local recent searches and server-backed private feedback
-- System, Light, and Dark appearance modes with device-local persistence
+- System plus Light, Dark, Warm, Ocean, and Forest palettes with matching dark variants and device-local persistence
 - Settings with notification controls, blocked-user management, policy links, and account-deletion requests
 - A free static product and policy website hosted through GitHub Pages
 
@@ -134,7 +134,7 @@ The generated database contract lives at src/types/database.ts. Regenerate it af
 
 ## Project documentation
 
-Use [docs/internal-alpha.md](docs/internal-alpha.md) for the tester walkthrough, RLS/storage audit, feedback review, and known constraints.
+Use [docs/internal-alpha.md](docs/internal-alpha.md) for the release-candidate walkthrough, RLS/storage audit, feedback review, and known constraints.
 
 Trusted admin workflows are documented separately:
 
@@ -167,11 +167,12 @@ Trusted admin workflows are documented separately:
 
 ## Release status
 
-- Current source release: V1.0.5
-- Expo/package version: `1.0.5`
+- Current source release: V1.0.6
+- Expo/package version: `1.0.6`
 - Android package: `com.kemisto17.varta`
-- Android version code: `6`
-- Distribution status: Published on Google Play
+- Android version code: `7`
+- Current Google Play release: V1.0.5
+- Next release candidate: V1.0.6
 - Production build format: AAB
 
 This repository does not include Play Store binaries or signing credentials. GitHub releases and Play uploads are created separately.

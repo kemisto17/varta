@@ -24,7 +24,7 @@ import {
   getProfileLinks,
   type StructuredLink,
 } from '../../lib/links';
-import { getMentionedProfileId } from '../../lib/mentions';
+import { getMentionedDestination } from '../../lib/mentions';
 import {
   getIsUserBlocked,
   type ModerationUser,
@@ -1124,26 +1124,42 @@ export function StudentProfileScreen({
     useCallback(
       async (username: string) => {
         try {
-          const mentionedProfileId =
-            await getMentionedProfileId(username);
+          const mentionedDestination =
+            await getMentionedDestination(username);
 
-          if (!mentionedProfileId) {
+          if (!mentionedDestination) {
+            Alert.alert(
+              'Profile or organization unavailable',
+              'This mentioned profile or organization is not available.'
+            );
             return;
           }
 
-          if (mentionedProfileId === viewerUserId) {
+          if (mentionedDestination.kind === 'organization') {
+            router.navigate({
+              pathname: '/organization/[id]',
+              params: { id: mentionedDestination.id },
+            });
+            return;
+          }
+
+          if (mentionedDestination.id === viewerUserId) {
             router.navigate('/(tabs)/profile');
             return;
           }
 
-          router.push({
+          router.navigate({
             pathname: '/user/[id]',
-            params: { id: mentionedProfileId },
+            params: { id: mentionedDestination.id },
           });
         } catch (error) {
           console.warn(
             '[mentions] Could not open mentioned profile from bio.',
             error
+          );
+          Alert.alert(
+            'Could not open profile',
+            'Check your connection and try again.'
           );
         }
       },

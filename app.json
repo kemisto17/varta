@@ -2,7 +2,7 @@
   "expo": {
     "name": "Varta",
     "slug": "varta",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "default",
     "icon": "./assets/images/varta-icon-monogram.png",
     "scheme": "varta",
@@ -15,7 +15,7 @@
     "android": {
       "package": "com.kemisto17.varta",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 6,
+      "versionCode": 7,
       "adaptiveIcon": {
         "backgroundColor": "#F8F7F4",
         "foregroundImage": "./assets/images/varta-adaptive-monogram.png",

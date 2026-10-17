@@ -74,6 +74,36 @@ export type Database = {
         }
         Relationships: []
       }
+      account_moderation: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          status: Database["public"]["Enums"]["account_moderation_status"]
+          updated_at: string
+          updated_by: string
+          user_id: string
+          user_message: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          status?: Database["public"]["Enums"]["account_moderation_status"]
+          updated_at?: string
+          updated_by: string
+          user_id: string
+          user_message?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          status?: Database["public"]["Enums"]["account_moderation_status"]
+          updated_at?: string
+          updated_by?: string
+          user_id?: string
+          user_message?: string | null
+        }
+        Relationships: []
+      }
       badges: {
         Row: {
           created_at: string
@@ -1150,6 +1180,38 @@ export type Database = {
           },
         ]
       }
+      report_evidence: {
+        Row: {
+          captured_at: string
+          report_id: string
+          snapshot: Json
+          target_id: string
+          target_type: Database["public"]["Enums"]["report_target_type"]
+        }
+        Insert: {
+          captured_at?: string
+          report_id: string
+          snapshot: Json
+          target_id: string
+          target_type: Database["public"]["Enums"]["report_target_type"]
+        }
+        Update: {
+          captured_at?: string
+          report_id?: string
+          snapshot?: Json
+          target_id?: string
+          target_type?: Database["public"]["Enums"]["report_target_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_evidence_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: true
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_verifications: {
         Row: {
           enrollment_number: string
@@ -1265,6 +1327,17 @@ export type Database = {
       accept_current_terms: {
         Args: { accepted_version: string }
         Returns: undefined
+      }
+      apply_account_moderation_action: {
+        Args: {
+          actor_user_id: string
+          internal_note: string | null
+          next_expires_at: string | null
+          next_status: Database["public"]["Enums"]["account_moderation_status"]
+          next_user_message: string | null
+          target_user_id: string
+        }
+        Returns: Database["public"]["Tables"]["account_moderation"]["Row"]
       }
       can_deliver_mention_notification: {
         Args: { target_notification_id: string }
@@ -1410,6 +1483,15 @@ export type Database = {
           post_count: number
         }[]
       }
+      get_organization_members: {
+        Args: { target_organization_id: string }
+        Returns: {
+          full_name: string
+          role: string
+          user_id: string
+          username: string
+        }[]
+      }
       get_profile_organization_following_count: {
         Args: { target_profile_id: string }
         Returns: number
@@ -1417,6 +1499,10 @@ export type Database = {
       has_accepted_current_terms: { Args: never; Returns: boolean }
       register_push_token: {
         Args: { device_platform: string; expo_token: string }
+        Returns: undefined
+      }
+      remove_organization_member: {
+        Args: { target_organization_id: string; target_user_id: string }
         Returns: undefined
       }
       search_events: {
@@ -1462,8 +1548,22 @@ export type Database = {
           year: number
         }[]
       }
+      set_organization_member_role: {
+        Args: {
+          target_organization_id: string
+          target_role: string
+          target_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
+      account_moderation_status:
+        | "active"
+        | "warned"
+        | "restricted"
+        | "suspended"
+        | "banned"
       admin_role: "super_admin" | "admin" | "moderator" | "reviewer"
       notification_type:
         | "post_like"
@@ -1612,6 +1712,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_moderation_status: [
+        "active",
+        "warned",
+        "restricted",
+        "suspended",
+        "banned",
+      ],
       admin_role: ["super_admin", "admin", "moderator", "reviewer"],
       notification_type: [
         "post_like",

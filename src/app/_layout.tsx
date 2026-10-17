@@ -13,6 +13,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  View,
 } from 'react-native';
 import {
   initialWindowMetrics,
@@ -21,7 +22,12 @@ import {
 
 import { SafeAreaScreen } from '../components/SafeAreaScreen';
 import { TermsAcceptanceGate } from '../components/TermsAcceptanceGate';
+import {
+  AccountModerationBanner,
+  AccountModerationGate,
+} from '../components/moderation/AccountModerationNotice';
 import { spacing, type ThemeColors } from '../constants/theme';
+import { isDarkTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { useTheme, useThemedStyles } from '../hooks/useTheme';
@@ -58,6 +64,7 @@ function AppNavigator() {
   } = useAuth();
 
   const {
+    accountModeration,
     errorMessage:
       profileErrorMessage,
     refreshProfile,
@@ -189,6 +196,25 @@ function AppNavigator() {
   if (
     !isResetPasswordRoute &&
     isAuthenticated &&
+    (
+      accountModeration.status ===
+        'suspended' ||
+      accountModeration.status ===
+        'banned'
+    )
+  ) {
+    return (
+      <AccountModerationGate
+        moderation={
+          accountModeration
+        }
+      />
+    );
+  }
+
+  if (
+    !isResetPasswordRoute &&
+    isAuthenticated &&
     profileStatus ===
       'ready' &&
     verificationStatus ===
@@ -270,8 +296,9 @@ function AppNavigator() {
       'verified';
 
   const baseNavigationTheme =
-    resolvedTheme ===
-    'dark'
+    isDarkTheme(
+      resolvedTheme
+    )
       ? DarkTheme
       : DefaultTheme;
 
@@ -309,24 +336,37 @@ function AppNavigator() {
     >
       <StatusBar
         style={
-          resolvedTheme ===
-          'dark'
+          isDarkTheme(
+            resolvedTheme
+          )
             ? 'light'
             : 'dark'
         }
       />
 
-      <Stack
-        screenOptions={{
-          headerShown:
-            false,
+      <TermsAcceptanceGate>
+        <View
+          style={
+            styles.navigationRoot
+          }
+        >
+          <AccountModerationBanner
+            moderation={
+              accountModeration
+            }
+          />
 
-          contentStyle: {
-            backgroundColor:
-              colors.background,
-          },
-        }}
-      >
+          <Stack
+            screenOptions={{
+              headerShown:
+                false,
+
+              contentStyle: {
+                backgroundColor:
+                  colors.background,
+              },
+            }}
+          >
         <Stack.Protected
           guard={
             !isAuthenticated
@@ -363,6 +403,10 @@ function AppNavigator() {
 
           <Stack.Screen
             name="settings"
+          />
+
+          <Stack.Screen
+            name="change-password"
           />
 
           <Stack.Screen
@@ -438,6 +482,10 @@ function AppNavigator() {
           />
 
           <Stack.Screen
+            name="organization/[id]/members"
+          />
+
+          <Stack.Screen
             name="organization/[id]/edit-profile"
           />
 
@@ -449,7 +497,9 @@ function AppNavigator() {
         <Stack.Screen
           name="reset-password"
         />
-      </Stack>
+          </Stack>
+        </View>
+      </TermsAcceptanceGate>
     </NavigationThemeProvider>
   );
 }
@@ -490,7 +540,7 @@ function ThemedRoot() {
           <NotificationsProvider>
             <SavedPostsProvider>
               <FeedProvider>
-                <TermsAcceptanceGate><AppNavigator /></TermsAcceptanceGate>
+                <AppNavigator />
               </FeedProvider>
             </SavedPostsProvider>
           </NotificationsProvider>
@@ -505,6 +555,11 @@ const createStyles = (
     ThemeColors
 ) =>
   StyleSheet.create({
+    navigationRoot: {
+      flex:
+        1,
+    },
+
     loadingScreen: {
       flex:
         1,

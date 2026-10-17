@@ -6,8 +6,22 @@ export type ThemePreference =
   | 'system'
   | 'light'
   | 'dark'
-  | 'warm';
-export type ResolvedTheme = 'light' | 'dark' | 'warm';
+  | 'warm'
+  | 'ocean'
+  | 'forest'
+  | 'warm-dark'
+  | 'ocean-dark'
+  | 'forest-dark';
+export type ResolvedTheme = Exclude<ThemePreference, 'system'>;
+
+export function isDarkTheme(theme: ResolvedTheme) {
+  return (
+    theme === 'dark' ||
+    theme === 'warm-dark' ||
+    theme === 'ocean-dark' ||
+    theme === 'forest-dark'
+  );
+}
 
 export type ThemeContextValue = {
   colors: ThemeColors;

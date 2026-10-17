@@ -123,11 +123,36 @@ export default function RegisterScreen() {
     return (
       <AuthScaffold showBack={false}>
         <Text style={styles.successEyebrow}>ONE MORE STEP</Text>
-        <Text style={styles.title}>Check your inbox.</Text>
+        <Text style={styles.title}>Check your inbox or sign in.</Text>
         <Text style={styles.subtitle}>
-          We sent a confirmation link to {confirmationEmail}. Open it to finish
-          creating your Varta account.
+          If this is a new account, we sent a confirmation link to{' '}
+          {confirmationEmail}. If you already use this email with Google, no
+          confirmation email is sent; continue and sign in with Google instead.
         </Text>
+
+        {isGoogleSignInEnabled ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={isGoogleSubmitting}
+            onPress={handleGoogleSignIn}
+            style={({ pressed }) => [
+              styles.googleButton,
+              styles.successGoogleButton,
+              isGoogleSubmitting && styles.googleButtonDisabled,
+              pressed && !isGoogleSubmitting && styles.googleButtonPressed,
+            ]}
+          >
+            <Text style={styles.googleButtonLabel}>
+              {isGoogleSubmitting ? 'Opening Google…' : 'Sign in with Google'}
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {googleErrorMessage ? (
+          <Text accessibilityRole="alert" style={styles.errorMessage}>
+            {googleErrorMessage}
+          </Text>
+        ) : null}
 
         <Link href="/(auth)/login" replace style={styles.successLink}>
           Continue to sign in
@@ -162,7 +187,7 @@ export default function RegisterScreen() {
           autoComplete="new-password"
           label="Password"
           onChangeText={setPassword}
-          placeholder="Letters and numbers"
+          placeholder="8+ chars: Aa, 1, !"
           returnKeyType="next"
           secureTextEntry
           textContentType="newPassword"
@@ -318,6 +343,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
 
   googleButtonDisabled: {
     opacity: 0.55,
+  },
+
+  successGoogleButton: {
+    marginTop: spacing.xl,
   },
 
   accountPrompt: {

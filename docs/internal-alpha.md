@@ -1,6 +1,6 @@
-# Varta internal alpha guide
+# Varta release testing guide
 
-This is the operating checklist for a controlled Varta test with real accounts. Run it against the hosted development project, not a production student directory.
+This is the operating checklist for a controlled Varta release-candidate test with real accounts. Run it against the hosted development project, not a production student directory. The filename is retained for existing links.
 
 ## Release gate
 
@@ -124,9 +124,10 @@ Use two verified accounts where a blocking test is required.
 10. Appearance and settings
    - Set System, then change the device from Light to Dark while Varta is open.
    - Force Light while the device is dark, then force Dark while the device is light.
+   - Check the Warm, Ocean, and Forest palettes in both light and dark variants.
    - Restart the app and confirm the selected preference persists without a bright launch flash.
    - Confirm tab bars, headers, auth, onboarding, feed, profiles, organization/event screens, search, notifications, sheets, form fields, and fallback avatars remain legible in both modes.
-   - Confirm the status bar changes between dark and light content.
+   - Confirm the status bar and native date/time pickers use the correct light or dark appearance for every palette.
    - Sign out and back in; the device appearance preference should remain.
 
 11. Safe areas and installed branding
@@ -158,9 +159,9 @@ Private storage buckets:
 - post-media — verified same-university viewing for media referenced by a visible post; owner upload/delete.
 - verification-documents — owner-only viewing and controlled replacement.
 - event-media — visible-event viewing; authorized organization roles manage objects.
-- organization-media — visible active organization avatars only; trusted backend/admin upload for this alpha.
+- organization-media — visible active organization avatars only; authorized organization owners/admins upload through the backend-mediated R2 flow.
 
-Organization-media intentionally has no client upload policy yet. Organization pages and Explore use a signed active avatar when present and a clean initials fallback otherwise.
+Organization media does not expose direct client Storage writes. Organization pages and Explore use the configured R2 read URL when an avatar is present and a clean initials fallback otherwise.
 
 ## Query and list audit
 
@@ -189,13 +190,13 @@ limit 100;
 
 Do not expose this query or a feedback-list screen to the mobile role. Treat messages as potentially sensitive tester content.
 
-## Known alpha constraints
+## Known release constraints
 
 - Installed builds use the `varta` URL scheme and `com.kemisto17.varta` Android application ID. Old `campus://` development links are intentionally retired.
 - Email confirmation must be enabled in hosted Supabase before external testing; the app now supports the `varta://auth-callback` mobile confirmation callback.
-- Organization avatar upload is admin-managed; the client is read-only.
+- Initial owner assignment remains admin-managed. Assigned owners/admins can update the organization profile and avatar, and an owner can add or remove admins and editors in the mobile app; ownership cannot be changed there.
 - Search does not include post content or full-text ranking.
-- Product analytics are not added in this milestone; server table counts and the private feedback queue provide the minimum alpha signal without introducing a new data processor.
+- Product analytics are not added in this milestone; server table counts and the private feedback queue provide the minimum release signal without introducing a new data processor.
 - Native push delivery still depends on device permissions, Expo credentials, and the documented server function.
 - The full VĀRTĀ launcher alternative is retained but not configured because it becomes too small at common launcher sizes; the VĀ monogram is the production candidate.
 - Account deletion requests are available through Settings and onboarding policy links. Support must fulfill requests using `account-deletion-operations.md`; automatic deletion is not implemented.

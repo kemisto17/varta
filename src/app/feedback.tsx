@@ -65,7 +65,7 @@ export default function FeedbackScreen() {
           </View>
           <Text style={styles.successTitle}>Thank you.</Text>
           <Text style={styles.successMessage}>
-            Your note is in the private alpha feedback queue.
+            Your note is in the private feedback queue.
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -93,7 +93,7 @@ export default function FeedbackScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.eyebrow}>INTERNAL ALPHA</Text>
+          <Text style={styles.eyebrow}>FEEDBACK</Text>
           <Text style={styles.heading}>Help shape Varta.</Text>
           <Text style={styles.intro}>
             Tell us what broke, felt confusing, or would make campus life more

@@ -7,6 +7,8 @@ import {
 import { getSignedUrl } from "npm:@aws-sdk/s3-request-presigner";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { accountCanWrite } from "../_shared/accountModeration.ts";
+
 const ALLOWED_CONTENT_TYPES = new Map([
   ["image/jpeg", "jpg"],
   ["image/png", "png"],
@@ -414,6 +416,21 @@ Deno.serve(async (req) => {
 
     const userId =
       userData.user.id;
+
+    if (
+      !(await accountCanWrite(
+        supabase,
+        userId
+      ))
+    ) {
+      return json(
+        {
+          error:
+            "Your account cannot upload media right now.",
+        },
+        403
+      );
+    }
 
     /*
      * ========================================================

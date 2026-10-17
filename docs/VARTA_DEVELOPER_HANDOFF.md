@@ -52,8 +52,8 @@ Varta is **not** an official university application. It is an independent studen
 - Android package: `com.kemisto17.varta`
 - URL scheme: `varta`
 - Google Play distribution
-- Current source/package version: 1.0.5
-- Android versionCode: 6
+- Current source/package version: 1.0.6
+- Android versionCode: 7
 
 ## 4. High-level architecture
 
@@ -953,6 +953,9 @@ Varta supports:
 - System
 - Light
 - Dark
+- Warm Ivory and Warm Dark
+- Ocean Blue and Ocean Dark
+- Forest Green and Forest Dark
 
 Theme state is device-local.
 

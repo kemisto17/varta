@@ -8,6 +8,9 @@ import type {
   FollowedOrganizationCursor,
   FollowedOrganizationPage,
   ManageableOrganization,
+  OrganizationMember,
+  OrganizationMemberCandidate,
+  OrganizationMemberRole,
   OrganizationRole,
 } from '../types/organization';
 import { optimizeAvatarAsset } from './imageOptimization';
@@ -177,6 +180,104 @@ export async function getOrganizationById(
     universityId:
       organization.university_id,
   };
+}
+
+export async function getOrganizationMembers(
+  organizationId: string
+): Promise<OrganizationMember[]> {
+  const { data, error } = await supabase.rpc(
+    'get_organization_members',
+    {
+      target_organization_id: organizationId,
+    }
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return data.flatMap((row) => {
+    const role = toOrganizationRole(row.role);
+
+    return role === 'admin' || role === 'editor'
+      ? [{
+          fullName: row.full_name,
+          id: row.user_id,
+          role,
+          username: row.username,
+        }]
+      : [];
+  });
+}
+
+export async function searchOrganizationMemberCandidates(
+  rawQuery: string,
+  signal?: AbortSignal
+): Promise<OrganizationMemberCandidate[]> {
+  const searchQuery = rawQuery.trim().replace(/\s+/g, ' ').slice(0, 80);
+
+  if (searchQuery.length < 2) {
+    return [];
+  }
+
+  const query = supabase.rpc('search_people', {
+    result_limit: 8,
+    search_query: searchQuery,
+  });
+
+  const { data, error } = signal
+    ? await query.abortSignal(signal)
+    : await query;
+
+  if (error) {
+    throw error;
+  }
+
+  if (signal?.aborted) {
+    return [];
+  }
+
+  return data.map((row) => ({
+    fullName: row.full_name,
+    id: row.id,
+    username: row.username,
+  }));
+}
+
+export async function setOrganizationMemberRole(
+  organizationId: string,
+  userId: string,
+  role: OrganizationMemberRole
+) {
+  const { error } = await supabase.rpc(
+    'set_organization_member_role',
+    {
+      target_organization_id: organizationId,
+      target_role: role,
+      target_user_id: userId,
+    }
+  );
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function removeOrganizationMember(
+  organizationId: string,
+  userId: string
+) {
+  const { error } = await supabase.rpc(
+    'remove_organization_member',
+    {
+      target_organization_id: organizationId,
+      target_user_id: userId,
+    }
+  );
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function getOrganizationAvatarUrls(

@@ -1,7 +1,7 @@
 import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { spacing, type ThemeColors } from '../../constants/theme';
+import { radius, spacing, type ThemeColors } from '../../constants/theme';
 import type { ThemePreference } from '../../contexts/ThemeContext';
 import { useThemedStyles } from '../../hooks/useTheme';
 
@@ -10,6 +10,11 @@ const OPTIONS: readonly { label: string; value: ThemePreference }[] = [
   { label: 'Light', value: 'light' },
   { label: 'Dark', value: 'dark' },
   { label: 'Warm Ivory', value: 'warm' },
+  { label: 'Ocean Blue', value: 'ocean' },
+  { label: 'Forest Green', value: 'forest' },
+  { label: 'Warm Dark', value: 'warm-dark' },
+  { label: 'Ocean Dark', value: 'ocean-dark' },
+  { label: 'Forest Dark', value: 'forest-dark' },
 ];
 
 type ThemeSelectorProps = {
@@ -21,8 +26,8 @@ export function ThemeSelector({ onChange, value }: ThemeSelectorProps) {
   const { colors, styles } = useThemedStyles(createStyles);
 
   return (
-    <View>
-      {OPTIONS.map((option, index) => {
+    <View style={styles.grid}>
+      {OPTIONS.map((option) => {
         const isSelected = option.value === value;
 
         return (
@@ -33,22 +38,23 @@ export function ThemeSelector({ onChange, value }: ThemeSelectorProps) {
             onPress={() => onChange(option.value)}
             style={({ pressed }) => [
               styles.option,
-              index === OPTIONS.length - 1 && styles.lastOption,
+              isSelected && styles.optionSelected,
               pressed && styles.pressed,
             ]}
           >
-            <Text style={styles.label}>{option.label}</Text>
-            <View
-              style={[styles.radio, isSelected && styles.radioSelected]}
+            <Text
+              numberOfLines={1}
+              style={[styles.label, isSelected && styles.labelSelected]}
             >
-              {isSelected ? (
-                <SymbolView
-                  name={{ android: 'check', ios: 'checkmark', web: 'check' }}
-                  size={14}
-                  tintColor={colors.white}
-                />
-              ) : null}
-            </View>
+              {option.label}
+            </Text>
+            {isSelected ? (
+              <SymbolView
+                name={{ android: 'check', ios: 'checkmark', web: 'check' }}
+                size={12}
+                tintColor={colors.white}
+              />
+            ) : null}
           </Pressable>
         );
       })}
@@ -58,37 +64,40 @@ export function ThemeSelector({ onChange, value }: ThemeSelectorProps) {
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    grid: {
+      padding: spacing.sm,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
     option: {
-      minHeight: 54,
-      paddingHorizontal: spacing.md,
+      minHeight: 44,
+      flexBasis: '30%',
+      flexGrow: 1,
+      paddingHorizontal: spacing.sm,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      borderBottomWidth: 1,
-      borderBottomColor: colors.borderSubtle,
-    },
-    lastOption: {
-      borderBottomWidth: 0,
-    },
-    label: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.textPrimary,
-    },
-    radio: {
-      width: 24,
-      height: 24,
-      alignItems: 'center',
       justifyContent: 'center',
+      gap: spacing.xs,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 12,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface,
     },
-    radioSelected: {
+    optionSelected: {
       borderColor: colors.textPrimary,
       backgroundColor: colors.textPrimary,
     },
+    label: {
+      flexShrink: 1,
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    labelSelected: {
+      color: colors.white,
+    },
     pressed: {
-      backgroundColor: colors.surfaceMuted,
+      opacity: 0.7,
     },
   });

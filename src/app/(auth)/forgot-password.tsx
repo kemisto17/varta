@@ -8,11 +8,10 @@ import { PrimaryButton } from '../../components/auth/PrimaryButton';
 import { spacing, type ThemeColors } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useTheme';
 import {
-  createPasswordRecoveryRedirectUrl,
   isValidEmail,
   normalizeEmail,
+  requestPasswordRecovery,
 } from '../../lib/auth';
-import { supabase } from '../../lib/supabase';
 
 export default function ForgotPasswordScreen() {
   const { styles } = useThemedStyles(createStyles);
@@ -40,11 +39,7 @@ export default function ForgotPasswordScreen() {
     setIsSubmitting(true);
 
     try {
-      const redirectTo = createPasswordRecoveryRedirectUrl();
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        normalizedEmail,
-        { redirectTo }
-      );
+      const { error } = await requestPasswordRecovery(normalizedEmail);
 
       if (error) {
         submitPendingRef.current = false;

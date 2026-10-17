@@ -153,7 +153,7 @@ function getPlainLinkifiedSegments(text: string): LinkifiedSegment[] {
 
 function getMentionUsername(value: string) {
   const match =
-    value.match(/^@([a-z0-9._]{3,30})$/i);
+    value.match(/^@([a-z0-9._-]{3,30})$/i);
 
   return match?.[1].toLowerCase() ?? null;
 }

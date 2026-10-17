@@ -311,7 +311,7 @@ export default function ResetPasswordScreen() {
           autoComplete="new-password"
           label="New password"
           onChangeText={setNewPassword}
-          placeholder="Letters and numbers"
+          placeholder="8+ chars: Aa, 1, !"
           returnKeyType="next"
           secureTextEntry
           textContentType="newPassword"

@@ -102,6 +102,135 @@ export const warmColors: ThemeColors = {
   white: '#FFFDF8',
 };
 
+export const oceanColors: ThemeColors = {
+  background: '#F2F7FB',
+  surface: '#FFFFFF',
+  surfaceElevated: '#FFFFFF',
+  surfaceMuted: '#E5EFF7',
+
+  textPrimary: '#102A43',
+  textSecondary: '#486581',
+  textMuted: '#627D98',
+
+  border: '#BCCCDC',
+  borderSubtle: '#D9E7F0',
+  icon: '#102A43',
+
+  primaryActionBackground: '#0B4F6C',
+  primaryActionForeground: '#FFFFFF',
+
+  danger: '#B42318',
+  dangerSoft: '#F7EAE7',
+  success: '#277047',
+  successSoft: '#E8F2EB',
+
+  overlay: 'rgba(16, 42, 67, 0.42)',
+  imageOverlay: 'rgba(0, 0, 0, 0.75)',
+  viewerBackground: '#050505',
+  viewerForeground: '#FFFFFF',
+  viewerMuted: '#D4D4D8',
+  viewerOverlay: 'rgba(24, 24, 27, 0.76)',
+
+  black: '#102A43',
+  white: '#FFFFFF',
+};
+
+export const forestColors: ThemeColors = {
+  background: '#F3F7F2',
+  surface: '#FCFEFB',
+  surfaceElevated: '#FFFFFF',
+  surfaceMuted: '#E4EEE2',
+
+  textPrimary: '#17351F',
+  textSecondary: '#4D6753',
+  textMuted: '#667C6B',
+
+  border: '#C5D7C5',
+  borderSubtle: '#DEE9DC',
+  icon: '#17351F',
+
+  primaryActionBackground: '#1F5B37',
+  primaryActionForeground: '#FFFFFF',
+
+  danger: '#B42318',
+  dangerSoft: '#F7EAE7',
+  success: '#277047',
+  successSoft: '#E8F2EB',
+
+  overlay: 'rgba(23, 53, 31, 0.42)',
+  imageOverlay: 'rgba(0, 0, 0, 0.75)',
+  viewerBackground: '#050505',
+  viewerForeground: '#FFFFFF',
+  viewerMuted: '#D4D4D8',
+  viewerOverlay: 'rgba(24, 24, 27, 0.76)',
+
+  black: '#17351F',
+  white: '#FFFFFF',
+};
+
+export const warmDarkColors: ThemeColors = {
+  ...darkColors,
+  background: '#17120F',
+  surface: '#211A16',
+  surfaceElevated: '#2A211C',
+  surfaceMuted: '#1C1613',
+  textPrimary: '#F7EBDD',
+  textSecondary: '#C7B6A5',
+  textMuted: '#A49180',
+  border: '#554539',
+  borderSubtle: '#332923',
+  icon: '#F7EBDD',
+  primaryActionBackground: '#F2D7B8',
+  primaryActionForeground: '#2A211B',
+  dangerSoft: '#3B201B',
+  successSoft: '#193025',
+  overlay: 'rgba(12, 8, 6, 0.72)',
+  black: '#17120F',
+  white: '#2A211B',
+};
+
+export const oceanDarkColors: ThemeColors = {
+  ...darkColors,
+  background: '#071823',
+  surface: '#0D2230',
+  surfaceElevated: '#123044',
+  surfaceMuted: '#091E2B',
+  textPrimary: '#E3F2FC',
+  textSecondary: '#A6C5D9',
+  textMuted: '#7FA4BA',
+  border: '#315268',
+  borderSubtle: '#1A384B',
+  icon: '#E3F2FC',
+  primaryActionBackground: '#9ED8F5',
+  primaryActionForeground: '#082333',
+  dangerSoft: '#3A2022',
+  successSoft: '#15352E',
+  overlay: 'rgba(2, 11, 17, 0.74)',
+  black: '#071823',
+  white: '#082333',
+};
+
+export const forestDarkColors: ThemeColors = {
+  ...darkColors,
+  background: '#0C1810',
+  surface: '#13241A',
+  surfaceElevated: '#1B3022',
+  surfaceMuted: '#102016',
+  textPrimary: '#E5F3E7',
+  textSecondary: '#ADCAAF',
+  textMuted: '#86A38A',
+  border: '#395842',
+  borderSubtle: '#223B2A',
+  icon: '#E5F3E7',
+  primaryActionBackground: '#A8DDB4',
+  primaryActionForeground: '#12301A',
+  dangerSoft: '#39211D',
+  successSoft: '#173523',
+  overlay: 'rgba(4, 12, 6, 0.74)',
+  black: '#0C1810',
+  white: '#12301A',
+};
+
 export const spacing = {
   xs: 4,
   sm: 8,

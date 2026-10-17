@@ -1,6 +1,6 @@
 # Security Phase 1 audit notes
 
-Last reviewed: 2026-10-08
+Last reviewed: 2026-10-17
 
 This note records the Phase 1 audit for content publishing, media handling, RLS, and authentication hardening. It separates observed live state from code fixes and from dashboard-only steps.
 
@@ -14,32 +14,31 @@ This note records the Phase 1 audit for content publishing, media handling, RLS,
 ## Live audit findings
 
 - The hosted Supabase project is active and healthy on Postgres 17.
-- All committed migrations through `20261002201918_view_profile_followed_organizations` are present on the hosted project.
+- The hosted migration ledger contains all 61 canonical migrations through `20261014133730_add_account_moderation_enforcement`. See `supabase-migration-reconciliation.md` for the verified rollout record.
 - The hosted public app tables listed by Supabase have RLS enabled.
 - Supabase Storage buckets `avatars`, `event-media`, `organization-media`, `post-media`, and `verification-documents` are private buckets with image MIME limits configured.
-- `create-media-upload`, `delete-media-object`, and `send-notification-push` are active hosted Edge Functions.
+- `create-media-upload` v25, `delete-media-object` v8, and `send-notification-push` v27 are active hosted Edge Functions.
 - The media Edge Functions have platform JWT verification disabled, but their function bodies perform explicit Bearer-token validation with `supabase.auth.getUser()` before upload/delete decisions. `send-notification-push` is also intentionally non-JWT because it validates a private webhook secret.
-- Existing Auth state is safe for turning on forward email confirmation: 105 users exist, 105 have confirmed email, and 0 are currently unconfirmed.
-- Google OAuth has not been used yet in production data: all 105 identities are `email`, with 0 linked Google identities.
+- A prior audit found all existing users email-confirmed. Recheck current counts before any Auth policy change.
+- The public hosted Auth settings currently allow signup, require email confirmation, enable Google, and leave phone authentication disabled.
+- Google sign-in is now active. Identity-provider counts were not re-audited in this review.
 - MFA is not enrolled for any user yet, including active admin users.
 - Supabase Security Advisor currently reports leaked-password protection disabled. Supabase documents leaked-password protection as Pro-plan-and-above, so this cannot be enabled under the zero-paid-subscription constraint.
 - Security Advisor also reports RLS-enabled/no-policy for service-only/internal tables and warns about authenticated-callable `SECURITY DEFINER` RPCs. The no-policy tables have grants only for `service_role`, and the callable RPCs need individual review before changing because several are intentional product APIs.
 
 ## R2 media read posture
 
-Do not assume R2 media is private.
+R2-backed media is publicly readable by object URL in the current production configuration. On 2026-10-17, an unauthenticated HEAD request to the configured `EXPO_PUBLIC_MEDIA_BASE_URL` for a current stored post image returned HTTP 200 with an image content type.
 
-The mobile app constructs read URLs from `EXPO_PUBLIC_MEDIA_BASE_URL` plus stored object keys. The repository contains Supabase Edge Functions for upload and deletion, but no Cloudflare Worker source, route configuration, bucket public-access setting, signed-read logic, or R2 custom-domain access policy.
+The mobile app constructs read URLs from the public base URL plus stored object keys. The repository contains Supabase Edge Functions for upload and deletion, but no Cloudflare Worker source, route configuration, bucket public-access setting, signed-read logic, or R2 custom-domain access policy. Upload and deletion authorization does not make reads private.
 
-Because Cloudflare configuration and Worker code are not available in this repository or the connected tools, R2 read privacy is blocked pending Cloudflare dashboard or Worker source access. Until that is reviewed, ordinary media should be treated as potentially public-by-URL.
-
-Minimum Cloudflare checks before claiming media privacy:
+Required Cloudflare work before claiming media privacy:
 
 - confirm whether the R2 bucket has public access enabled;
 - identify the `EXPO_PUBLIC_MEDIA_BASE_URL` production origin;
 - inspect the Worker or custom-domain route serving that origin;
 - verify whether reads require signed URLs, authenticated cookies, object-key secrecy only, or no authorization;
-- test direct reads for another user's known object key from a logged-out browser.
+- retest direct reads for another user's known object key from a logged-out browser and require denial or a short-lived authorization mechanism.
 
 ## Code fixes in this phase
 
@@ -48,17 +47,33 @@ Minimum Cloudflare checks before claiming media privacy:
 - Login and registration now include Google sign-in entry points using Supabase OAuth with `prompt=select_account`.
 - Google sign-in is hidden unless `EXPO_PUBLIC_GOOGLE_AUTH_ENABLED=true`, allowing the code to ship before provider setup without exposing a broken button.
 - The Google flow relies on Supabase automatic identity linking for matching verified emails. It does not call manual linking from the mobile client.
-- Password creation and reset now enforce the same app-side policy: at least 8 characters with at least one letter and one number.
+- Password creation and reset now enforce the same app-side policy: at least 8 characters with uppercase, lowercase, a number, and a symbol.
 - Local Supabase config now reflects the intended hosted Auth settings: email confirmation enabled, secure password change enabled, 60-second email send frequency, Google OAuth placeholders, and TOTP MFA enabled.
+
+## Account moderation enforcement
+
+Migration `20261014133730_add_account_moderation_enforcement.sql` adds the following server-side controls:
+
+- current account states: active, warned, restricted, suspended, and banned;
+- a service-role-only RPC that changes state and appends the matching admin audit record in the same database transaction;
+- database triggers that reject writes by restricted, suspended, and banned accounts on user-generated content and organization-management tables;
+- restrictive Storage policies that reject object insertion, replacement, and deletion by those accounts while preserving read behavior;
+- report-time snapshots of post, comment, or profile evidence, with a clearly marked best-effort backfill for older reports;
+- mobile warning/restriction messaging and suspended/banned account gates;
+- account-state checks in both Cloudflare R2 upload/deletion Edge Functions and suppression of push delivery to suspended or banned recipients.
+
+Reports, user blocks, and feedback are deliberately excluded from the write-block triggers, although their existing RLS still applies. Suspended and banned users receive an external support contact in the mobile gate. The migration does not add automated text or image classification. Evidence snapshots preserve text and media object paths, but they do not copy R2 image bytes into an immutable evidence bucket.
+
+The canonical migration and matching Edge Functions were deployed on 2026-10-17. The post-deployment checks confirmed five evidence backfills, 14 protected write tables, three restrictive Storage policies, authenticated denial for report evidence and the moderation RPC, and service-role access for the admin panel. No migration-history override was used.
 
 ## Verification and dependency follow-up
 
 - `npm run typecheck` passes.
 - `npm run lint` passes.
 - `git diff --check` passes.
-- Expo Doctor passes 20 of 21 checks. Its only finding is that 17 Expo SDK 57 packages are behind their current SDK 57 patch versions.
-- A production-dependency `npm audit` reports 28 inherited advisories: 3 moderate, 24 high, and 1 critical. Several have non-breaking transitive fixes, while others propose breaking Expo or Expo Router changes. Dependency upgrades are intentionally not mixed into this auth/media change and should be handled in a separate tested update.
-- Email confirmation and Google OAuth still require physical-device testing after the dashboard configuration below is complete. No production Auth or Cloudflare setting was changed by this branch.
+- Expo Doctor passes all 21 checks after aligning Expo SDK 57 packages to their current compatible patch versions.
+- A production-dependency `npm audit` reports 22 inherited advisories: 3 moderate, 19 high, and no critical findings. The offered automatic fixes require incompatible Expo/React Native downgrades or an Expo Router SDK 58 upgrade, so no forced audit fix was applied.
+- Google sign-in has been user-tested and is the primary signup path. Email/password confirmation and recovery continue to depend on Supabase's shared sender unless optional custom SMTP is configured; this delivery limitation is accepted for the current zero-cost release.
 
 ## Manual cloud configuration
 
@@ -71,18 +86,18 @@ These steps require project-owner dashboard access and must not be claimed as de
      - `varta://reset-password`
      - any exact Expo development/preview callback URLs used for testing.
 
-2. Supabase Email provider:
+2. Supabase Email provider (optional for the current Google-first release):
    - Enable email confirmations.
+   - The shared Supabase sender has low limits and is not a dependable high-volume production delivery path. Configure custom SMTP only if reliable email/password onboarding becomes a release requirement.
    - Keep OTP expiry at 3600 seconds or lower.
    - Set resend frequency to at least 60 seconds.
    - Enable secure password change.
    - Set minimum password length to 8.
-   - Set password requirements to at least `letters_digits`.
+   - Set password requirements to `lower_upper_letters_digits_symbols`.
    - Leaked-password protection cannot be enabled without a paid Supabase plan.
 
 3. Supabase Google provider:
-   - Enable Google provider.
-   - Add the Google OAuth client ID and secret in the Supabase dashboard.
+   - Google is enabled; keep its OAuth client ID and secret in the Supabase dashboard.
    - In Google Cloud Console, add Supabase's callback URL:
      - `https://pbwlkdxukrbdvjfupewu.supabase.co/auth/v1/callback`
    - After device testing succeeds, build the app with `EXPO_PUBLIC_GOOGLE_AUTH_ENABLED=true`.
