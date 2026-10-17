@@ -4,11 +4,12 @@ The mobile and admin applications share one Supabase project. The authoritative 
 
 ## Verified state on 2026-10-17
 
-- The canonical campus directory contains 61 migrations.
-- The linked hosted ledger contains all 61 canonical versions through `20261014133730_add_account_moderation_enforcement`.
+- The canonical campus directory contains 62 migrations.
+- The linked hosted ledger contains all 62 canonical versions through `20261017104000_fix_account_moderation_target_check`.
 - The historical admin foundation migrations `20260825115552` and `20260825133630` are now present in both the canonical history and hosted ledger.
 - The October 5 hardening migrations and the organization-owner role-management migration are applied remotely.
 - The account-moderation migration was applied on 2026-10-17 after a linked dry run proposed exactly that one file.
+- The first live moderation request exposed a `permission denied for table users` error because the service-role RPC checked `auth.users`. The forward-only corrective migration now checks the target student in `public.profiles` without widening access to the Auth schema.
 - The five existing reports were backfilled into `report_evidence`; no account moderation rows were created automatically.
 - The matching `create-media-upload` v25, `delete-media-object` v8, and `send-notification-push` v27 Edge Functions are active.
 
@@ -24,6 +25,7 @@ The production rollout completed in this order:
 4. Verified the enum, RLS, column grants, service-role-only RPC, three restrictive Storage policies, report/evidence triggers, and write enforcement on all 14 intended tables.
 5. Deployed and smoke-tested the three Edge Functions. Unauthenticated requests are denied.
 6. Deployed the reviewed admin panel through its production Git integration.
+7. Applied `20261017104000_fix_account_moderation_target_check.sql` after a one-file dry run, then completed a service-role RPC smoke test inside an explicit rolled-back transaction. No moderation or audit rows were retained by that test.
 
 Physical-device validation of warn/restrict/suspend/ban/expiry/restore behavior remains part of the Android 1.0.6 release test.
 

@@ -14,7 +14,7 @@ This note records the Phase 1 audit for content publishing, media handling, RLS,
 ## Live audit findings
 
 - The hosted Supabase project is active and healthy on Postgres 17.
-- The hosted migration ledger contains all 61 canonical migrations through `20261014133730_add_account_moderation_enforcement`. See `supabase-migration-reconciliation.md` for the verified rollout record.
+- The hosted migration ledger contains all 62 canonical migrations through `20261017104000_fix_account_moderation_target_check`. See `supabase-migration-reconciliation.md` for the verified rollout record.
 - The hosted public app tables listed by Supabase have RLS enabled.
 - Supabase Storage buckets `avatars`, `event-media`, `organization-media`, `post-media`, and `verification-documents` are private buckets with image MIME limits configured.
 - `create-media-upload` v25, `delete-media-object` v8, and `send-notification-push` v27 are active hosted Edge Functions.
@@ -64,7 +64,7 @@ Migration `20261014133730_add_account_moderation_enforcement.sql` adds the follo
 
 Reports, user blocks, and feedback are deliberately excluded from the write-block triggers, although their existing RLS still applies. Suspended and banned users receive an external support contact in the mobile gate. The migration does not add automated text or image classification. Evidence snapshots preserve text and media object paths, but they do not copy R2 image bytes into an immutable evidence bucket.
 
-The canonical migration and matching Edge Functions were deployed on 2026-10-17. The post-deployment checks confirmed five evidence backfills, 14 protected write tables, three restrictive Storage policies, authenticated denial for report evidence and the moderation RPC, and service-role access for the admin panel. No migration-history override was used.
+The canonical migration and matching Edge Functions were deployed on 2026-10-17. The post-deployment checks confirmed five evidence backfills, 14 protected write tables, three restrictive Storage policies, authenticated denial for report evidence and the moderation RPC, and service-role access for the admin panel. A forward-only corrective migration changed the RPC target check from unreadable `auth.users` to `public.profiles`; a service-role call completed inside an explicit rolled-back transaction with no retained moderation or audit rows. No migration-history override was used.
 
 ## Verification and dependency follow-up
 
